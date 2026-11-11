@@ -23,7 +23,7 @@ The same steps with `right_foot`, `right_upper_hip` and IDs 12, 11, 10, 9, 8, 7 
 ## Torso
 
 Mount both legs on `body`, fit the BNO055 in `IMU_tray` (orientation:
-[04 Electronics](04_electronics.md#4-imu)), and route the servo cables up each leg to the body.
+[05 Electronics](05_electronics.md#4-imu)), and route the servo cables up each leg to the body.
 
 ## Check
 

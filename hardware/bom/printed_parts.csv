@@ -8,3 +8,23 @@ left_upper_hip.stl,1,PLA,
 right_upper_hip.stl,1,PLA,
 left_foot.stl,1,PLA,
 right_foot.stl,1,PLA,
+chest_frame.stl,1,PLA/PETG,Chest: holds the two shoulder servos; bolts to the torso shelf
+head.stl,1,PLA/PETG,Halo head with the sensor plate
+head_visor.stl,1,PLA (dark) or 1.5 mm tinted acrylic,Face disc; press fit
+l_shoulder_bracket.stl,1,PLA/PETG,
+r_shoulder_bracket.stl,1,PLA/PETG,
+l_upper_arm.stl,1,PLA/PETG,Fork: print on its side
+r_upper_arm.stl,1,PLA/PETG,Fork: print on its side
+l_elbow_link.stl,1,PLA/PETG,
+r_elbow_link.stl,1,PLA/PETG,
+l_forearm.stl,1,PLA/PETG,Fork + shell: print on its side
+r_forearm.stl,1,PLA/PETG,Fork + shell: print on its side
+l_claw_base.stl,1,PLA/PETG,Print on its back
+r_claw_base.stl,1,PLA/PETG,Print on its back
+l_claw_jaw.stl,1,PLA/PETG,100 % infill
+r_claw_jaw.stl,1,PLA/PETG,100 % infill
+l_roll_idler_cap.stl,1,PLA/PETG,100 % infill
+r_roll_idler_cap.stl,1,PLA/PETG,100 % infill
+l_elbow_idler_cap.stl,1,PLA/PETG,100 % infill
+r_elbow_idler_cap.stl,1,PLA/PETG,100 % infill
+drill_template.stl,1,PLA,Marks the 4 holes in the torso shelf for the chest; not part of the robot

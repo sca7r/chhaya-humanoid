@@ -121,7 +121,7 @@ class BipedEnv(DirectRLEnv):
         # physx_cache.py). The reset-time DR and Isaac Lab's body_com_pose_b re-read them ~every step.
         self.physx_property_cache = PhysxPropertyCache(self.robot.root_physx_view)
 
-        # Policy joints vs arm joints (robot with the upper body). Legs-only robot: _pj is None and
+        # Policy joints vs arm joints (Chhaya). Legs-only robot: _pj is None and
         # every _pjsel/_pjrows below is the identity, so behaviour is unchanged bit for bit.
         self._setup_policy_joints()
 
@@ -633,7 +633,7 @@ class BipedEnv(DirectRLEnv):
         else:
             self.targets = raw_targets
 
-        # Arm targets (robot with the upper body): one control step of the arm motion generator.
+        # Arm targets (Chhaya): one control step of the arm motion generator.
         if self.arm_motion is not None:
             self.arm_motion.step(self.step_dt, self.gait_phase)
 

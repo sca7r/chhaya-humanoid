@@ -110,9 +110,9 @@ class EnvConfig(BaseModel):
     events: Optional[Dict[str, Any]] = None
     # MuJoCo eval/gate env: sliding friction of every geom (MuJoCo combines contacts by max). None = the MJCF values (1.0).
     mujoco_ground_friction: Optional[float] = None
-    # Robot with the upper body (arms + ring head). {enabled, arm_motion{...}, mass_scale_range, mujoco_arm_mode};
-    # see src/isaaclab/env_config.py:_apply_upper_body and docs/upper_body/UPPER_BODY.md. None/absent = legs-only robot.
-    upper_body: Optional[Dict[str, Any]] = None
+    # Chhaya's arms. {enabled, arm_motion{...}, mass_scale_range, mujoco_arm_mode};
+    # see src/isaaclab/env_config.py:_apply_arms and docs/TRAINING.md. None/absent = legs-only robot.
+    arms: Optional[Dict[str, Any]] = None
     
     # Noise
     # Per-channel observation noise std. Keys must match biped_env_cfg.observation_noise_std;

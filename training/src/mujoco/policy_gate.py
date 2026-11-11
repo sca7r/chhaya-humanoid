@@ -245,7 +245,7 @@ def leg_sides(model):
     stem = [""] * model.nbody
     for b in range(model.nbody):
         n = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, b) or ""
-        if _ARM_BODY_RE.fullmatch(n):          # upper-body robot: arm links are not leg links
+        if _ARM_BODY_RE.fullmatch(n):          # Chhaya: arm links are not leg links
             continue
         if n.startswith("l_"):
             side[b], stem[b] = 0, n[2:]

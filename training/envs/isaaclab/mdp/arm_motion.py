@@ -1,5 +1,5 @@
 """
-Arm targets for the robot with the upper body, while a LEGS-ONLY policy walks.
+Arm targets for Chhaya, while a LEGS-ONLY policy walks.
 
 The walking policy neither sees nor commands the 8 arm joints. They are servo-driven (same BAM
 model as the legs) toward targets produced here, so that during training the policy meets every

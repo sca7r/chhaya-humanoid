@@ -1,18 +1,15 @@
-# BipedRobotHardware
+# Chhaya hardware
 
-**Open hardware for a small 12-servo biped that learns to walk in simulation.**
+**Open hardware for a small 20-servo humanoid that learns to walk in simulation.**
 CAD, print files, bill of materials, power PCB, robot description (URDF) and build guide.
 
 <p align="center">
-  <img src="media/robot.jpeg" alt="Sir Servington" width="35%"/>
+  <img src="media/chhaya/overview.png" alt="Chhaya" width="90%"/>
 </p>
 
-<!-- TODO: hero GIF of Sir Servington walking (media/walking.gif) -->
-
-| Software | |
-|---|---|
-| [BipedRobot](https://github.com/AsterisCrack/BipedRobot) | Training (Isaac Lab + MuJoCo), servo model, policy export |
-| [BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson) | On-robot runtime: servo bus, IMU, web UI, policy loop |
+The picture is a render of the model: Chhaya has not been built yet. The legs, hips, torso and
+electronics are the Sir Servington design (photo: [`media/robot.jpeg`](media/robot.jpeg)), which
+has been built and walks. See [`../NOTICE.md`](../NOTICE.md).
 
 ---
 
@@ -20,16 +17,17 @@ CAD, print files, bill of materials, power PCB, robot description (URDF) and bui
 
 | | |
 |---|---|
-| Height | About 38 cm with the legs straight |
-| Mass | 1.66 kg in the CAD model |
-| Degrees of freedom | 12 (per leg: hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch) |
-| Actuators | 12× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud |
+| Height | About 52 cm standing |
+| Mass | 2.39 kg in the model |
+| Degrees of freedom | 20: per leg hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch; per arm shoulder pitch, shoulder roll, arm yaw, elbow |
+| Actuators | 20× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud; 2 micro servos for the claws |
+| Hands | One-servo claws on a standard wrist plate |
+| Head | Halo head with a drilled plate for a camera and small boards |
 | Compute | NVIDIA Jetson Orin Nano Super, 50 Hz control loop (a Raspberry Pi 5 also works, see [Cost](#cost)) |
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
-| Structure | 14 printed parts, PLA, printed on a stock Ender-3 V2 |
-| Fasteners | Only the screws that come with the servos |
-| Cost | Under $500 with a Raspberry Pi 5 (≈ $418 with the 2 GB model); ≈ $730 with the Jetson. Prices checked October 2026 |
+| Structure | 35 printed parts, PLA or PETG |
+| Cost | ≈ $610 with a Raspberry Pi 5 (2 GB); ≈ $910 with the Jetson. Cheaper options in [`../docs/BUDGET_ELECTRONICS.md`](../docs/BUDGET_ELECTRONICS.md) |
 
 ---
 
@@ -39,14 +37,14 @@ CAD, print files, bill of materials, power PCB, robot description (URDF) and bui
 |---|---|
 | See what to buy and what it costs | [`bom/`](bom/) |
 | Print the parts | [`print/`](print/) |
-| Modify the design | [`cad/`](cad/) (STEP for any CAD tool, Fusion 360 archive in the release) |
+| Understand or modify the design | [`docs/design.md`](docs/design.md), [`cad/`](cad/) (STEP for any CAD tool; parametric source for the chest, head and arms) |
 | Order or build the power board | [`electronics/power_pcb/`](electronics/power_pcb/) |
 | Wire it | [`electronics/wiring/`](electronics/wiring/) |
 | Build it | [`docs/build/`](docs/build/) |
 | Simulate it | [`robot_description/`](robot_description/) (URDF + meshes) |
 
-The [latest release](https://github.com/AsterisCrack/BipedRobotHardware/releases/latest) has the STLs,
-the gerbers and the Fusion 360 archive as downloads, so you don't need to clone the repo.
+The Fusion 360 archive of the legs and the gerbers are downloads on the
+[Sir Servington release page](https://github.com/AsterisCrack/BipedRobotHardware/releases/latest).
 
 ---
 
@@ -54,26 +52,27 @@ the gerbers and the Fusion 360 archive as downloads, so you don't need to clone 
 
 | Part | Cost (USD) |
 |---|---|
-| 12× Waveshare ST3215 servos | 263.88 |
+| 20× Waveshare ST3215 servos | 439.80 |
+| 2× micro servos for the claws (estimate) | 6.00 |
 | BNO055 IMU | 17.00 |
 | Power PCB | 25.00 |
 | Waveshare Bus Servo Adapter (A) | 4.99 |
 | 3S 2200 mAh LiPo | 20.00 |
-| **Robot without a computer** | **330.87** |
+| **Robot without a computer** | **512.79** |
 
 | With... | Total (USD) |
 |---|---|
-| Raspberry Pi 5, 2 GB + 12 V → 5 V USB-C step-down | **≈ 418** |
-| Raspberry Pi 5, 4 GB + 12 V → 5 V USB-C step-down | **≈ 451** |
-| NVIDIA Jetson Orin Nano Super (reference robot) | **≈ 730** |
+| Raspberry Pi 5, 2 GB + 12 V → 5 V USB-C step-down | **≈ 610** |
+| Raspberry Pi 5, 4 GB + 12 V → 5 V USB-C step-down | **≈ 643** |
+| NVIDIA Jetson Orin Nano Super | **≈ 912** |
 
-The policy is a small network that runs on the CPU, so a **Raspberry Pi 5 can replace the Jetson** and keeps the
-robot under $500. The Jetson costs $399 at NVIDIA's list price since July 2026 (it launched at $249). The
-reference robot runs on the Jetson; the Pi setup (power, wiring, two config changes) is in
-[`bom/README.md`](bom/README.md#raspberry-pi-instead-of-the-jetson) and hasn't been tested on the robot yet.
+The policy is a small network that runs on the CPU, so a **Raspberry Pi 5 can replace the Jetson**.
+The Pi setup (power, wiring, two config changes) is in
+[`bom/README.md`](bom/README.md#raspberry-pi-instead-of-the-jetson) and hasn't been tested on a robot yet.
+The legs alone (12 servos, no arms) come to ≈ $331 without a computer.
 
 Prices were checked in October 2026; details and links are in [`bom/`](bom/). Not in the prices: the microSD
-card, about 0.5 kg of PLA and small parts (wires, switch, leads, fuses). Tools: a 3D printer, a soldering
+card, about 0.7 kg of filament, small parts (wires, switch, leads, fuses) and the M2/M3 screws for the arms. Tools: a 3D printer, a soldering
 iron and a LiPo balance charger.
 
 ---
@@ -82,21 +81,23 @@ iron and a LiPo balance charger.
 
 ```
 cad/
-├── step/              Assembly (zipped) + one STEP per printed part
-└── fusion/            Fusion 360 archive (download from the release)
+├── step/              One STEP per printed part; the legs-and-torso assembly (zipped)
+├── fusion/            Fusion 360 archive of the legs (download from the release)
+└── parametric/        CadQuery source of the chest, head, arms and claws + check results
 print/stl/             One STL per printed part, with print notes in print/README.md
-robot_description/     URDF + meshes (ROS package "Robot_description")
+robot_description/     URDF + meshes: chhaya.urdf is the whole robot (ROS package "Robot_description")
 electronics/
 ├── Schematic_RobotPCB.pdf
 ├── power_pcb/         Power PCB: EasyEDA source, gerbers, BOM, pick-and-place, render
 └── wiring/            Servo ID map, Jetson pinout, IMU mounting
 bom/                   Purchased parts and printed parts (CSV)
+docs/design.md         Mechanical design: interfaces, strength, clearances, kinematics
 docs/build/            Build guide
-media/                 Photos
+tools/, regenerate.sh  Rebuild and check everything generated from the parametric CAD
+media/                 Photos and renders
 ```
 
-The software repos include this one as a git submodule (`robot_hardware/`), so the robot description
-used for training and on the robot is always the one in this repo.
+The training code reads the robot description from here through `training/robot_hardware`.
 
 ---
 
@@ -106,7 +107,9 @@ used for training and on the robot is always the one in this repo.
   <img src="media/pcbway.png" alt="PCBWay logo" height="40"/>
 </p>
 
-- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board.
+- The legs, hips, torso, electronics and their documentation are
+  [Sir Servington](https://github.com/AsterisCrack/BipedRobotHardware) by Pablo Gomez Martinez.
+- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board for the original project.
 - The servo model used in simulation builds on Rhoban's [BAM](https://github.com/Rhoban/bam).
 - The URDF was exported from Fusion 360 with [fusion2urdf](https://github.com/syuntoku14/fusion2urdf)
   (MIT, see [`robot_description/LICENSE-fusion2urdf`](robot_description/LICENSE-fusion2urdf)).

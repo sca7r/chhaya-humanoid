@@ -1,43 +1,39 @@
 # Chhaya
 
-A small 3D-printed humanoid robot: about 0.52 m tall, 2.4 kg, 20 joints. It walks with a
-reinforcement-learning policy trained in simulation.
+A small 3D-printed humanoid robot: about 0.52 m tall, 2.4 kg, 20 servo joints, claws for hands
+and a head built to carry sensors. It learns to walk with reinforcement learning in simulation.
 
-![Chhaya](docs/chhaya.png)
-
-Chhaya stands on the shoulders of [Sir Servington](https://github.com/AsterisCrack/BipedRobot), the
-open-source biped by Pablo Gomez Martinez. The legs, electronics, servo model and training stack
-are his. Chhaya adds the upper body: two arms with claws, an open chest and a head for sensors.
-Credits and licences are in [NOTICE.md](NOTICE.md).
+![Chhaya](hardware/media/chhaya/overview.png)
 
 | | |
 |---|---|
-| Joints | 12 leg (Sir Servington's) + 8 arm: shoulder pitch, shoulder roll, arm yaw, elbow per side |
-| Servos | 20x Feetech STS3215 (12 V bus servos), plus 2 micro servos for the claws |
+| Joints | 20: six per leg (hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch), four per arm (shoulder pitch, shoulder roll, arm yaw, elbow) |
+| Servos | 20x Feetech/Waveshare STS3215 (12 V bus servos), plus 2 micro servos for the claws |
 | Hands | one-servo claws on a standard wrist plate (swap for any tool with 4 screws) |
 | Head | halo: a face disc in a hoop, with a drilled plate behind it for a camera and small boards |
-| Mass | 2.39 kg (upper body 731 g, of which 507 g is servos) |
-| Policy | legs only; the arms follow scripted motion, so the policy that walks the 12-servo biped also walks Chhaya |
-| Printed parts | 20 for the upper body, every one checked for clearance (≥ 1 mm) and strength (safety factor ≥ 3) |
+| Mass | 2.39 kg |
+| Control | a learned policy drives the legs at 50 Hz; the arms and claws follow scripted motion |
+| Structure | 35 printed parts; the servos themselves are the frame |
+| Compute | Raspberry Pi 5 or Jetson Orin Nano |
 
 ## Status
 
 | | |
 |---|---|
-| Upper-body CAD, STL, STEP, URDF | done; passes the interference, clearance and strength checks |
-| MuJoCo model and physics checks | done; all pass |
-| Isaac Lab integration | written and statically checked, **not yet run** (needs an RTX GPU): start with the smoke test in the GPU runbook |
-| Walking policy for Chhaya | not trained yet |
-| Physical build | not built yet. Verify the servo hole patterns on one test print first (`hardware/upper_body/README.md`) |
+| CAD, print files, URDF | done. The chest, head, arms and claws pass the automatic overlap, clearance (≥ 1 mm) and strength (safety factor ≥ 3) checks |
+| MuJoCo model and physics checks | done; all pass ([docs/physics/PHYSICS.md](docs/physics/PHYSICS.md)) |
+| Isaac Lab training setup | written and statically checked, **not yet run** (needs an RTX GPU): start with the smoke test in the GPU runbook |
+| Walking policy | not trained yet |
+| Physical build | not built yet. The legs and electronics are a design that has been built and walks (see Credits); the arms, claws and head are new and unbuilt |
+| On-robot software for the arms | not written yet (the runtime drives the 12 leg servos) |
 
 ## Layout
 
 ```
-hardware/                 Sir Servington's hardware: CAD, print files, electronics, robot description
-hardware/upper_body/      Chhaya's upper body: CAD source, STL/STEP, check tools, renders, README
-training/                 Sir Servington's training code (Isaac Lab, MuJoCo) with upper-body support
-training/docs/upper_body/ how the arms are trained, the GPU runbook, the handoff notes
-docs/                     pictures and notes for the whole robot
+hardware/     everything physical: CAD, print files, parts lists, electronics, robot description,
+              design notes, build guide, and the tools that regenerate and check the generated parts
+training/     the reinforcement-learning code: Isaac Lab training, MuJoCo evaluation, servo model
+docs/         how training works, the GPU runbook, handoff notes, physics results, budget electronics
 ```
 
 ## Quick start
@@ -48,34 +44,37 @@ cd chhaya/training
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm
 (cd robot_motion_reference && python -m gait_studio.bake)
-pytest tests/test_arm_motion.py tests/test_upper_body_mujoco.py    # 11 pass, no GPU needed
-python -m upper_body.physics_check --out /tmp/phys                 # stands, holds poses, survives a fall
+pytest tests/test_arm_motion.py tests/test_chhaya_mujoco.py    # 11 pass, no GPU needed
+python -m chhaya.physics_check --out /tmp/phys                 # stands, holds poses, survives a fall
 ```
 
-- **Print the upper body:** `hardware/upper_body/README.md` (parts, orientations, hardware list, assembly order).
-  The STL files are in `hardware/upper_body/cad/out/sts3215/stl/`.
-- **Build the legs and electronics:** `hardware/README.md` (the original guide). A cheaper
-  electronics option is in [docs/BUDGET_ELECTRONICS.md](docs/BUDGET_ELECTRONICS.md).
-- **Train the policy:** `training/docs/upper_body/GPU_RUNBOOK.md`.
-- **Change the design:** edit `hardware/upper_body/cad/upper_body.py`, then run
-  `hardware/upper_body/regenerate.sh`. It rebuilds every file and refuses to finish if any part
-  overlaps, any moving gap is under 1 mm or any safety factor is under 3.
+| I want to... | Go to |
+|---|---|
+| See what to buy and what it costs | [`hardware/bom/`](hardware/bom/), cheaper options in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md) |
+| Print the parts | [`hardware/print/`](hardware/print/) |
+| Build it | [`hardware/docs/build/`](hardware/docs/build/) |
+| Understand or change the mechanical design | [`hardware/docs/design.md`](hardware/docs/design.md) |
+| Simulate it | [`hardware/robot_description/urdf/chhaya.urdf`](hardware/robot_description/), `training/envs/assets/robotV2/chhaya.xml` (MuJoCo), `chhaya.usd` (Isaac Lab) |
+| Train the walking policy | [`docs/TRAINING.md`](docs/TRAINING.md), [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) |
+| Pick up the project where it stands | [`docs/HANDOFF.md`](docs/HANDOFF.md) |
 
 ## Design in brief
 
 - **The servos are the structure.** Printed parts are thin plates and forks screwed to the servos'
-  own mounting holes, as on the legs. No cosmetic covers.
+  own mounting holes. No cosmetic covers.
 - **Plug and play.** The head (4 screws on the neck flange), the claws (4 screws on the wrist
-  plate), the face disc and every bracket come off without disturbing their neighbours. Hole
-  patterns are in `hardware/upper_body/README.md`, so your own parts fit.
-- **Checked, not assumed.** Clearance is measured through every joint's full range. Strength is
-  calculated on real cross-sections cut from the CAD, against a fall onto a hand, the head and the
-  chest.
+  plate), the face disc and every bracket come off without disturbing their neighbours. The hole
+  patterns are documented, so your own parts fit.
+- **Checked, not assumed.** Clearance is measured through every arm joint's full range. Strength
+  is calculated on real cross-sections cut from the CAD, against a fall onto a hand, the head and
+  the chest. Changing a dimension reruns all of it (`hardware/regenerate.sh`).
 - **What it can do:** walk, gesture, hold light objects (the claws grip with about 5 N). It is not
   strong enough for housework.
 
-## Licence
+## Credits and licence
 
-`training/` is MIT. `hardware/` is CERN-OHL-P-2.0. Both come from Sir Servington and both
-permit this reuse; the new work follows the licence of the directory it is in. See
-[NOTICE.md](NOTICE.md).
+Chhaya derives from [Sir Servington](https://github.com/AsterisCrack/BipedRobot), the open-source
+12-servo biped by Pablo Gomez Martinez: the legs, hips, torso, electronics, servo model and
+training stack are his design. `training/` is MIT and `hardware/` is CERN-OHL-P-2.0, as in the
+original, and new work follows the licence of the directory it is in. Details, source commits and
+the list of changes are in [NOTICE.md](NOTICE.md).

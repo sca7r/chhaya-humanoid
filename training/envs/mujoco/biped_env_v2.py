@@ -118,11 +118,11 @@ _XML_DEFAULT = os.path.join(
     os.path.dirname(__file__),
     "../../envs/assets/robotV2/robot_v2.xml",
 )
-# Robot with the upper body (env_config.upper_body.enabled): same legs, plus 8 servo-driven arm joints
-# that follow a scripted motion (upper_body/motions.py). The policy interface is unchanged (12 legs).
-_XML_UPPER = os.path.join(
+# Chhaya (env_config.arms.enabled): same legs, plus 8 servo-driven arm joints
+# that follow a scripted motion (chhaya/motions.py). The policy interface is unchanged (12 legs).
+_XML_CHHAYA = os.path.join(
     os.path.dirname(__file__),
-    "../../envs/assets/robotV2/robot_v2_upper_sts3215.xml",
+    "../../envs/assets/robotV2/chhaya.xml",
 )
 
 class _GlobalRng:
@@ -221,12 +221,12 @@ class BipedEnvV2(BaseEnv):
         seed: int | None = None,
     ):
         self.config = env_config or NoConfig()
-        ub = _cfg_get(self.config, "upper_body") or {}
+        ub = _cfg_get(self.config, "arms") or {}
         if hasattr(ub, "model_dump"):
             ub = ub.model_dump()
-        self._upper = dict(ub) if ub and dict(ub).get("enabled", False) else None
-        if self._upper is not None and xml_path == _XML_DEFAULT:
-            xml_path = _XML_UPPER
+        self._arms_cfg = dict(ub) if ub and dict(ub).get("enabled", False) else None
+        if self._arms_cfg is not None and xml_path == _XML_DEFAULT:
+            xml_path = _XML_CHHAYA
         if not os.path.exists(xml_path):
             raise FileNotFoundError(
                 f"V2 robot XML not found at {xml_path}.\n"
@@ -542,14 +542,14 @@ class BipedEnvV2(BaseEnv):
                 self._imu_buf.append(seed.copy())
 
     # ------------------------------------------------------------------
-    # Upper body: arms driven by the same BAM servo model, toward scripted targets
+    # Arms: driven by the same BAM servo model, toward scripted targets
     # ------------------------------------------------------------------
     def _init_arms(self, params, act_cfg) -> None:
         self._arm_ids = None
-        if self._upper is None:
+        if self._arms_cfg is None:
             return
-        from upper_body.model import ARM_JOINTS
-        from upper_body import motions
+        from chhaya.model import ARM_JOINTS
+        from chhaya import motions
         self._motions = motions
         self._arm_names = list(ARM_JOINTS)
         self._arm_ids = np.array([int(self.model.joint(n).qposadr) for n in self._arm_names], dtype=int)
@@ -567,9 +567,9 @@ class BipedEnvV2(BaseEnv):
         self._arm_rhs = np.zeros((len(self._arm_names), self.model.nv))
         self._arm_rhs[np.arange(len(self._arm_names)), self._arm_dofs] = 1.0
         self._arm_minv = np.zeros_like(self._arm_rhs)
-        self._arm_mode = str(self._upper.get("mujoco_arm_mode", "rest"))
+        self._arm_mode = str(self._arms_cfg.get("mujoco_arm_mode", "rest"))
         if self._arm_mode not in ("rest", "swing", "random"):
-            raise ValueError(f"upper_body.mujoco_arm_mode {self._arm_mode!r}: expected rest | swing | random")
+            raise ValueError(f"arms.mujoco_arm_mode {self._arm_mode!r}: expected rest | swing | random")
         self._arm_rest = np.array([motions.REST[n] for n in self._arm_names])
         self._arm_goal = self._arm_rest.copy()
         self._arm_rng_seed = 0

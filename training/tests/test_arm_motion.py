@@ -1,4 +1,4 @@
-"""ArmMotion (envs/isaaclab/mdp/arm_motion.py): the arm targets the upper-body robot follows while a
+"""ArmMotion (envs/isaaclab/mdp/arm_motion.py): the arm targets Chhaya follows while a
 legs-only policy walks. Pure torch, no Isaac Lab."""
 import math
 

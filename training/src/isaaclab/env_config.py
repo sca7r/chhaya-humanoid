@@ -51,7 +51,7 @@ _ACTUATOR_KEYS = {"params_file", "kp_fw", "kp_fw_range", "vin_range", "friction_
 _ACTUATOR_EXTRA_KEYS = {"deadband_counts"}       # MuJoCo / nominal value, mapped to deadband_rad below
 _BACKLASH_KEYS = {"enabled", "lash_deg_range", "impulse_cap", "mujoco_lash_deg", "encoder_side"}
 _REFERENCE_KEYS = {"npz_path", "stand_threshold", "rsi_prob", "rsi_joint_noise", "std"}
-_UPPER_BODY_KEYS = {"enabled", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
+_ARMS_KEYS = {"enabled", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
 _ARM_MOTION_KEYS = {"mode_probs", "rest_offset_rad", "swing_amp_range", "random_bandwidth_hz", "random_amplitude",
                     "hold_period_s", "max_speed_rad_s"}
 
@@ -133,7 +133,7 @@ def apply_env_config(env_cfg, env_conf, *, training: bool) -> None:
                          "a per-robot constant applied to the command path as well as the "
                          "observation -- see BipedEnv.__init__")
 
-    _apply_upper_body(env_cfg, env_conf, training=training)   # first: swaps the robot asset the rest configures
+    _apply_arms(env_cfg, env_conf, training=training)   # first: swaps the robot asset the rest configures
     _apply_joint_limits(env_cfg, env_conf)      # before the home: the residual check reads env_cfg.joint_limits
     _apply_action_home(env_cfg, env_conf)
     _apply_getup(env_cfg, env_conf, training=training)
@@ -156,26 +156,26 @@ def apply_env_config(env_cfg, env_conf, *, training: bool) -> None:
                 env_cfg.events[key].interval_range_s = tuple(val["interval_range_s"])
 
 
-def _apply_upper_body(env_cfg, env_conf, *, training: bool) -> None:
-    """env_config.upper_body {enabled: true, ...} -> the robot with arms (robot_upper.usd).
+def _apply_arms(env_cfg, env_conf, *, training: bool) -> None:
+    """env_config.arms {enabled: true, ...} -> the robot with arms (chhaya.usd).
 
     The policy stays legs-only (same 12-joint observation and action, so a legs-only checkpoint can be
     resumed and the Jetson bundle format is unchanged). The 8 arm joints get the same BAM servo model and
     follow envs/isaaclab/mdp/arm_motion.py (rest / gait-synced swing / random / hold, drawn per episode),
     so the walking policy learns to carry moving arms."""
-    ub = _as_dict(getattr(env_conf, "upper_body", None))
+    ub = _as_dict(getattr(env_conf, "arms", None))
     if not ub:
         return
-    _check_keys("upper_body", ub, _UPPER_BODY_KEYS)
+    _check_keys("arms", ub, _ARMS_KEYS)
     if not ub.get("enabled", False):
         return
     am = _as_dict(ub.get("arm_motion"))
-    _check_keys("upper_body.arm_motion", am, _ARM_MOTION_KEYS)
-    from envs.assets.robotV2.biped_robot_upper import (ARM_BODY_REGEX, ARM_JOINT_NAMES, BIPED_ROBOT_UPPER_CFG)
+    _check_keys("arms.arm_motion", am, _ARM_MOTION_KEYS)
+    from envs.assets.robotV2.chhaya_robot import (ARM_BODY_REGEX, ARM_JOINT_NAMES, CHHAYA_ROBOT_CFG)
     from utils.residual_home import POLICY_JOINT_NAMES
     old = env_cfg.scene.robot
-    env_cfg.scene.robot = BIPED_ROBOT_UPPER_CFG.replace(prim_path=old.prim_path,
-                                                        init_state=BIPED_ROBOT_UPPER_CFG.init_state.replace(
+    env_cfg.scene.robot = CHHAYA_ROBOT_CFG.replace(prim_path=old.prim_path,
+                                                        init_state=CHHAYA_ROBOT_CFG.init_state.replace(
                                                             pos=old.init_state.pos))
     env_cfg.policy_joint_names = list(POLICY_JOINT_NAMES)
     env_cfg.arm_joint_names = list(ARM_JOINT_NAMES)
@@ -271,7 +271,7 @@ def _apply_action_home(env_cfg, env_conf) -> None:
         # per type: a number, or {pos, neg} when the two sides differ (utils/residual_action.py)
         env_cfg.action_scale_rad = plain_scale_cfg(scale)
         # Same regex keys as the asset's init_state ("l_knee.*", ...), one per leg and type. Entries for other
-        # joints (the arms of the upper-body robot) are kept: replacing the whole dict reset them to 0.
+        # joints (Chhaya's arms) are kept: replacing the whole dict reset them to 0.
         robot = env_cfg.scene.robot
         # Only keys that match NO leg joint survive (a catch-all like ".*" is dropped, as before: two
         # patterns matching one joint is an error in Isaac Lab).
@@ -419,7 +419,7 @@ def describe(env_cfg) -> dict[str, Any]:
     bv = env_cfg.commands["base_velocity"]
     out = {k: bv.get(k) for k in sorted(_COMMAND_KEYS - {"ranges"})}
     out["ranges"] = dict(bv.get("ranges", {}))
-    out["upper_body"] = {"policy_joints": getattr(env_cfg, "policy_joint_names", None),
+    out["arms"] = {"policy_joints": getattr(env_cfg, "policy_joint_names", None),
                          "arm_joints": getattr(env_cfg, "arm_joint_names", []),
                          "arm_motion": getattr(env_cfg, "arm_motion", {}),
                          "usd": getattr(getattr(env_cfg.scene.robot, "spawn", None), "usd_path", None)}

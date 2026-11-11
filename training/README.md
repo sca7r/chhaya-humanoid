@@ -1,4 +1,25 @@
-# BipedRobot
+# Chhaya training
+
+The reinforcement-learning code that teaches Chhaya to walk: Isaac Lab training, MuJoCo
+evaluation, the servo model and policy export. Run everything from this folder.
+
+| For Chhaya | |
+|---|---|
+| Config | `config/chhaya.yaml` (the policy drives the 12 leg joints; the 8 arm joints follow scripted, randomised motion) |
+| Train | `python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless` |
+| How it works | [`../docs/TRAINING.md`](../docs/TRAINING.md) |
+| On a rented GPU | [`../docs/GPU_RUNBOOK.md`](../docs/GPU_RUNBOOK.md) |
+| Physics checks | `python -m chhaya.physics_check` → [`../docs/physics/PHYSICS.md`](../docs/physics/PHYSICS.md) |
+
+The rest of this page is the documentation of the stack as written by its author, Pablo Gomez
+Martinez, for the 12-servo Sir Servington biped that Chhaya derives from (see
+[`../NOTICE.md`](../NOTICE.md)). It describes the legs-only robot, which in this repository is the
+"legs-only rig" (`config/config.yaml`). Everything in it applies to Chhaya's legs unchanged; the
+photos and videos show Sir Servington.
+
+---
+
+# BipedRobot (Sir Servington): original documentation
 
 **A small and affordable 12-servo biped that learns to walk in simulation and runs the learned policy on the real robot.**
 Everything in this repo was written from scratch: the RL algorithms, the network backbones, the
@@ -316,7 +337,8 @@ BipedRobot/
 ├── tests/                   pytest suite
 ├── torch_rl_algorithms/     Submodule: RL algorithms and network backbones
 ├── robot_motion_reference/  Submodule: Gait Studio + FBX → joint-trajectory retargeting
-└── robot_hardware/          Submodule: BipedRobotHardware (URDF + meshes, CAD, BOM, PCB)
+├── chhaya/                  Chhaya: joint tables, arm motions, physics check
+└── robot_hardware/          Link to ../hardware (URDF + meshes, CAD, BOM, PCB)
 ```
 
 | Further docs | |

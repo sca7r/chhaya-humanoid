@@ -17,19 +17,27 @@ them shows exactly what Chhaya changes.
 
 Made in November 2026.
 
-- `hardware/upper_body/`: new. Arms, claws, chest and head: parametric CAD source, STEP and STL
-  files, checking tools, documentation.
-- `hardware/robot_description/`: added `urdf/Robot_upper_sts3215.urdf`, `meshes/upper_sts3215/`
-  and `upper_sts3215_mass.json`. The original files are untouched.
-- `training/`: upper-body support, off unless a config enables it. New files:
-  `config/config_upper_body.yaml`, `envs/assets/robotV2/biped_robot_upper.py`, `robot_upper.usd`,
-  `robot_v2_upper_sts3215.xml`, `envs/isaaclab/mdp/arm_motion.py`, `upper_body/`, two test files,
-  `docs/upper_body/`. Modified files: `envs/isaaclab/biped_env.py`, `envs/isaaclab/biped_env_cfg.py`,
-  `envs/mujoco/biped_env_v2.py`, `src/isaaclab/env_config.py`, `src/mujoco/policy_gate.py`,
-  `config/schema.py`, `.gitignore`.
+- `hardware/`: added the chest, head, arms and claws: parametric CAD source
+  (`cad/parametric/`), their STEP files in `cad/step/bodies/` and print files in `print/stl/`
+  (the files not present in the source commit), `tools/`, `regenerate.sh`, `docs/design.md`,
+  `docs/build/04_chest_arms_head.md`, renders in `media/chhaya/`.
+- `hardware/robot_description/`: added `urdf/chhaya.urdf`, `chhaya_mass.json` and the meshes of
+  the generated links (`chest_link*`, `*_shoulder_link*`, `*_upper_arm_link*`, `*_elbow_link*`,
+  `*_forearm_link*`). The original URDF and meshes are untouched.
+- `hardware/README.md`, `bom/`, `cad/README.md`, `print/README.md`, `robot_description/README.md`,
+  `docs/build/` (steps renumbered so the chest, arms and head follow the legs): edited to describe
+  the whole robot (20 servos, added parts and costs).
+- `training/`: support for the arms. New files: `config/chhaya.yaml`,
+  `envs/assets/robotV2/chhaya_robot.py`, `chhaya.usd`, `chhaya.xml`,
+  `envs/isaaclab/mdp/arm_motion.py`, `chhaya/`, `tests/test_arm_motion.py`,
+  `tests/test_chhaya_mujoco.py`. Modified files: `envs/isaaclab/biped_env.py`,
+  `envs/isaaclab/biped_env_cfg.py`, `envs/mujoco/biped_env_v2.py`, `src/isaaclab/env_config.py`,
+  `src/mujoco/policy_gate.py`, `config/schema.py`, `.gitignore`. Without an `arms` block in the
+  config the code behaves as the original.
 - `training/robot_hardware` is a link to `../hardware` instead of a submodule.
+- `docs/` at the repository root is new.
 
-The legs, electronics and their documentation are the original design.
+The legs, hips, torso, electronics, servo model and training method are the original design.
 
 ## Licence of the new work
 

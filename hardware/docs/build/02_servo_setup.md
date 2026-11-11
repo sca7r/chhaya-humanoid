@@ -3,7 +3,7 @@
 Do this **before** mounting any servo in the structure. A servo with the wrong ID or a horn on the wrong
 spline is the most common cause of a robot that moves wrongly, and it is hard to fix once the leg is closed.
 
-Everything here uses BipedRobotJetson's web UI. Install it on the Jetson first (step 05, "Install"), or run it
+Everything here uses BipedRobotJetson's web UI. Install it on the Jetson first (step 06, "Install"), or run it
 on a PC with a USB-to-SCS adapter (`UART_PORT=/dev/ttyUSB0`).
 
 ## 1. Set the IDs
@@ -38,7 +38,7 @@ The software works in two angle spaces:
 The policy, the poses and the UI sliders use logical space, so `default_position_deg` must be right for
 every joint or every observation and command is shifted.
 
-Once the robot is assembled (after step 04):
+Once the robot is assembled (after step 05):
 
 1. Disable all torques and hold the robot by hand in its standing pose.
 2. **Direction.** Robot tab → Config panel: toggle each joint's sign until the slider moves the real joint
@@ -46,7 +46,7 @@ Once the robot is assembled (after step 04):
 3. **Zero.** Debug tab → *Set Current As Zero (config)* writes `zero_offset_steps` to `config/robot.yaml`.
 4. **Standing offset.** With the robot in the pose you want as logical zero, click **Set Here** per joint,
    then **Print Config**, and copy the servo entries into `config/robot.yaml`.
-5. Restart and run the self-test (step 05).
+5. Restart and run the self-test (step 06).
 
 Repeat the calibration whenever you reseat a horn.
 
