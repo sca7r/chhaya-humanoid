@@ -1,0 +1,1067 @@
+"""BipedEnvV2 — MuJoCo drop-in inference target for Isaac Lab BipedRobotV2 policies.
+
+Observation (50 dims) matches Isaac Lab BipedRobotV2EnvCfg exactly:
+  lin_acc_b(3) | ang_vel_b(3) | projected_gravity(3) | commands(3)
+  | joint_pos_rel(12) | joint_vel(12) | prev_actions(12) | gait_phase(2)
+
+Privileged / critic obs (60 dims):
+  obs_50 + base_lin_vel_b(3) + height(1) + feet_forces(6)
+
+Action: 12 joints in [-1, 1], mapped to joint limits via the same formula as Isaac Lab.
+Control loop: 50 Hz (decimation=4 at 200 Hz physics), matching Isaac Lab.
+
+Joint limits: env_config.joint_limits_deg when set (the get-up box), else JLIM_MIN / JLIM_MAX (the walking box).
+Get-up mode (env_config.getup set, config/config_getup.yaml): command 0, gait-phase slots (0, 0), no tilt termination,
+and reset(options={"start_state": fall-bank row}) starts from a fall-bank state with the Jetson's re-arm convention
+(EMA state = the pose, previous action = the action of the pose). See src/mujoco/getup_gate.py.
+"""
+from __future__ import annotations
+
+import math
+import os
+from collections import deque
+
+import gymnasium as gym
+import mujoco
+import numpy as np
+import torch
+from gymnasium.spaces import Box, Dict
+
+from actuator.backlash import LASH_SUFFIX, add_backlash
+from actuator.bam_kernel import BamServo, apply_stall_cap, load_params
+from envs.mujoco.base_env import BaseEnv
+from envs.utils.randomizer import Randomizer
+from envs.isaaclab.rewards import rewards as R
+from utils import NoConfig
+from utils.command_limit import limit_command, sample_in_limit, validate_shape
+from utils.motion_reference import CadenceGrid
+
+# ---------------------------------------------------------------------------
+# Joint layout — MUST match Isaac Lab BipedRobotV2EnvCfg (L,R interleaved)
+#   idx:  0         1         2                3                4                5
+#         l_hip_yaw r_hip_yaw l_hip_roll_joint r_hip_roll_joint l_hip_pitch_joint r_hip_pitch_joint
+#   idx:  6           7         8                9                10               11
+#         l_knee_joint r_knee_joint l_ankle_roll_joint r_ankle_roll_joint l_ankle_pitch_joint r_ankle_pitch_joint
+# ---------------------------------------------------------------------------
+JOINT_NAMES: list[str] = [
+    "l_hip_yaw",           "r_hip_yaw",
+    "l_hip_roll_joint",    "r_hip_roll_joint",
+    "l_hip_pitch_joint",   "r_hip_pitch_joint",
+    "l_knee_joint",        "r_knee_joint",
+    "l_ankle_roll_joint",  "r_ankle_roll_joint",
+    "l_ankle_pitch_joint", "r_ankle_pitch_joint",
+]
+
+# Joint soft limits from Isaac Lab V2 (radians)
+JLIM_MIN = np.array([
+    -0.785, -0.785,   # hip yaw  ±45°
+    -0.436, -0.436,   # hip roll  -25°…+45°
+    -1.571, -1.571,   # hip pitch -90°…+30°
+    -2.094, -2.094,   # knee      -120°…+5°
+    -1.047, -1.047,   # ankle roll ±60°
+    -0.611, -0.611,   # ankle pitch -35°…+50°
+], dtype=np.float32)
+
+JLIM_MAX = np.array([
+    0.785,  0.785,
+    0.785,  0.785,
+    0.524,  0.524,
+    0.087,  0.087,
+    1.047,  1.047,
+    0.873,  0.873,
+], dtype=np.float32)
+
+JRANGE = JLIM_MAX - JLIM_MIN
+
+# Reward-weight keys _compute_reward implements (tests/test_reward_sign_guard.py checks this against
+# the source). Only these are sign-checked in __init__.
+_MUJOCO_REWARD_KEYS = frozenset({
+    "track_lin_vel_xy_exp", "track_ang_vel_z_exp", "termination_penalty", "lin_vel_z_l2",
+    "ang_vel_xy_l2", "flat_orientation_l2", "action_rate_l2", "dof_torques_l2", "dof_acc_l2",
+    "dof_pos_limits", "feet_air_time", "feet_slide", "swing_foot_height", "gait_phase_contact",
+    "knee_bend_touchdown", "joint_deviation_hip", "joint_deviation_ankle_roll",
+    "joint_deviation_ankle_pitch", "joint_deviation_knee", "ankle_torques_l2", "torso_centering",
+})
+
+# Sub-index groups (into the 12-joint vector) for reward functions
+HIP_IDX         = [0, 1, 2, 3]  # yaw + roll (Isaac Lab V2 hip_joint_names, pitch excluded)
+KNEE_IDX        = [6, 7]
+ANKLE_ROLL_IDX  = [8, 9]
+ANKLE_PITCH_IDX = [10, 11]
+
+GAIT_CLOCK_FREQ: float = 5.0      # Hz — matches biped_env_cfg.py gait_clock_base_freq
+ACTION_FILTER_ALPHA: float = 0.4  # EMA — matches biped_env_cfg.py
+PHYSICS_DT: float = 0.005         # 200 Hz — matches Isaac Lab sim dt
+DECIMATION: int   = 4             # 50 Hz control — matches Isaac Lab decimation
+STEP_DT: float    = PHYSICS_DT * DECIMATION
+
+# Sensor lag, in 50 Hz control steps. Mirrors servo_obs_delay_steps / imu_obs_delay_steps_range
+# in config.yaml so the policy sees the observation timing it was trained with.
+# DETERMINISTIC on purpose -- MuJoCo is the sim-to-real validation path standing in for one
+# physical robot, so it gets a fixed lag rather than Isaac's per-episode draw. Isaac samples
+# the IMU lag from [0, 1]; 1 is the conservative end of that range. Set either to 0 to A/B the
+# effect of lag on a trained policy. 2026-10-24: encoders 0 (read in the same Jetson tick, servo_obs_delay_steps 0).
+SERVO_OBS_DELAY: int = 0
+IMU_OBS_DELAY: int   = 1
+
+# Actuator model -- the SAME BAM kernel Isaac trains with (actuator/bam_kernel.py), read from
+# the same config key (env_config.actuator.params_file), so the two sims cannot drift apart.
+# It runs once per 200 Hz physics substep, as in Isaac. The old version computed one PD torque
+# per 50 Hz step and held it for 4 substeps; with kd=2 and armature 0.04 that put kd*T/I at
+# 1.00 against Isaac's 0.25, marginally damped, which is a large part of why MuJoCo looked
+# jitterier than Isaac regardless of the policy.
+DEFAULT_ACTUATOR_PARAMS = "actuator/params/sts3215_12v/m6.json"
+DEFAULT_KP_FW = 32.0
+DEFAULT_VIN = 12.0       # fixed: MuJoCo stands in for one physical robot, so no DR here
+
+_XML_DEFAULT = os.path.join(
+    os.path.dirname(__file__),
+    "../../envs/assets/robotV2/robot_v2.xml",
+)
+
+class _GlobalRng:
+    """np.random.Generator-like view of the global numpy RNG (what reset(seed) seeds)."""
+
+    @staticmethod
+    def random(size):
+        return np.random.random_sample(size)
+
+
+_DEFAULT_CMD_RANGES = {
+    "lin_vel_x": (-0.3,  0.5),
+    "lin_vel_y": (-0.3,  0.3),
+    "ang_vel_z": (-0.3,  0.3),
+}
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def gait_clock_from_config(env_config) -> tuple[CadenceGrid | None, float]:
+    """(clock, stand_threshold) of the gait table named in env_config.reference, else of
+    env_config.gait_clock_* when gait_clock_mode is fixed_period (same rule, no table).
+
+    clock gives the gait frequency [cycles/s] for a command: the table's freq grid (v2 tables,
+    cadence follows the command) or a constant (v1 tables, fixed_period). It is None when neither
+    is configured: the clock then stays speed-proportional. The clock holds while the command is
+    below the threshold, exactly like BipedEnv._advance_gait_phase, so sim-to-sim sees the phase
+    the policy trained on.
+    """
+    ref = getattr(env_config, "reference", None) or {}
+    if hasattr(ref, "model_dump"):
+        ref = ref.model_dump()
+    path = ref.get("npz_path")
+    if not path:
+        mode = getattr(env_config, "gait_clock_mode", None) or "speed_proportional"
+        if mode == "fixed_period":
+            period = float(getattr(env_config, "gait_clock_period_s", 0.7))
+            if not (0.2 < period < 5.0):
+                raise ValueError(f"gait_clock_period_s {period!r} s is implausible (expected 0.2-5 s)")
+            constant = CadenceGrid([0.0], [0.0], [0.0], [[[1.0 / period]]])
+            return constant, float(getattr(env_config, "gait_clock_stand_threshold", 0.05))
+        if mode == "cadence_law":      # config-defined cadence (utils/cadence_law.py), same grid as Isaac / export
+            from utils.cadence_law import cadence_grid
+            ranges = env_config.commands["base_velocity"]["ranges"]
+            grid = cadence_grid(ranges, float(getattr(env_config, "gait_clock_period_min_s", 0.6)),
+                                float(getattr(env_config, "gait_clock_period_max_s", 0.9)))
+            return grid, float(getattr(env_config, "gait_clock_stand_threshold", 0.05))
+        if mode != "speed_proportional":
+            raise ValueError(f"gait_clock_mode {mode!r}: expected speed_proportional | fixed_period | cadence_law")
+        return None, 0.05
+    full = path if os.path.isabs(path) else os.path.join(_PROJECT_ROOT, path)
+    with np.load(full, allow_pickle=False) as z:
+        return CadenceGrid.from_npz(z), float(ref.get("stand_threshold", 0.05))
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _cfg_get(config, key):
+    """config.key, or None when absent (utils.NoConfig answers every attribute with a truthy NoConfig)."""
+    val = getattr(config, key, None)
+    return None if isinstance(val, NoConfig) else val
+
+
+def _t1(arr: np.ndarray) -> torch.Tensor:
+    """Wrap 1-D numpy array in a [1, N] float32 torch tensor (batch dim=1)."""
+    return torch.from_numpy(np.asarray(arr, dtype=np.float32)).unsqueeze(0)
+
+
+def _t0(val: float) -> torch.Tensor:
+    """Wrap a scalar in a [1] float32 torch tensor."""
+    return torch.tensor([float(val)], dtype=torch.float32)
+
+
+# ---------------------------------------------------------------------------
+# Main class
+# ---------------------------------------------------------------------------
+
+class BipedEnvV2(BaseEnv):
+    """MuJoCo V2 biped — drop-in inference target for Isaac Lab-trained policies."""
+
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
+
+    # Public attributes expected by model wrappers
+    num_envs: int = 1
+
+    def __init__(
+        self,
+        xml_path: str = _XML_DEFAULT,
+        render_mode: str | None = None,
+        history_size: int = 0,
+        use_history: bool = False,
+        critic_has_privileged_info: bool = True,
+        env_config=None,
+        seed: int | None = None,
+    ):
+        if not os.path.exists(xml_path):
+            raise FileNotFoundError(
+                f"V2 robot XML not found at {xml_path}.\n"
+                "Run  python scripts/generate_v2_xml.py  once to generate it."
+            )
+        self.config = env_config or NoConfig()
+
+        # Servo model + backlash, from the SAME env_config keys Isaac reads.
+        act_cfg = dict(getattr(self.config, "actuator", None) or {})
+        lash_cfg = dict(getattr(self.config, "backlash", None) or {})
+        self.action_map = getattr(self.config, "action_map", "absolute") or "absolute"
+        # Joint box: env_config.joint_limits_deg (get-up) or the walking constants. The action clamp and dof_pos_limits.
+        lim_cfg = _cfg_get(self.config, "joint_limits_deg")
+        if lim_cfg:
+            from utils.residual_action import limits_rows_deg
+            rows = np.radians(limits_rows_deg(dict(lim_cfg)))
+            self._jlim_min, self._jlim_max = rows[:, 0].astype(np.float32), rows[:, 1].astype(np.float32)
+        else:
+            self._jlim_min, self._jlim_max = JLIM_MIN, JLIM_MAX
+        # Get-up mode (see the module docstring)
+        self._getup = dict(_cfg_get(self.config, "getup") or {})
+        self._init_residual(self.config)
+        self._lash_deg = (float(lash_cfg.get("mujoco_lash_deg", 0.0))
+                          if lash_cfg.get("enabled", False) else 0.0)
+        # backlash.encoder_side: "output" = the encoder reads servo + lash hinge (the link); "servo" = the
+        # servo shaft only, so the firmware and the policy do not see the play (as on the hardware).
+        self._encoder_side = str(lash_cfg.get("encoder_side", "output"))
+        if self._encoder_side not in ("output", "servo"):
+            raise ValueError(f"backlash.encoder_side {self._encoder_side!r}: expected output | servo")
+        if self._lash_deg > 0.0:
+            # Faithful backlash: a passive hinge in series with each servo (actuator/backlash.py).
+            # Written next to the source so relative mesh paths still resolve.
+            out = os.path.join(os.path.dirname(os.path.abspath(xml_path)), "robot_v2.backlash.xml")
+            xml_path = str(add_backlash(xml_path, out, JOINT_NAMES, self._lash_deg))
+
+        super().__init__(xml_path, render_mode)
+        self.history_size = history_size
+        self.use_history  = use_history and history_size > 1
+        self.critic_has_privileged_info = critic_has_privileged_info
+        self.device = "cpu"
+
+        # Physics timing
+        self.model.opt.timestep = PHYSICS_DT
+
+        # ---- Resolve joint / actuator / body IDs -----------------------
+        # int() cast: qposadr/dofadr may return a 1-element array in newer MuJoCo
+        self._qpos_ids = np.array([int(self.model.joint(n).qposadr) for n in JOINT_NAMES], dtype=int)
+        self._qvel_ids = np.array([int(self.model.joint(n).dofadr)  for n in JOINT_NAMES], dtype=int)
+        self._act_ids  = np.array([int(self.model.actuator(n).id)   for n in JOINT_NAMES], dtype=int)
+        if self._lash_deg > 0.0:
+            self._lash_qpos_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).qposadr) for n in JOINT_NAMES], dtype=int)
+            self._lash_qvel_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).dofadr) for n in JOINT_NAMES], dtype=int)
+        else:
+            self._lash_qpos_ids = self._lash_qvel_ids = None
+
+        # BAM servo, N = 1 robot x 12 joints, on CPU in float64.
+        params = apply_stall_cap(load_params(act_cfg.get("params_file", DEFAULT_ACTUATOR_PARAMS)),
+                                 act_cfg.get("stall_torque_cap_nm"))
+        self.servo = BamServo(params, 1, 12, PHYSICS_DT,
+                              kp=float(act_cfg.get("kp_fw", DEFAULT_KP_FW)),
+                              vin=DEFAULT_VIN, backlash=False, dtype=torch.float64)
+        self.servo.kernel.torque_scale[:] = float(act_cfg.get("torque_scale", 1.0))
+        # Ground friction for the eval/gate env: MuJoCo combines a contact pair by MAX, so set every geom's
+        # sliding friction (2026-10-25: the real soles measure ~0.30-0.38 on hardwood; the MJCF floor is 1.0).
+        mu = getattr(self.config, "mujoco_ground_friction", None)
+        if mu is not None:
+            self.model.geom_friction[:, 0] = float(mu)
+        # Firmware dead zone (nominal deadband_counts; Isaac draws deadband_counts_range per servo).
+        self.servo.kernel.deadband[:] = float(act_cfg.get("deadband_counts", 0)) * (2.0 * math.pi / 4096.0)
+        # The kernel owns all servo friction, so MJCF frictionloss must be 0 or it's counted
+        # twice. Rotor armature comes from the identified params, on the SERVO joint only
+        # (the lash hinge keeps its own small conditioning armature). ctrlrange +-2.94 was a
+        # DC-motor-era backstop; BAM's 12 V duty-limited stall is ~6.3 N*m, and leaving the
+        # clip in would make MuJoCo a weaker robot than Isaac, which has no such clip.
+        self.model.dof_frictionloss[self._qvel_ids] = 0.0
+        self.model.dof_damping[self._qvel_ids] = 0.0
+        self.model.dof_armature[self._qvel_ids] = params.armature
+        self.model.actuator_ctrllimited[self._act_ids] = 0
+        # Unit right-hand sides for 1/(M^-1)_ii in _servo_torque (one column per actuated dof).
+        self._unit_rhs = np.zeros((12, self.model.nv))
+        self._unit_rhs[np.arange(12), self._qvel_ids] = 1.0
+        self._minv_cols = np.zeros_like(self._unit_rhs)
+        self._base_body_id  = self.model.body("base_link").id
+        # Read from the MJCF site rather than hardcoding. The previous hardcoded constant was
+        # [+0.023673, 0, 0.025133] while the site (and Isaac's ImuCfg.OffsetCfg) is at
+        # [-0.023673, ...] -- a sign flip on x that corrupted the omega x r tangential term in
+        # _v_imu_world whenever the base was rotating, i.e. throughout any real gait.
+        self._imu_offset_b  = np.array(self.model.site("imu_site").pos, dtype=np.float64)
+
+        # Foot bodies and their geoms
+        self._r_foot_body = self.model.body("r_foot_link_1").id
+        self._l_foot_body = self.model.body("l_foot_link_1").id
+        self._r_foot_geoms = self._geoms_of_body(self._r_foot_body)
+        self._l_foot_geoms = self._geoms_of_body(self._l_foot_body)
+
+        # Floor geom (first plane geom)
+        self._floor_geom = next(
+            (g for g in range(self.model.ngeom)
+             if self.model.geom_type[g] == mujoco.mjtGeom.mjGEOM_PLANE),
+            -1
+        )
+
+        # Default joint positions: all zeros for V2, the home pose for action_map residual
+        self._default_joint_pos = (self._residual_home.astype(np.float32) if self._residual_home is not None
+                                   else np.zeros(12, dtype=np.float32))
+
+        # ---- State ---------------------------------------------------------
+        self.commands           = np.zeros(3,  dtype=np.float32)
+        self.prev_actions       = np.zeros(12, dtype=np.float32)
+        self.filtered_targets   = np.zeros(12, dtype=np.float32)
+        self._prev_qvel         = np.zeros(self.model.nv, dtype=np.float32)
+        self._prev_jvel         = np.zeros(12, dtype=np.float32)
+        self._foot_ground_z: np.ndarray | None = None
+        self._last_physics_acc  = np.zeros(3, dtype=np.float64)
+        self.imu_acc_dt         = STEP_DT
+        self.gait_phase         = 0.0
+        self.gait_clock, self.gait_stand_threshold = gait_clock_from_config(self.config)
+
+        # Gait tracking buffers
+        self._in_contact        = np.zeros(2, dtype=bool)    # [right, left]
+        self._in_contact_prev   = np.zeros(2, dtype=bool)
+        self._air_time          = np.zeros(2, dtype=np.float32)
+        self._contact_time      = np.zeros(2, dtype=np.float32)
+        self._knee_bend_max     = np.zeros(2, dtype=np.float32)
+        self._feet_pos_liftoff  = np.zeros((2, 3), dtype=np.float32)
+        self._touchdown         = np.zeros(2, dtype=bool)
+        self._both_air_steps    = 0
+
+        # History buffer (policy obs only)
+        base_actor_dim  = 50
+        base_critic_dim = 60 if critic_has_privileged_info else 50
+        self._base_actor_dim  = base_actor_dim
+        self._base_critic_dim = base_critic_dim
+        if self.use_history:
+            self._history = deque(
+                [np.zeros(base_actor_dim, dtype=np.float32)] * history_size,
+                maxlen=history_size,
+            )
+        else:
+            self._history = None
+
+        # Sensor-lag ring buffers. maxlen = D+1 so that buf[0] is exactly D steps old once
+        # full; _reset_sensor_lag() pre-fills them so index 0 is valid from the first step
+        # rather than returning a too-fresh sample during warm-up.
+        self._servo_buf = deque(maxlen=SERVO_OBS_DELAY + 1) if SERVO_OBS_DELAY > 0 else None
+        self._imu_buf   = deque(maxlen=IMU_OBS_DELAY + 1)   if IMU_OBS_DELAY > 0   else None
+
+        # Randomizer
+        self._randomizer = Randomizer(self.model, None)
+
+        # Reward weights from config
+        self._reward_w: dict[str, float] = {}
+        if hasattr(self.config, "reward_weights"):
+            self._reward_w = dict(self.config.reward_weights)
+            # Same sign guard as the Isaac env (rewards.REWARD_WEIGHT_SIGN), restricted to the terms
+            # _compute_reward implements: checkpoint configs also carry Isaac-only weights this env
+            # ignores, and those must not block loading a policy for evaluation.
+            R.validate_reward_weight_signs(
+                self._reward_w, keys=_MUJOCO_REWARD_KEYS, where="BipedEnvV2 reward_weights")
+        self._reward_scale: float = getattr(self.config, "reward_scale", 1.0)
+
+        # Gymnasium spaces
+        actor_dim  = base_actor_dim * (history_size if self.use_history else 1)
+        critic_dim = base_critic_dim
+        self.observation_space = Dict({
+            "actor":  Box(-np.inf, np.inf, shape=(actor_dim,),  dtype=np.float32),
+            "critic": Box(-np.inf, np.inf, shape=(critic_dim,), dtype=np.float32),
+        })
+        self.action_space = Box(-1.0, 1.0, shape=(12,), dtype=np.float32)
+
+        if seed is not None:
+            np.random.seed(seed)
+        self.reset(seed=seed)
+
+    # ------------------------------------------------------------------
+    # Geometry helpers
+    # ------------------------------------------------------------------
+
+    def _geoms_of_body(self, body_id: int) -> list[int]:
+        return [g for g in range(self.model.ngeom) if self.model.geom_bodyid[g] == body_id]
+
+    def _foot_contact_force(self, foot_geoms: list[int]) -> np.ndarray:
+        """Sum 3-D contact force (world frame) for a foot."""
+        force = np.zeros(3, dtype=np.float32)
+        for i in range(self.data.ncon):
+            c = self.data.contact[i]
+            if (c.geom1 in foot_geoms or c.geom2 in foot_geoms) and (
+                c.geom1 == self._floor_geom or c.geom2 == self._floor_geom
+            ):
+                f6 = np.zeros(6)
+                mujoco.mj_contactForce(self.model, self.data, i, f6)
+                force += f6[:3].astype(np.float32)
+        return force
+
+    def _foot_in_contact(self, foot_geoms: list[int], threshold: float = 1.0) -> bool:
+        return np.linalg.norm(self._foot_contact_force(foot_geoms)) > threshold
+
+    def _foot_vel_xy(self, body_id: int) -> float:
+        jacp = np.zeros((3, self.model.nv))
+        mujoco.mj_jacBody(self.model, self.data, jacp, None, body_id)
+        vel = jacp @ self._qvel()
+        return float(np.linalg.norm(vel[:2]))
+
+    def _qpos(self) -> np.ndarray:
+        return np.asarray(self.data.qpos).reshape(-1)
+
+    def _qvel(self) -> np.ndarray:
+        return np.asarray(self.data.qvel).reshape(-1)
+
+    def _jpos(self) -> np.ndarray:
+        """Joint angles (12, Isaac order) as the encoder reads them (observations, rewards, the firmware's error).
+
+        backlash.encoder_side "output": servo + lash hinge (the sensor after the play). "servo": the servo
+        shaft alone; the play is then invisible (the 2026-10-25 hardware traces: encoders explained only
+        29-44% of the standing body motion).
+        """
+        q = self._qpos()[self._qpos_ids]
+        if self._lash_qpos_ids is not None and self._encoder_side == "output":
+            q = q + self._qpos()[self._lash_qpos_ids]
+        return q
+
+    def _jvel(self) -> np.ndarray:
+        """Joint velocities as the encoder reads them (same side rule as _jpos)."""
+        v = self._qvel()[self._qvel_ids]
+        if self._lash_qvel_ids is not None and self._encoder_side == "output":
+            v = v + self._qvel()[self._lash_qvel_ids]
+        return v
+
+    def _init_residual(self, config) -> None:
+        """action_map residual: home / scales from the SAME env_config keys Isaac reads
+        (action_home_deg, action_scale_rad, spawn_height_m), via utils.residual_action."""
+        from utils.residual_action import RESIDUAL_SPAWN_HEIGHT_M, check_residual_map, home_rad, scale_pair_rad
+        from utils.residual_home import is_auto, is_derived_scale, resolve_if_auto
+        self._residual_home = self._residual_scale = self._residual_scale_neg = None    # scale = s_pos; neg None = symmetric
+        self._spawn_dz = 0.0
+        height = getattr(config, "spawn_height_m", None)
+        home_cfg, scale_cfg = getattr(config, "action_home_deg", None), getattr(config, "action_scale_rad", None)
+        # `auto` is normally frozen into numbers at the entry point (train.py); resolve it here only as a loud fallback.
+        auto = resolve_if_auto(config, "BipedEnvV2._init_residual", _PROJECT_ROOT)
+        if auto is not None:
+            home_cfg = auto[0] if is_auto(home_cfg) else home_cfg
+            scale_cfg = auto[1] if is_derived_scale(scale_cfg) else scale_cfg
+            height = auto[2] if is_auto(height) else height
+        height = float(height) if isinstance(height, (int, float)) else None
+        if self.action_map == "residual":
+            if not home_cfg or not scale_cfg:
+                raise ValueError("action_map 'residual' needs env_config.action_home_deg and action_scale_rad")
+            self._residual_home = home_rad(dict(home_cfg))
+            self._residual_scale, self._residual_scale_neg = scale_pair_rad(dict(scale_cfg))
+            check_residual_map(self._residual_home, self._residual_scale, self._jlim_min, self._jlim_max,
+                               scale_neg=self._residual_scale_neg)
+            if height is None:
+                height = RESIDUAL_SPAWN_HEIGHT_M
+        if height is not None:
+            self._spawn_dz = height - 0.29      # shift from the XML spawn by the same drop Isaac applies
+
+    def _actions_to_targets(self, action: np.ndarray) -> np.ndarray:
+        """Same map as BipedEnv.actions_to_targets (Isaac) for the configured action_map."""
+        if self.action_map == "residual":
+            if self._residual_scale_neg is not None:         # asymmetric: s_pos for a >= 0, s_neg for a < 0
+                a = np.clip(action, -1.0, 1.0)
+                return np.clip(self._residual_home + np.where(a >= 0.0, self._residual_scale, self._residual_scale_neg) * a,
+                               self._jlim_min, self._jlim_max)
+            return np.clip(self._residual_home + self._residual_scale * np.clip(action, -1.0, 1.0),
+                           self._jlim_min, self._jlim_max)
+        if self.action_map == "centered":
+            span = np.where(action >= 0.0, self._jlim_max - self._default_joint_pos,
+                            self._default_joint_pos - self._jlim_min)
+            return self._default_joint_pos + action * span
+        return self._jlim_min + (action + 1.0) * 0.5 * (self._jlim_max - self._jlim_min)
+
+    def targets_to_actions(self, targets: np.ndarray) -> np.ndarray:
+        """Inverse of _actions_to_targets for the residual map (clipped to [-1, 1]): the Jetson's re-arm previous
+        action, and the arming-ramp actions of the get-up gate's hand-off."""
+        if self.action_map != "residual":
+            raise ValueError("targets_to_actions is only defined for action_map residual")
+        from utils.residual_action import targets_to_actions_np
+        return targets_to_actions_np(np.asarray(targets, dtype=np.float64), self._residual_home, self._residual_scale,
+                                     self._residual_scale_neg).astype(np.float32)
+
+    # ------------------------------------------------------------------
+    # Frame transforms
+    # ------------------------------------------------------------------
+
+    def _reset_sensor_lag(self) -> None:
+        """Seed the lag buffers with the CURRENT post-reset reading, repeated.
+
+        Zero-filling instead would feed the policy a fabricated zero acceleration and zero
+        projected-gravity for the first D steps of every episode -- a body orientation that is
+        physically impossible and would look like the robot lying on its side. Isaac seeds its
+        servo buffer the same way (biped_env._reset_idx).
+        """
+        if self._servo_buf is not None:
+            seed = np.concatenate([
+                (self._jpos() - self._default_joint_pos).astype(np.float32),
+                self._jvel().astype(np.float32),
+            ])
+            self._servo_buf.clear()
+            for _ in range(SERVO_OBS_DELAY + 1):
+                self._servo_buf.append(seed.copy())
+        if self._imu_buf is not None:
+            R_wb = self._world_to_body_rot()
+            g_b = (R_wb @ np.array([0.0, 0.0, -1.0])).astype(np.float32)
+            seed = np.concatenate([
+                # lin_acc: the get-up env seeds the at-rest specific force (-g * gravity direction), as Isaac's
+                # getup_env._seed_imu_buffer does; the walking env keeps its zeros (unchanged behaviour)
+                (-9.81 * g_b) if self._getup else np.zeros(3, dtype=np.float32),
+                self._qvel()[3:6].astype(np.float32),                            # ang_vel
+                (R_wb @ np.array([0.0, 0.0, -1.0])).astype(np.float32),          # proj_grav
+            ])
+            self._imu_buf.clear()
+            for _ in range(IMU_OBS_DELAY + 1):
+                self._imu_buf.append(seed.copy())
+
+    def _servo_torque(self, goal: np.ndarray) -> np.ndarray:
+        """BAM servo torque for the 12 actuated joints, one physics substep.
+
+        External torque is computed the way bam/mujoco.py does it: -qfrc_bias +
+        qfrc_constraint on the SERVO dof, which covers gravity, coupling, contacts and the
+        lash-limit contact. It comes from the previous step's solve, as in BAM. There is no
+        own-dof friction constraint to subtract, because MJCF frictionloss is 0 (the kernel
+        owns friction). Effective inertia is 1 / (M^-1)_ii, armature included, NOT the qM
+        diagonal: the stiction clip is a one-step deadbeat, and on a floating base M_ii (the
+        other dofs locked) overestimates what a torque on one joint actually moves, so it
+        over-corrects into chatter. BAM's MuJoCo backend uses dof_invweight0 for the same
+        reason. mj_solveM reuses the factorisation from the last step.
+        """
+        enc = torch.from_numpy(self._jpos()).unsqueeze(0)
+        dq_motor = torch.from_numpy(self._qvel()[self._qvel_ids].copy()).unsqueeze(0)
+        tau_ext = torch.from_numpy(
+            (-self.data.qfrc_bias[self._qvel_ids] + self.data.qfrc_constraint[self._qvel_ids]).copy()
+        ).unsqueeze(0)
+        mujoco.mj_solveM(self.model, self.data, self._minv_cols, self._unit_rhs)
+        inv_ii = self._minv_cols[np.arange(12), self._qvel_ids]
+        inertia = torch.from_numpy(1.0 / inv_ii).unsqueeze(0)
+        g = torch.from_numpy(np.asarray(goal, dtype=np.float64)).unsqueeze(0)
+        tau = self.servo.step(g, enc, dq_motor, tau_ext, inertia)
+        return tau[0].numpy()
+
+    def _v_imu_world(self) -> np.ndarray:
+        """World-frame translational velocity at the IMU mounting point.
+        v_imu = v_base + omega_world × r_imu_world
+        Uses data.xmat (always available regardless of MuJoCo version).
+        """
+        R_bw = self.data.xmat[self._base_body_id].reshape(3, 3)  # body-to-world
+        omega_w = R_bw @ self.data.qvel[3:6]
+        r_w = R_bw @ self._imu_offset_b
+        return self.data.qvel[:3] + np.cross(omega_w, r_w)
+
+    def _world_to_body_rot(self) -> np.ndarray:
+        """3×3 rotation matrix: world → body frame (R^T)."""
+        qpos = self._qpos()
+        w, x, y, z = qpos[3:7]
+        R = np.array([
+            [1 - 2*(y*y + z*z),     2*(x*y - w*z),     2*(x*z + w*y)],
+            [    2*(x*y + w*z), 1 - 2*(x*x + z*z),     2*(y*z - w*x)],
+            [    2*(x*z - w*y),     2*(y*z + w*x), 1 - 2*(x*x + y*y)],
+        ], dtype=np.float64)
+        return R.T.astype(np.float32)
+
+    # ------------------------------------------------------------------
+    # Observation
+    # ------------------------------------------------------------------
+
+    def _build_obs(self) -> dict[str, np.ndarray]:
+        R_wb = self._world_to_body_rot()
+        qpos = self._qpos()
+        qvel = self._qvel()
+
+        # IMU linear acceleration: mean over the 20 ms control step, matching BipedEnv's StepAveragedImu.
+        # specific_force = a_world - g_world, rotated to body frame.
+        a_world   = self._last_physics_acc
+        lin_acc_b = (R_wb @ (a_world - np.array([0.0, 0.0, -9.81]))).astype(np.float32)
+
+        # Angular velocity: free-joint qvel[3:6] is in LOCAL frame in MuJoCo.
+        ang_vel_b = qvel[3:6].astype(np.float32)
+
+        # Projected gravity (normalised gravity vector in body frame)
+        proj_grav = (R_wb @ np.array([0.0, 0.0, -1.0])).astype(np.float32)
+
+        joint_pos_rel = (self._jpos() - self._default_joint_pos).astype(np.float32)
+        joint_vel     = self._jvel().astype(np.float32)
+
+        # --- Sensor lag (deterministic; see SERVO_OBS_DELAY / IMU_OBS_DELAY) ------------------
+        # The policy is TRAINED with a 1-step servo delay and 0-1 step IMU delay, so it has
+        # learned to compensate for a known phase lag. Handing it zero-lag observations here is
+        # just as much a distribution shift as handing it too much -- it is not "easier".
+        # These are pure delays, NOT randomization: MuJoCo stands in for one physical robot.
+        if SERVO_OBS_DELAY > 0:
+            self._servo_buf.append(np.concatenate([joint_pos_rel, joint_vel]))
+            delayed = self._servo_buf[0]          # deque(maxlen=D+1): [0] is D steps old
+            joint_pos_rel, joint_vel = delayed[:12], delayed[12:]
+        if IMU_OBS_DELAY > 0:
+            self._imu_buf.append(np.concatenate([lin_acc_b, ang_vel_b, proj_grav]))
+            d = self._imu_buf[0]
+            lin_acc_b, ang_vel_b, proj_grav = d[:3], d[3:6], d[6:9]
+
+        gait_obs = (np.zeros(2, dtype=np.float32) if self._getup    # get-up: (0, 0), as getup_env._phase_obs
+                    else np.array([math.sin(self.gait_phase), math.cos(self.gait_phase)], dtype=np.float32))
+
+        # Policy / actor obs — 50 dims (identical concatenation order to Isaac Lab)
+        obs_50 = np.concatenate([
+            lin_acc_b,         # 3
+            ang_vel_b,         # 3
+            proj_grav,         # 3
+            self.commands,     # 3
+            joint_pos_rel,     # 12
+            joint_vel,         # 12
+            self.prev_actions, # 12
+            gait_obs,          # 2
+        ])  # total = 50
+
+        if self._history is not None:
+            self._history.append(obs_50.copy())
+            actor_obs = np.concatenate(list(self._history))
+        else:
+            actor_obs = obs_50
+
+        # Privileged / critic obs — 10 extra dims
+        lin_vel_b = (R_wb @ qvel[:3]).astype(np.float32)
+        height    = np.array([qpos[2]], dtype=np.float32)
+        r_force   = self._foot_contact_force(self._r_foot_geoms)
+        l_force   = self._foot_contact_force(self._l_foot_geoms)
+        priv      = np.concatenate([lin_vel_b, height, r_force, l_force])  # 10
+
+        if self.critic_has_privileged_info:
+            critic_obs = np.concatenate([obs_50, priv])  # 60
+        else:
+            critic_obs = obs_50.copy()
+
+        return {"actor": actor_obs.astype(np.float32), "critic": critic_obs.astype(np.float32)}
+
+    # ------------------------------------------------------------------
+    # Gait state update
+    # ------------------------------------------------------------------
+
+    def _update_gait(self) -> None:
+        r = self._foot_in_contact(self._r_foot_geoms)
+        l = self._foot_in_contact(self._l_foot_geoms)
+        self._in_contact[:] = [r, l]
+
+        # Touchdown / liftoff events (before updating prev)
+        self._touchdown[:] = ~self._in_contact_prev & self._in_contact
+
+        for i, (in_c, was_c) in enumerate(zip(self._in_contact, self._in_contact_prev)):
+            if in_c:
+                self._contact_time[i] += STEP_DT
+                self._air_time[i] = 0.0
+            else:
+                self._air_time[i] += STEP_DT
+                self._contact_time[i] = 0.0
+
+            if was_c and not in_c:
+                # Liftoff — reset swing tracking
+                self._feet_pos_liftoff[i] = self.data.body(
+                    "r_foot_link_1" if i == 0 else "l_foot_link_1"
+                ).xpos.copy()
+                self._knee_bend_max[i] = 0.0
+
+            if not in_c:
+                # Track max knee bend during swing
+                knee_bend = abs(self._jpos()[KNEE_IDX[i]])
+                if knee_bend > self._knee_bend_max[i]:
+                    self._knee_bend_max[i] = knee_bend
+
+        self._in_contact_prev[:] = self._in_contact
+        both_up = not r and not l
+        self._both_air_steps = (self._both_air_steps + 1) if both_up else 0
+
+    # ------------------------------------------------------------------
+    # Reward
+    # ------------------------------------------------------------------
+
+    def _compute_reward(self, action: np.ndarray) -> float:
+        w = self._reward_w
+        if not w:
+            return 0.0
+
+        R_wb      = self._world_to_body_rot()
+        qpos = self._qpos()
+        qvel = self._qvel()
+        lin_vel_b = (R_wb @ qvel[:3]).astype(np.float32)
+        ang_vel_b = qvel[3:6].astype(np.float32)
+        proj_grav = (R_wb @ np.array([0.0, 0.0, -1.0])).astype(np.float32)
+
+        joint_pos = self._jpos().astype(np.float32)
+        joint_vel = self._jvel().astype(np.float32)
+        efforts   = self.data.actuator_force[self._act_ids].astype(np.float32)
+        joint_acc = ((joint_vel - self._prev_jvel) / STEP_DT).astype(np.float32)
+
+        r_foot_pos = self.data.body("r_foot_link_1").xpos.astype(np.float32)
+        l_foot_pos = self.data.body("l_foot_link_1").xpos.astype(np.float32)
+        feet_pos   = np.stack([r_foot_pos, l_foot_pos])
+
+        r_force = self._foot_contact_force(self._r_foot_geoms)
+        l_force = self._foot_contact_force(self._l_foot_geoms)
+        in_c    = self._in_contact.astype(np.float32)
+        r_vel_xy = self._foot_vel_xy(self._r_foot_body)
+        l_vel_xy = self._foot_vel_xy(self._l_foot_body)
+
+        # Torch tensors — all batched as [1, ...]
+        cmd_t   = _t1(self.commands)
+        lvb_t   = _t1(lin_vel_b)
+        avb_t   = _t1(ang_vel_b)
+        pg_t    = _t1(proj_grav)
+        jp_t    = _t1(joint_pos)
+        jv_t    = _t1(joint_vel)
+        eff_t   = _t1(efforts)
+        act_t   = _t1(action.astype(np.float32))
+        pact_t  = _t1(self.prev_actions)
+        jacc_t  = _t1(joint_acc)
+        def_t   = _t1(self._default_joint_pos)
+        lmin_t  = _t1(self._jlim_min)
+        lmax_t  = _t1(self._jlim_max)
+        fp_t    = torch.tensor(feet_pos, dtype=torch.float32).unsqueeze(0)   # [1,2,3]
+        fc_t    = _t1(in_c)                                                    # [1,2]
+        air_t   = _t1(self._air_time)
+        ctt_t   = _t1(self._contact_time)
+        td_t    = torch.tensor(self._touchdown.astype(np.float32)).unsqueeze(0)  # [1,2]
+        km_t    = torch.tensor(self._knee_bend_max, dtype=torch.float32).unsqueeze(0)  # [1,2]
+        bpos_t  = _t1(qpos[:3].astype(np.float32))
+        gp_t    = _t0(self.gait_phase)
+        fvel_t  = torch.tensor([[r_vel_xy, l_vel_xy]], dtype=torch.float32)   # [1,2]
+
+        def _w(key: str, val: torch.Tensor) -> float:
+            wt = w.get(key, 0.0)
+            return float(val.squeeze()) * wt if wt != 0.0 else 0.0
+
+        total = 0.0
+
+        # Locomotion
+        total += _w("track_lin_vel_xy_exp", R.track_lin_vel_xy_exp(cmd_t, lvb_t, std=0.15))
+        total += _w("track_ang_vel_z_exp",  R.track_ang_vel_z_exp(cmd_t, avb_t, std=0.15))
+
+        # Stability
+        total += w.get("termination_penalty", 0.0) * float(self._is_terminated())
+        total += _w("lin_vel_z_l2",       R.lin_vel_z_l2(lvb_t))
+        total += _w("ang_vel_xy_l2",      R.ang_vel_xy_l2(avb_t))
+        total += _w("flat_orientation_l2",R.flat_orientation_l2(pg_t))
+
+        # Smoothness
+        total += _w("action_rate_l2",  R.action_rate_l2(act_t, pact_t))
+        total += _w("dof_torques_l2",  R.joint_torques_l2(eff_t))
+        total += _w("dof_acc_l2",      torch.sum(jacc_t ** 2, dim=1))
+        total += _w("dof_pos_limits",  R.joint_pos_limits(jp_t, lmin_t, lmax_t))
+
+        # Gait shaping
+        total += _w("feet_air_time",   R.feet_air_time_positive_biped(
+            air_t, ctt_t, cmd_t, threshold=0.2, min_speed_command_threshold=0.05))
+        total += _w("feet_slide",      R.feet_slide_with_vel(fc_t, fvel_t))
+        # Same datum as Isaac: each foot's own last touchdown height, so clearance is local
+        # and per foot. Command-gated in the reward fn.
+        fh = fp_t[0, :, 2].numpy()
+        contact = fc_t[0].bool().numpy()
+        if self._foot_ground_z is None:
+            self._foot_ground_z = fh.copy()
+        self._foot_ground_z = np.where(contact, fh, self._foot_ground_z)
+        clearance = torch.from_numpy((fh - self._foot_ground_z).astype(np.float32)).unsqueeze(0)
+        total += _w("swing_foot_height", R.swing_foot_height(
+            clearance, fc_t.bool(), cmd_t,
+            min_clearance=float(getattr(self.config, "swing_min_clearance", 0.01)),
+            max_clearance=float(getattr(self.config, "swing_max_clearance", 0.07)),
+            min_speed_command_threshold=0.05))
+        total += _w("gait_phase_contact", R.gait_phase_contact(
+            gp_t, fc_t, cmd_t, min_speed=0.05))
+        total += _w("knee_bend_touchdown", R.knee_bend_on_touchdown(
+            td_t, km_t, min_bend=0.2, max_bend=1.0))
+
+        # Joint quality
+        def _dev(idx):
+            return R.joint_deviation_l1(jp_t[:, idx], def_t[:, idx])
+
+        total += _w("joint_deviation_hip",          _dev(HIP_IDX))
+        total += _w("joint_deviation_ankle_roll",   _dev(ANKLE_ROLL_IDX))
+        total += _w("joint_deviation_ankle_pitch",  _dev(ANKLE_PITCH_IDX))
+        total += _w("joint_deviation_knee",         _dev(KNEE_IDX))
+        total += _w("ankle_torques_l2",             R.joint_torques_l2(eff_t[:, ANKLE_PITCH_IDX]))
+        total += _w("torso_centering",              R.torso_centering_reward(bpos_t, fp_t))
+
+        return total * self._reward_scale
+
+    # ------------------------------------------------------------------
+    # Termination
+    # ------------------------------------------------------------------
+
+    def _is_terminated(self) -> bool:
+        if self._getup:      # falling over is the task: only a broken state ends a get-up episode
+            return not bool(np.all(np.isfinite(self.data.qpos)))
+        R_wb      = self._world_to_body_rot()
+        proj_grav = (R_wb @ np.array([0.0, 0.0, -1.0])).astype(np.float32)
+        tilt      = math.acos(float(np.clip(-proj_grav[2], -1.0, 1.0)))
+        if tilt > 0.784:
+            return True
+        if self._both_air_steps > int(1.0 / STEP_DT):
+            return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Commands
+    # ------------------------------------------------------------------
+
+    def command_limit(self) -> tuple[dict, str]:
+        """(ranges, shape) of the command limit: the run config's commands.base_velocity.ranges / limit_shape
+        (the training config is the source of truth); default ranges and "box" without a config."""
+        try:
+            bv = self.config.commands["base_velocity"]
+            ranges = bv["ranges"]
+            shape = validate_shape(bv.get("limit_shape"))
+        except (AttributeError, KeyError, TypeError):
+            ranges, shape = {}, "box"
+        return {k: tuple(ranges.get(k, _DEFAULT_CMD_RANGES[k])) for k in _DEFAULT_CMD_RANGES}, shape
+
+    def _sample_commands(self) -> None:
+        if self._getup:
+            self.commands[:] = 0.0
+            return
+        ranges, shape = self.command_limit()
+        if shape == "box":
+            xr, yr, wr = ranges["lin_vel_x"], ranges["lin_vel_y"], ranges["ang_vel_z"]
+            self.commands[:] = [
+                np.random.uniform(*xr),
+                np.random.uniform(*yr),
+                np.random.uniform(*wr),
+            ]
+        else:
+            # (vx, vy) uniform inside the ellipse; the global numpy RNG, so reset(seed) still seeds it
+            self.commands[:] = sample_in_limit(1, ranges, shape, rng=_GlobalRng())[0]
+
+    def set_command(self, vx: float, vy: float, wz: float) -> np.ndarray:
+        """Override the velocity command (useful for manual testing). With limit_shape ellipse_xy the command
+        is limited exactly as in training (utils/command_limit.py); a box config keeps it as given.
+        Returns the command actually set."""
+        cmd = np.array([vx, vy, wz], dtype=np.float64)
+        ranges, shape = self.command_limit()
+        if shape != "box":
+            cmd = limit_command(cmd, ranges, shape)
+        self.commands[:] = cmd
+        return self.commands.copy()
+
+    def apply_push(self, dvx: float, dvy: float, dwz: float) -> None:
+        """Add a world-frame velocity kick to the base, as Isaac's push_by_setting_velocity does.
+        The free joint's angular velocity is in the body frame, so the world yaw kick is rotated in."""
+        self.data.qvel[0] += dvx
+        self.data.qvel[1] += dvy
+        self.data.qvel[3:6] += self._world_to_body_rot() @ np.array([0.0, 0.0, dwz], dtype=np.float32)
+
+    # ------------------------------------------------------------------
+    # Viewer overlay: command (green) vs measured (blue) velocity, one shared scale
+    # ------------------------------------------------------------------
+
+    _GREEN = np.array([0.1, 0.9, 0.1, 0.9], dtype=np.float32)
+    _BLUE = np.array([0.15, 0.35, 1.0, 0.9], dtype=np.float32)
+    hud_text: str | None = None     # set by sim2real; drawn top-left
+
+    def _overlay_text(self) -> str | None:
+        return self.hud_text
+
+    def _add_geom(self, scene, gtype, rgba, size=(0.0, 0.0, 0.0), pos=(0.0, 0.0, 0.0)):
+        if scene.ngeom >= scene.maxgeom:
+            return None
+        g = scene.geoms[scene.ngeom]
+        mujoco.mjv_initGeom(g, gtype, np.asarray(size, dtype=np.float64), np.asarray(pos, dtype=np.float64),
+                            np.eye(3).reshape(-1), rgba)
+        scene.ngeom += 1
+        return g
+
+    def _add_connector(self, scene, gtype, rgba, width, p0, p1):
+        g = self._add_geom(scene, gtype, rgba)
+        if g is not None:
+            mujoco.mjv_connector(g, gtype, width, np.asarray(p0, dtype=np.float64), np.asarray(p1, dtype=np.float64))
+
+    def _add_overlay_geoms(self, scene) -> None:
+        from utils.teleop import (ARC_RADIUS, ARC_RADIUS_GAP, ARC_SEGMENTS, STOP_THRESH, arc_points,
+                                  vis_scales)
+        k_lin, k_ang = vis_scales(self.command_limit()[0])
+        base = self.data.xpos[self._base_body_id].astype(np.float64)
+        R_bw = self.data.xmat[self._base_body_id].reshape(3, 3)
+        yaw = math.atan2(R_bw[1, 0], R_bw[0, 0])
+        c, s = math.cos(yaw), math.sin(yaw)
+        cmd = np.asarray(self.commands, dtype=np.float64)
+        v_cmd_w = np.array([c * cmd[0] - s * cmd[1], s * cmd[0] + c * cmd[1]])
+        v_meas_w = np.asarray(self.data.qvel[0:2], dtype=np.float64)
+        wz_meas = float((R_bw @ self.data.qvel[3:6])[2])
+
+        # Linear: an arrow from above the base; a dot when the command has no translation.
+        for v, rgba, dz, is_cmd in ((v_cmd_w, self._GREEN, 0.30, True), (v_meas_w, self._BLUE, 0.34, False)):
+            p0 = base + (0.0, 0.0, dz)
+            speed = float(np.linalg.norm(v))
+            if speed < STOP_THRESH:
+                if is_cmd:
+                    self._add_geom(scene, mujoco.mjtGeom.mjGEOM_SPHERE, rgba, size=(0.025, 0, 0), pos=p0)
+                continue
+            p1 = p0 + np.array([v[0], v[1], 0.0]) * k_lin
+            self._add_connector(scene, mujoco.mjtGeom.mjGEOM_ARROW, rgba, 0.012, p0, p1)
+
+        # Yaw rate: an arc from the robot's heading, counter-clockwise for +wz, ending in an arrowhead.
+        for wz, rgba, r in ((float(cmd[2]), self._GREEN, ARC_RADIUS), (wz_meas, self._BLUE, ARC_RADIUS + ARC_RADIUS_GAP)):
+            if abs(wz) < STOP_THRESH:
+                continue
+            pts = arc_points(yaw, wz * k_ang, ARC_SEGMENTS) * r
+            z = base[2] + 0.22
+            p = np.column_stack([base[0] + pts[:, 0], base[1] + pts[:, 1], np.full(len(pts), z)])
+            for a, b in zip(p[:-2], p[1:-1]):
+                self._add_connector(scene, mujoco.mjtGeom.mjGEOM_CAPSULE, rgba, 0.006, a, b)
+            tang = p[-1] - p[-2]
+            tang /= max(np.linalg.norm(tang), 1e-9)
+            self._add_connector(scene, mujoco.mjtGeom.mjGEOM_ARROW, rgba, 0.012, p[-2], p[-2] + tang * 0.05)
+
+    # ------------------------------------------------------------------
+    # Gymnasium interface
+    # ------------------------------------------------------------------
+
+    def reset(self, seed: int | None = None, options=None):
+        if seed is not None:
+            np.random.seed(seed)
+
+        mujoco.mj_resetData(self.model, self.data)
+        self._randomizer.randomize()
+        if self._residual_home is not None:
+            self.data.qpos[self._qpos_ids] = self._residual_home      # reset pose = home (lash hinges stay 0)
+        self.data.qpos[2] += self._spawn_dz
+        mujoco.mj_forward(self.model, self.data)
+
+        # Reset EMA filter to current joint positions (matches biped_env.py _reset_idx)
+        self.filtered_targets[:] = self._jpos().copy()
+        self.prev_actions[:] = 0.0
+        self._prev_qvel[:] = self._qvel().copy()
+        self._prev_jvel[:] = self._jvel().copy()
+        self.servo.reset()      # firmware slew state + delay ring reseed on the next step
+        self._foot_ground_z = None  # swing datum reseeds from the post-reset foot height
+
+        # Random gait phase at reset (matches Isaac Lab)
+        self.gait_phase = np.random.uniform(0.0, 2.0 * math.pi)
+
+        # Reset gait tracking
+        self._air_time[:]        = 0.0
+        self._contact_time[:]    = 0.0
+        self._in_contact[:]      = False
+        self._in_contact_prev[:] = True  # pretend both feet were on ground
+        self._knee_bend_max[:]   = 0.0
+        self._touchdown[:]       = False
+        self._both_air_steps     = 0
+
+        # Reset history
+        if self._history is not None:
+            for _ in range(self.history_size):
+                self._history.append(np.zeros(self._base_actor_dim, dtype=np.float32))
+
+        start = (options or {}).get("start_state") if isinstance(options, dict) else None
+        if start is not None:
+            self._write_start_state(start, yaw=float((options or {}).get("yaw", 0.0)))
+
+        self._reset_sensor_lag()
+
+        self._sample_commands()
+
+        obs = self._build_obs()
+        return obs, {}
+
+    def _write_start_state(self, st: dict, yaw: float = 0.0) -> None:
+        """A fall-bank row (utils/fall_bank.py) as the current state, then the Jetson's re-arm: EMA state = the pose,
+        previous action = targets_to_actions(pose), servo state re-seeded. The bank's base height is an ISAAC root z;
+        the MJCF root may sit a few mm differently, so the robot is lifted out of any floor penetration."""
+        qpos, qvel = self.data.qpos, self.data.qvel
+        c, s_ = math.cos(0.5 * yaw), math.sin(0.5 * yaw)
+        qz = np.array([c, 0.0, 0.0, s_])
+        q0 = np.asarray(st["root_quat"], dtype=np.float64)
+        quat = np.array([qz[0] * q0[0] - qz[3] * q0[3], qz[0] * q0[1] - qz[3] * q0[2],
+                         qz[0] * q0[2] + qz[3] * q0[1], qz[0] * q0[3] + qz[3] * q0[0]])
+        qpos[0:3] = [0.0, 0.0, float(st["root_z"]) + 0.002]
+        qpos[3:7] = quat / np.linalg.norm(quat)
+        qpos[self._qpos_ids] = np.asarray(st["joint_pos"], dtype=np.float64)
+        if self._lash_qpos_ids is not None:
+            qpos[self._lash_qpos_ids] = 0.0
+            qvel[self._lash_qvel_ids] = 0.0
+        mujoco.mj_forward(self.model, self.data)
+        R_bw = self.data.xmat[self._base_body_id].reshape(3, 3)
+        qvel[0:3] = R_bw @ np.asarray(st["root_lin_vel_b"], dtype=np.float64)
+        qvel[3:6] = np.asarray(st["root_ang_vel_b"], dtype=np.float64)      # free joint: body-frame angular velocity
+        qvel[self._qvel_ids] = np.asarray(st["joint_vel"], dtype=np.float64)
+        for _ in range(20):                                                   # lift out of floor penetration
+            mujoco.mj_forward(self.model, self.data)
+            pen = min((float(self.data.contact[i].dist) for i in range(self.data.ncon)
+                       if self._floor_geom in (self.data.contact[i].geom1, self.data.contact[i].geom2)), default=0.0)
+            if pen >= -1e-4:
+                break
+            qpos[2] += -pen + 0.001
+        mujoco.mj_forward(self.model, self.data)
+        self.filtered_targets[:] = self._jpos().copy()
+        self.prev_actions[:] = (self.targets_to_actions(self.filtered_targets) if self.action_map == "residual"
+                                else 0.0)
+        self._prev_qvel[:] = self._qvel().copy()
+        self._prev_jvel[:] = self._jvel().copy()
+        self.servo.reset()
+        self._foot_ground_z = None
+
+    def step(self, action: np.ndarray):
+        action = np.clip(action, -1.0, 1.0)
+
+        targets = self._actions_to_targets(action)
+
+        # Cache velocity before stepping (for reward joint_acc computation)
+        self._prev_qvel[:] = self._qvel().copy()
+        self._prev_jvel[:] = self._jvel().copy()
+
+        # Advance gait phase (matches biped_env.py: the table's freq(cmd) or a fixed period, held
+        # while standing; else speed-proportional)
+        v_cmd = float(np.linalg.norm(self.commands[:2]))
+        if self.gait_clock is not None:
+            thr = self.gait_stand_threshold
+            moving = v_cmd >= thr or abs(float(self.commands[2])) >= thr
+            freq = self.gait_clock.frequency(self.commands[:3]) if moving else 0.0
+            self.gait_phase = (self.gait_phase + STEP_DT * 2.0 * math.pi * freq) % (2.0 * math.pi)
+        else:
+            self.gait_phase = (
+                self.gait_phase + STEP_DT * 2.0 * math.pi * GAIT_CLOCK_FREQ * v_cmd
+            ) % (2.0 * math.pi)
+
+        # DECIMATION substeps at 200 Hz. Like Isaac, the EMA filter AND the servo model run
+        # EVERY substep (Isaac calls _apply_action and the actuator per substep). Doing them
+        # once per 50 Hz step is what made the effective filter alpha 0.40 here vs 0.87 in
+        # Isaac, and the held torque marginally damped.
+        for k in range(DECIMATION):
+            self.filtered_targets[:] = (
+                ACTION_FILTER_ALPHA * targets + (1.0 - ACTION_FILTER_ALPHA) * self.filtered_targets
+            )
+            self.data.ctrl[self._act_ids] = self._servo_torque(self.filtered_targets)
+            if k == 0:
+                _v_imu_before = self._v_imu_world()
+            mujoco.mj_step(self.model, self.data)
+        # Mean acceleration over the control step, as BipedEnv's StepAveragedImu reports it.
+        # imu_acc_dt = PHYSICS_DT reproduces the old Isaac Imu (20 ms velocity change over a 5 ms
+        # dt, i.e. 4x), only for evaluating checkpoints trained before that fix.
+        self._last_physics_acc = (self._v_imu_world() - _v_imu_before) / self.imu_acc_dt
+        # NOTE: no qvel clamp. Isaac Lab doesn't clamp joint velocity, and overwriting qvel
+        # mid-episode injects or removes energy that MuJoCo's integrator never accounts for.
+        # The speed ceiling is physical: BAM's back-EMF drives motor torque to zero near
+        # no-load speed.
+
+        self._update_gait()
+
+        reward     = self._compute_reward(action)   # action_rate uses prev_actions = a_{t-1}
+        terminated = self._is_terminated()
+
+        # The next observation carries THIS step's action, as in BipedEnv and on the Jetson.
+        # Updating it after _build_obs left the policy seeing a_{t-2} while action_rate
+        # penalised a_t - a_{t-1}, a difference it could never observe.
+        self.prev_actions[:] = action.copy()
+        obs = self._build_obs()
+
+        return obs, reward, terminated, False, {}
