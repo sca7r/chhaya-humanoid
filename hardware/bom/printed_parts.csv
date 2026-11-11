@@ -1,0 +1,10 @@
+file,qty,material,notes
+body.stl,1,PLA,Torso
+IMU_tray.stl,1,PLA,Holds the BNO055
+ankle_and_hip.stl,4,PLA,Same part for the lower hip and the ankle (2 per leg). Most delicate part on falls: print tilted 45° with at least 6 walls
+thigh.stl,2,PLA,Same part on both legs
+calf.stl,2,PLA,Same part on both legs
+left_upper_hip.stl,1,PLA,
+right_upper_hip.stl,1,PLA,
+left_foot.stl,1,PLA,
+right_foot.stl,1,PLA,

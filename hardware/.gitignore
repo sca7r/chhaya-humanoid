@@ -1,0 +1,31 @@
+# OS
+.DS_Store
+__MACOSX/
+Thumbs.db
+desktop.ini
+
+# Fusion 360 / CAD backups and temp files
+*.f3d~
+*~lock*
+*.bak
+*.tmp
+
+# Slicer output: share 3MF plates, not machine-specific G-code
+*.gcode
+*.bgcode
+
+# KiCad backups and caches
+*-backups/
+*.kicad_prl
+fp-info-cache
+_autosave-*
+\#auto_saved_files\#
+
+# Editors
+.vscode/
+.idea/
+
+# Over GitHub's 100 MB limit: attached to the GitHub release instead.
+# The assembly is committed zipped as cad/step/robot_assembly.zip.
+cad/step/robot_assembly.step
+cad/fusion/*.f3z
