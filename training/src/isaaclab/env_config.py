@@ -25,6 +25,7 @@ Rules:
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 
@@ -50,6 +51,9 @@ _ACTUATOR_KEYS = {"params_file", "kp_fw", "kp_fw_range", "vin_range", "friction_
 _ACTUATOR_EXTRA_KEYS = {"deadband_counts"}       # MuJoCo / nominal value, mapped to deadband_rad below
 _BACKLASH_KEYS = {"enabled", "lash_deg_range", "impulse_cap", "mujoco_lash_deg", "encoder_side"}
 _REFERENCE_KEYS = {"npz_path", "stand_threshold", "rsi_prob", "rsi_joint_noise", "std"}
+_UPPER_BODY_KEYS = {"enabled", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
+_ARM_MOTION_KEYS = {"mode_probs", "rest_offset_rad", "swing_amp_range", "random_bandwidth_hz", "random_amplitude",
+                    "hold_period_s", "max_speed_rad_s"}
 
 # Plain scalar/list fields copied verbatim when present.
 _SCALAR_FIELDS = (
@@ -129,6 +133,7 @@ def apply_env_config(env_cfg, env_conf, *, training: bool) -> None:
                          "a per-robot constant applied to the command path as well as the "
                          "observation -- see BipedEnv.__init__")
 
+    _apply_upper_body(env_cfg, env_conf, training=training)   # first: swaps the robot asset the rest configures
     _apply_joint_limits(env_cfg, env_conf)      # before the home: the residual check reads env_cfg.joint_limits
     _apply_action_home(env_cfg, env_conf)
     _apply_getup(env_cfg, env_conf, training=training)
@@ -149,6 +154,42 @@ def apply_env_config(env_cfg, env_conf, *, training: bool) -> None:
                 env_cfg.events[key].params.update(val["params"])
             if "interval_range_s" in val:
                 env_cfg.events[key].interval_range_s = tuple(val["interval_range_s"])
+
+
+def _apply_upper_body(env_cfg, env_conf, *, training: bool) -> None:
+    """env_config.upper_body {enabled: true, ...} -> the robot with arms (robot_upper.usd).
+
+    The policy stays legs-only (same 12-joint observation and action, so a legs-only checkpoint can be
+    resumed and the Jetson bundle format is unchanged). The 8 arm joints get the same BAM servo model and
+    follow envs/isaaclab/mdp/arm_motion.py (rest / gait-synced swing / random / hold, drawn per episode),
+    so the walking policy learns to carry moving arms."""
+    ub = _as_dict(getattr(env_conf, "upper_body", None))
+    if not ub:
+        return
+    _check_keys("upper_body", ub, _UPPER_BODY_KEYS)
+    if not ub.get("enabled", False):
+        return
+    am = _as_dict(ub.get("arm_motion"))
+    _check_keys("upper_body.arm_motion", am, _ARM_MOTION_KEYS)
+    from envs.assets.robotV2.biped_robot_upper import (ARM_BODY_REGEX, ARM_JOINT_NAMES, BIPED_ROBOT_UPPER_CFG)
+    from utils.residual_home import POLICY_JOINT_NAMES
+    old = env_cfg.scene.robot
+    env_cfg.scene.robot = BIPED_ROBOT_UPPER_CFG.replace(prim_path=old.prim_path,
+                                                        init_state=BIPED_ROBOT_UPPER_CFG.init_state.replace(
+                                                            pos=old.init_state.pos))
+    env_cfg.policy_joint_names = list(POLICY_JOINT_NAMES)
+    env_cfg.arm_joint_names = list(ARM_JOINT_NAMES)
+    env_cfg.arm_body_regex = ARM_BODY_REGEX
+    env_cfg.arm_motion = am
+    # Mass DR on the arm links (the leg links' term matches ".*_link_1", which the arm links are not).
+    rng = ub.get("mass_scale_range", (0.9, 1.1))
+    if training and getattr(env_cfg, "enable_physics_randomization", False) and "randomize_mass" in env_cfg.events and rng:
+        import copy
+        from isaaclab.managers import SceneEntityCfg
+        ev = copy.deepcopy(env_cfg.events["randomize_mass"])
+        ev.params["asset_cfg"] = SceneEntityCfg("robot", body_names=ARM_BODY_REGEX)
+        ev.params["mass_distribution_params"] = tuple(float(v) for v in rng)
+        env_cfg.events["randomize_arm_mass"] = ev
 
 
 def _apply_joint_limits(env_cfg, env_conf) -> None:
@@ -229,12 +270,17 @@ def _apply_action_home(env_cfg, env_conf) -> None:
         env_cfg.action_home_deg = {k: float(v) for k, v in home_deg.items()}
         # per type: a number, or {pos, neg} when the two sides differ (utils/residual_action.py)
         env_cfg.action_scale_rad = plain_scale_cfg(scale)
-        # Same regex keys as the asset's init_state ("l_knee.*", ...), one per leg and type.
-        joint_pos = {}
+        # Same regex keys as the asset's init_state ("l_knee.*", ...), one per leg and type. Entries for other
+        # joints (the arms of the upper-body robot) are kept: replacing the whole dict reset them to 0.
+        robot = env_cfg.scene.robot
+        # Only keys that match NO leg joint survive (a catch-all like ".*" is dropped, as before: two
+        # patterns matching one joint is an error in Isaac Lab).
+        leg_names = [f"{side}_{t}" for t in JOINT_TYPES for side in ("l", "r")]
+        joint_pos = {k: v for k, v in dict(robot.init_state.joint_pos).items()
+                     if not any(re.fullmatch(k, n) for n in leg_names)}
         for t, deg in zip(JOINT_TYPES, expand_by_type(home_deg, "action_home_deg")[::2]):
             for side in ("l", "r"):
                 joint_pos[f"{side}_{t}.*"] = math.radians(deg)
-        robot = env_cfg.scene.robot
         env_cfg.scene.robot = robot.replace(
             init_state=robot.init_state.replace(joint_pos=joint_pos))
         if height is None:
@@ -373,6 +419,10 @@ def describe(env_cfg) -> dict[str, Any]:
     bv = env_cfg.commands["base_velocity"]
     out = {k: bv.get(k) for k in sorted(_COMMAND_KEYS - {"ranges"})}
     out["ranges"] = dict(bv.get("ranges", {}))
+    out["upper_body"] = {"policy_joints": getattr(env_cfg, "policy_joint_names", None),
+                         "arm_joints": getattr(env_cfg, "arm_joint_names", []),
+                         "arm_motion": getattr(env_cfg, "arm_motion", {}),
+                         "usd": getattr(getattr(env_cfg.scene.robot, "spawn", None), "usd_path", None)}
     for field in ("action_map", "action_home_deg", "action_scale_rad", "spawn_height_m", "mount_offset_rad", "imu_misalignment_deg", "servo_obs_delay_steps",
                   "imu_obs_delay_steps_range", "action_delay_steps_range", "quantize_joint_obs",
                   "enable_perturbations", "enable_physics_randomization"):

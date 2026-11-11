@@ -1,0 +1,520 @@
+{
+  "l_upper_arm | l_roll_idler_cap": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 0.29,
+    "bearing": true
+  },
+  "l_forearm | l_elbow_idler_cap": {
+    "joint": "l_elbow",
+    "at_rad": -1.65,
+    "gap_mm": 0.29,
+    "bearing": true
+  },
+  "l_shoulder_bracket | chest_frame": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 1.0,
+    "bearing": false
+  },
+  "l_upper_arm | l_shoulder_bracket": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 1.0,
+    "bearing": false
+  },
+  "l_forearm | l_elbow_link": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 1.0,
+    "bearing": false
+  },
+  "l_forearm | servo_l_elbow": {
+    "joint": "l_elbow",
+    "at_rad": -0.32,
+    "gap_mm": 1.77,
+    "bearing": false
+  },
+  "l_upper_arm | servo_l_shoulder_roll": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.3,
+    "gap_mm": 1.79,
+    "bearing": false
+  },
+  "l_shoulder_bracket | servo_l_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 4.0,
+    "bearing": false
+  },
+  "l_elbow_link | servo_l_arm_yaw": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 4.0,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | servo_l_shoulder_roll": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.3,
+    "gap_mm": 5.79,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | l_roll_idler_cap": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.3,
+    "gap_mm": 5.87,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | l_shoulder_bracket": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.3,
+    "gap_mm": 6.55,
+    "bearing": false
+  },
+  "l_upper_arm | chest_frame": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 13.0,
+    "bearing": false
+  },
+  "servo_l_elbow | servo_l_arm_yaw": {
+    "joint": "l_arm_yaw",
+    "at_rad": 1.57,
+    "gap_mm": 13.9,
+    "bearing": false
+  },
+  "l_upper_arm | servo_l_shoulder_pitch": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 1.33,
+    "gap_mm": 16.0,
+    "bearing": false
+  },
+  "l_roll_idler_cap | chest_frame": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": 1.0,
+    "gap_mm": 16.35,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | servo_l_arm_yaw": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 17.5,
+    "bearing": false
+  },
+  "servo_l_shoulder_roll | chest_frame": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 17.64,
+    "bearing": false
+  },
+  "l_roll_idler_cap | servo_l_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": 1.0,
+    "gap_mm": 19.35,
+    "bearing": false
+  },
+  "servo_l_shoulder_roll | servo_l_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 20.64,
+    "bearing": false
+  },
+  "l_claw_base | servo_l_elbow": {
+    "joint": "l_elbow",
+    "at_rad": -0.32,
+    "gap_mm": 28.27,
+    "bearing": false
+  },
+  "l_claw_base | l_elbow_idler_cap": {
+    "joint": "l_elbow",
+    "at_rad": -0.32,
+    "gap_mm": 28.43,
+    "bearing": false
+  },
+  "l_claw_base | l_elbow_link": {
+    "joint": "l_elbow",
+    "at_rad": -0.25,
+    "gap_mm": 29.13,
+    "bearing": false
+  },
+  "l_claw_servo | servo_l_elbow": {
+    "joint": "l_elbow",
+    "at_rad": -0.25,
+    "gap_mm": 30.54,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | chest_frame": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 30.59,
+    "bearing": false
+  },
+  "l_claw_servo | l_elbow_idler_cap": {
+    "joint": "l_elbow",
+    "at_rad": -0.18,
+    "gap_mm": 32.6,
+    "bearing": false
+  },
+  "l_claw_servo | l_elbow_link": {
+    "joint": "l_elbow",
+    "at_rad": -0.18,
+    "gap_mm": 33.39,
+    "bearing": false
+  },
+  "l_forearm | chest_frame": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 33.5,
+    "bearing": false
+  },
+  "l_shoulder_bracket | head": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -2.47,
+    "gap_mm": 38.0,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | servo_l_shoulder_pitch": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 38.65,
+    "bearing": false
+  },
+  "l_elbow_link | l_upper_arm": {
+    "joint": "l_arm_yaw",
+    "at_rad": 1.57,
+    "gap_mm": 39.0,
+    "bearing": false
+  },
+  "l_shoulder_bracket | head_visor": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -2.2,
+    "gap_mm": 41.26,
+    "bearing": false
+  },
+  "l_elbow_link | chest_frame": {
+    "joint": "l_arm_yaw",
+    "at_rad": 1.57,
+    "gap_mm": 42.5,
+    "bearing": false
+  },
+  "l_claw_jaw | servo_l_elbow": {
+    "joint": "l_elbow",
+    "at_rad": -0.11,
+    "gap_mm": 47.41,
+    "bearing": false
+  },
+  "servo_l_elbow | chest_frame": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.63,
+    "gap_mm": 47.48,
+    "bearing": false
+  },
+  "servo_l_elbow | l_upper_arm": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 48.9,
+    "bearing": false
+  },
+  "l_claw_jaw | l_elbow_idler_cap": {
+    "joint": "l_elbow",
+    "at_rad": -0.11,
+    "gap_mm": 49.53,
+    "bearing": false
+  },
+  "l_claw_jaw | l_elbow_link": {
+    "joint": "l_elbow",
+    "at_rad": -0.04,
+    "gap_mm": 49.8,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | chest_frame": {
+    "joint": "l_arm_yaw",
+    "at_rad": -0.52,
+    "gap_mm": 50.05,
+    "bearing": false
+  },
+  "servo_l_shoulder_roll | head": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -2.73,
+    "gap_mm": 50.4,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | l_upper_arm": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 52.5,
+    "bearing": true
+  },
+  "l_roll_idler_cap | head": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 53.26,
+    "bearing": false
+  },
+  "servo_l_shoulder_roll | head_visor": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -2.47,
+    "gap_mm": 53.36,
+    "bearing": false
+  },
+  "l_roll_idler_cap | head_visor": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 55.76,
+    "bearing": false
+  },
+  "l_claw_base | chest_frame": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 58.58,
+    "bearing": false
+  },
+  "l_upper_arm | head": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 61.58,
+    "bearing": false
+  },
+  "l_claw_servo | chest_frame": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 62.64,
+    "bearing": false
+  },
+  "l_upper_arm | head_visor": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 2.52,
+    "gap_mm": 64.12,
+    "bearing": false
+  },
+  "l_forearm | servo_l_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 66.5,
+    "bearing": false
+  },
+  "l_claw_jaw | chest_frame": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 69.1,
+    "bearing": false
+  },
+  "l_elbow_link | servo_l_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 71.45,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | head": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 2.6,
+    "gap_mm": 72.52,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | head_visor": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 2.6,
+    "gap_mm": 75.07,
+    "bearing": false
+  },
+  "l_claw_jaw | servo_l_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 78.68,
+    "bearing": false
+  },
+  "l_claw_servo | servo_l_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 79.93,
+    "bearing": false
+  },
+  "servo_l_elbow | servo_l_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.63,
+    "gap_mm": 80.38,
+    "bearing": false
+  },
+  "l_claw_base | servo_l_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 81.56,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | servo_l_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.52,
+    "gap_mm": 83.84,
+    "bearing": false
+  },
+  "l_shoulder_bracket | servo_r_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 93.0,
+    "bearing": false
+  },
+  "l_upper_arm | servo_r_shoulder_pitch": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 1.33,
+    "gap_mm": 105.0,
+    "bearing": false
+  },
+  "l_roll_idler_cap | servo_r_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": 1.0,
+    "gap_mm": 108.35,
+    "bearing": false
+  },
+  "l_forearm | head": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 108.49,
+    "bearing": false
+  },
+  "servo_l_shoulder_roll | servo_r_shoulder_pitch": {
+    "joint": "l_shoulder_pitch",
+    "at_rad": -3.0,
+    "gap_mm": 109.64,
+    "bearing": false
+  },
+  "servo_l_arm_yaw | servo_r_shoulder_pitch": {
+    "joint": "l_shoulder_roll",
+    "at_rad": 0.05,
+    "gap_mm": 116.08,
+    "bearing": false
+  },
+  "l_forearm | servo_r_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 117.02,
+    "bearing": false
+  },
+  "l_elbow_link | head": {
+    "joint": "l_arm_yaw",
+    "at_rad": -1.57,
+    "gap_mm": 117.18,
+    "bearing": false
+  },
+  "l_claw_jaw | head": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 118.26,
+    "bearing": false
+  },
+  "l_claw_base | head": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 119.35,
+    "bearing": false
+  },
+  "l_claw_servo | head": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 121.55,
+    "bearing": false
+  },
+  "l_forearm | head_visor": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 121.94,
+    "bearing": false
+  },
+  "servo_l_elbow | head": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.63,
+    "gap_mm": 123.31,
+    "bearing": false
+  },
+  "l_claw_jaw | head_visor": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 124.93,
+    "bearing": false
+  },
+  "l_claw_base | head_visor": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 124.95,
+    "bearing": false
+  },
+  "l_elbow_link | servo_r_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.0,
+    "gap_mm": 125.99,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | head": {
+    "joint": "l_arm_yaw",
+    "at_rad": -0.52,
+    "gap_mm": 125.99,
+    "bearing": false
+  },
+  "servo_l_elbow | servo_r_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.63,
+    "gap_mm": 128.23,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | servo_r_shoulder_pitch": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.0,
+    "gap_mm": 128.42,
+    "bearing": false
+  },
+  "l_claw_servo | head_visor": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 130.42,
+    "bearing": false
+  },
+  "l_elbow_link | head_visor": {
+    "joint": "l_arm_yaw",
+    "at_rad": 1.15,
+    "gap_mm": 131.71,
+    "bearing": false
+  },
+  "l_claw_base | servo_r_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 133.87,
+    "bearing": false
+  },
+  "l_claw_servo | servo_r_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 138.03,
+    "bearing": false
+  },
+  "l_claw_jaw | servo_r_shoulder_pitch": {
+    "joint": "l_elbow",
+    "at_rad": -2.0,
+    "gap_mm": 138.27,
+    "bearing": false
+  },
+  "servo_l_elbow | head_visor": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.63,
+    "gap_mm": 138.52,
+    "bearing": false
+  },
+  "l_elbow_idler_cap | head_visor": {
+    "joint": "l_arm_yaw",
+    "at_rad": 0.52,
+    "gap_mm": 141.38,
+    "bearing": false
+  },
+  "claw_sweep": {
+    "claw base": {
+      "gap_mm": 1.95,
+      "at_deg": -8
+    },
+    "micro servo": {
+      "gap_mm": 1.2,
+      "at_deg": 60
+    },
+    "forearm": {
+      "gap_mm": 18.28,
+      "at_deg": 60
+    }
+  }
+}

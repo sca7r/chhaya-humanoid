@@ -166,7 +166,17 @@ class BipedEnvCfg(DirectRLEnvCfg):
     # signs: -1 for joints whose direction inverts under L↔R reflection
     # yaw (0,1), roll (2,3), ankle_roll (10,11) flip; pitch and knee do not
     mirror_joint_signs: list = [-1., -1., -1., -1., 1., 1., 1., 1., 1., 1., -1., -1.]
-    
+
+    # Robot with the upper body (env_config.upper_body -> src/isaaclab/env_config.py:_apply_upper_body).
+    # policy_joint_names: the joints the policy observes and commands, in policy order (L,R interleaved
+    # per type). None = every articulation joint, i.e. the legs-only robot, bit for bit as before.
+    # arm_joint_names: joints driven by envs/isaaclab/mdp/arm_motion.py instead of the policy.
+    # arm_body_regex: arm links, kept out of leg_contact_l2 (whose leg-body test is an l_/r_ prefix).
+    policy_joint_names: list | None = None
+    arm_joint_names: list = []
+    arm_motion: dict = {}
+    arm_body_regex: str = ""
+
     # env
     episode_length_s = 20.0
     decimation = 4

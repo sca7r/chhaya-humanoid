@@ -118,6 +118,12 @@ _XML_DEFAULT = os.path.join(
     os.path.dirname(__file__),
     "../../envs/assets/robotV2/robot_v2.xml",
 )
+# Robot with the upper body (env_config.upper_body.enabled): same legs, plus 8 servo-driven arm joints
+# that follow a scripted motion (upper_body/motions.py). The policy interface is unchanged (12 legs).
+_XML_UPPER = os.path.join(
+    os.path.dirname(__file__),
+    "../../envs/assets/robotV2/robot_v2_upper_sts3215.xml",
+)
 
 class _GlobalRng:
     """np.random.Generator-like view of the global numpy RNG (what reset(seed) seeds)."""
@@ -214,12 +220,18 @@ class BipedEnvV2(BaseEnv):
         env_config=None,
         seed: int | None = None,
     ):
+        self.config = env_config or NoConfig()
+        ub = _cfg_get(self.config, "upper_body") or {}
+        if hasattr(ub, "model_dump"):
+            ub = ub.model_dump()
+        self._upper = dict(ub) if ub and dict(ub).get("enabled", False) else None
+        if self._upper is not None and xml_path == _XML_DEFAULT:
+            xml_path = _XML_UPPER
         if not os.path.exists(xml_path):
             raise FileNotFoundError(
                 f"V2 robot XML not found at {xml_path}.\n"
                 "Run  python scripts/generate_v2_xml.py  once to generate it."
             )
-        self.config = env_config or NoConfig()
 
         # Servo model + backlash, from the SAME env_config keys Isaac reads.
         act_cfg = dict(getattr(self.config, "actuator", None) or {})
@@ -296,6 +308,7 @@ class BipedEnvV2(BaseEnv):
         self._unit_rhs = np.zeros((12, self.model.nv))
         self._unit_rhs[np.arange(12), self._qvel_ids] = 1.0
         self._minv_cols = np.zeros_like(self._unit_rhs)
+        self._init_arms(params, act_cfg)
         self._base_body_id  = self.model.body("base_link").id
         # Read from the MJCF site rather than hardcoding. The previous hardcoded constant was
         # [+0.023673, 0, 0.025133] while the site (and Isaac's ImuCfg.OffsetCfg) is at
@@ -527,6 +540,69 @@ class BipedEnvV2(BaseEnv):
             self._imu_buf.clear()
             for _ in range(IMU_OBS_DELAY + 1):
                 self._imu_buf.append(seed.copy())
+
+    # ------------------------------------------------------------------
+    # Upper body: arms driven by the same BAM servo model, toward scripted targets
+    # ------------------------------------------------------------------
+    def _init_arms(self, params, act_cfg) -> None:
+        self._arm_ids = None
+        if self._upper is None:
+            return
+        from upper_body.model import ARM_JOINTS
+        from upper_body import motions
+        self._motions = motions
+        self._arm_names = list(ARM_JOINTS)
+        self._arm_ids = np.array([int(self.model.joint(n).qposadr) for n in self._arm_names], dtype=int)
+        self._arm_dofs = np.array([int(self.model.joint(n).dofadr) for n in self._arm_names], dtype=int)
+        self._arm_act_ids = np.array([int(self.model.actuator(n).id) for n in self._arm_names], dtype=int)
+        self.arm_servo = BamServo(params, 1, len(self._arm_names), PHYSICS_DT,
+                                  kp=float(act_cfg.get("kp_fw", DEFAULT_KP_FW)),
+                                  vin=DEFAULT_VIN, backlash=False, dtype=torch.float64)
+        self.arm_servo.kernel.torque_scale[:] = float(act_cfg.get("torque_scale", 1.0))
+        self.arm_servo.kernel.deadband[:] = float(act_cfg.get("deadband_counts", 0)) * (2.0 * math.pi / 4096.0)
+        self.model.dof_frictionloss[self._arm_dofs] = 0.0
+        self.model.dof_damping[self._arm_dofs] = 0.0
+        self.model.dof_armature[self._arm_dofs] = params.armature
+        self.model.actuator_ctrllimited[self._arm_act_ids] = 0
+        self._arm_rhs = np.zeros((len(self._arm_names), self.model.nv))
+        self._arm_rhs[np.arange(len(self._arm_names)), self._arm_dofs] = 1.0
+        self._arm_minv = np.zeros_like(self._arm_rhs)
+        self._arm_mode = str(self._upper.get("mujoco_arm_mode", "rest"))
+        if self._arm_mode not in ("rest", "swing", "random"):
+            raise ValueError(f"upper_body.mujoco_arm_mode {self._arm_mode!r}: expected rest | swing | random")
+        self._arm_rest = np.array([motions.REST[n] for n in self._arm_names])
+        self._arm_goal = self._arm_rest.copy()
+        self._arm_rng_seed = 0
+
+    def _reset_arms(self) -> None:
+        self.data.qpos[self._arm_ids] = self._arm_rest
+        self.data.qvel[self._arm_dofs] = 0.0
+        mujoco.mj_forward(self.model, self.data)
+        self.arm_servo.reset()
+        self._arm_goal = self._arm_rest.copy()
+        if self._arm_mode == "random":
+            self._arm_rng_seed += 1
+            self._random_arms = self._motions.RandomArms(rng=np.random.default_rng(self._arm_rng_seed))
+
+    def _arm_targets(self) -> np.ndarray:
+        if self._arm_mode == "swing":
+            pose = self._motions.arm_swing((self.gait_phase / (2.0 * math.pi)) % 1.0, amplitude=0.3)
+        elif self._arm_mode == "random":
+            pose = self._random_arms.step(STEP_DT)
+        else:
+            pose = self._motions.REST
+        return np.array([pose[n] for n in self._arm_names])
+
+    def _arm_torque(self) -> np.ndarray:
+        """BAM torque for the arm joints, one substep (same external-torque and inertia rules as the legs)."""
+        q = self.data.qpos[self._arm_ids]
+        dq = self.data.qvel[self._arm_dofs]
+        tau_ext = -self.data.qfrc_bias[self._arm_dofs] + self.data.qfrc_constraint[self._arm_dofs]
+        mujoco.mj_solveM(self.model, self.data, self._arm_minv, self._arm_rhs)
+        inv_ii = self._arm_minv[np.arange(len(self._arm_names)), self._arm_dofs]
+        t = lambda x: torch.from_numpy(np.asarray(x, dtype=np.float64)).unsqueeze(0)
+        tau = self.arm_servo.step(t(self._arm_goal), t(q), t(dq), t(tau_ext), t(1.0 / inv_ii))
+        return tau[0].numpy()
 
     def _servo_torque(self, goal: np.ndarray) -> np.ndarray:
         """BAM servo torque for the 12 actuated joints, one physics substep.
@@ -944,6 +1020,8 @@ class BipedEnvV2(BaseEnv):
         self._prev_jvel[:] = self._jvel().copy()
         self.servo.reset()      # firmware slew state + delay ring reseed on the next step
         self._foot_ground_z = None  # swing datum reseeds from the post-reset foot height
+        if self._arm_ids is not None:
+            self._reset_arms()
 
         # Random gait phase at reset (matches Isaac Lab)
         self.gait_phase = np.random.uniform(0.0, 2.0 * math.pi)
@@ -1032,6 +1110,9 @@ class BipedEnvV2(BaseEnv):
                 self.gait_phase + STEP_DT * 2.0 * math.pi * GAIT_CLOCK_FREQ * v_cmd
             ) % (2.0 * math.pi)
 
+        if self._arm_ids is not None:
+            self._arm_goal = self._arm_targets()
+
         # DECIMATION substeps at 200 Hz. Like Isaac, the EMA filter AND the servo model run
         # EVERY substep (Isaac calls _apply_action and the actuator per substep). Doing them
         # once per 50 Hz step is what made the effective filter alpha 0.40 here vs 0.87 in
@@ -1041,6 +1122,8 @@ class BipedEnvV2(BaseEnv):
                 ACTION_FILTER_ALPHA * targets + (1.0 - ACTION_FILTER_ALPHA) * self.filtered_targets
             )
             self.data.ctrl[self._act_ids] = self._servo_torque(self.filtered_targets)
+            if self._arm_ids is not None:
+                self.data.ctrl[self._arm_act_ids] = self._arm_torque()
             if k == 0:
                 _v_imu_before = self._v_imu_world()
             mujoco.mj_step(self.model, self.data)

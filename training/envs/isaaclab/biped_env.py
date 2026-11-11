@@ -121,6 +121,10 @@ class BipedEnv(DirectRLEnv):
         # physx_cache.py). The reset-time DR and Isaac Lab's body_com_pose_b re-read them ~every step.
         self.physx_property_cache = PhysxPropertyCache(self.robot.root_physx_view)
 
+        # Policy joints vs arm joints (robot with the upper body). Legs-only robot: _pj is None and
+        # every _pjsel/_pjrows below is the identity, so behaviour is unchanged bit for bit.
+        self._setup_policy_joints()
+
         # Find feet indices (right then left)
         # preserve_order=True is required: without it find_bodies returns ascending body-index
         # order, and V2's left chain precedes the right in the asset, so [right, left] silently
@@ -137,17 +141,17 @@ class BipedEnv(DirectRLEnv):
 
         # Joint limits
 
-        self.joint_pos_limits = self.robot.data.soft_joint_pos_limits[0, :, :]
-        self.joint_vel_limits = self.robot.data.soft_joint_vel_limits[0, :]
-        self.joint_effort_limits = self.robot.data.joint_effort_limits[0, :]
+        self.joint_pos_limits = self._pjrows(self.robot.data.soft_joint_pos_limits[0, :, :])
+        self.joint_vel_limits = self._pjrows(self.robot.data.soft_joint_vel_limits[0, :])
+        self.joint_effort_limits = self._pjrows(self.robot.data.joint_effort_limits[0, :])
         
         # Defaults
-        self.default_joint_pos = self.robot.data.default_joint_pos[0, :]
-        self.default_joint_vel = self.robot.data.default_joint_vel[0, :]
+        self.default_joint_pos = self._pjrows(self.robot.data.default_joint_pos[0, :])
+        self.default_joint_vel = self._pjrows(self.robot.data.default_joint_vel[0, :])
 
         # Buffers
         self.num_actions = self.cfg.action_space
-        self.num_joints = self.robot.num_joints
+        self.num_joints = len(self.policy_joint_names)
         
         self.actions = torch.zeros(self.num_envs, self.num_actions, device=self.device)
         self.previous_actions = torch.zeros(self.num_envs, self.num_actions, device=self.device)
@@ -387,8 +391,10 @@ class BipedEnv(DirectRLEnv):
         # leg_contact_l2: every non-foot body of either leg (hip/thigh/calf/ankle links; base_link
         # and imu_link are excluded by the l_/r_ prefix). Indexed in contact-sensor body order.
         _leg_re = re.compile(r"^(l|r|left|right)_")
+        _arm_re = re.compile(self.cfg.arm_body_regex) if getattr(self.cfg, "arm_body_regex", "") else None
         self._leg_body_ids = [i for i, n in enumerate(self.contact_sensor.body_names)
-                              if i not in self._feet_ids and _leg_re.match(n)]
+                              if i not in self._feet_ids and _leg_re.match(n)
+                              and not (_arm_re is not None and _arm_re.fullmatch(n))]
         print(f"[biped_env] leg_contact bodies: {[self.contact_sensor.body_names[i] for i in self._leg_body_ids]}")
         _sole = [float(v) for v in self.cfg.foot_sole_offset_m]
         if len(_sole) != 3:
@@ -424,15 +430,15 @@ class BipedEnv(DirectRLEnv):
                              "expected origin_one_sided | sole_band")
         
         # Specific joint indices for rewards
-        self.hip_indices, _ = self.robot.find_joints(self.cfg.hip_joint_names)
-        self.ankle_roll_indices, _ = self.robot.find_joints(self.cfg.ankle_roll_joint_names)
+        self.hip_indices, _ = self._find_policy_joints(self.cfg.hip_joint_names)
+        self.ankle_roll_indices, _ = self._find_policy_joints(self.cfg.ankle_roll_joint_names)
         _pitch_names = getattr(self.cfg, "ankle_pitch_joint_names", [])
-        _pitch_idx, _ = self.robot.find_joints(_pitch_names) if _pitch_names else ([], [])
+        _pitch_idx, _ = self._find_policy_joints(_pitch_names) if _pitch_names else ([], [])
         self.ankle_pitch_indices = torch.tensor(_pitch_idx, device=self.device, dtype=torch.long)
-        knee_indices, _ = self.robot.find_joints(self.cfg.knee_joint_names)
+        knee_indices, _ = self._find_policy_joints(self.cfg.knee_joint_names)
         self.knee_indices = torch.tensor(knee_indices, device=self.device, dtype=torch.long)
         _hpitch_names = getattr(self.cfg, "hip_pitch_joint_names", [])
-        _hpitch_idx, _ = self.robot.find_joints(_hpitch_names) if _hpitch_names else ([], [])
+        _hpitch_idx, _ = self._find_policy_joints(_hpitch_names) if _hpitch_names else ([], [])
         self.hip_pitch_indices = torch.tensor(_hpitch_idx, device=self.device, dtype=torch.long)
 
         # Device-tensor copies of the index lists used every step. Indexing a CUDA tensor with a Python
@@ -458,6 +464,9 @@ class BipedEnv(DirectRLEnv):
         self.joint_limits_max = torch.tensor([x[1] for x in self.cfg.joint_limits], device=self.device)
         self.joint_range = self.joint_limits_max - self.joint_limits_min
         print(f"[biped_env] joint order ({len(self.robot.joint_names)}): {list(self.robot.joint_names)}")
+        if self._pj is not None:
+            print(f"[biped_env] policy joints ({len(self.policy_joint_names)}): {self.policy_joint_names}; "
+                  f"arm joints driven by arm_motion: {self.arm_joint_names}")
         print(f"[biped_env] joint_limits rows (deg): "
               f"{[[round(math.degrees(v), 1) for v in lim] for lim in self.cfg.joint_limits]}")
 
@@ -506,8 +515,8 @@ class BipedEnv(DirectRLEnv):
         # Gait-quality diagnostics (per-episode means, logged at reset). They turn what you
         # see on screen into numbers: body ahead of the feet, torso lean, toe-in, foot lift,
         # limping. Signs are verified in src/isaaclab/check_actuator.py.
-        _hy_l, _ = self.robot.find_joints(["(l|left)_hip_yaw.*"])
-        _hy_r, _ = self.robot.find_joints(["(r|right)_hip_yaw.*"])
+        _hy_l, _ = self._find_policy_joints(["(l|left)_hip_yaw.*"])
+        _hy_r, _ = self._find_policy_joints(["(r|right)_hip_yaw.*"])
         self.hip_yaw_lr = torch.tensor(_hy_l + _hy_r, device=self.device, dtype=torch.long)
         self.diag_keys = ("com_ahead_m", "com_lateral_abs_m", "com_outside_mm", "lean_fwd_deg",
                           "toe_in_deg", "vel_err_moving_ms", "yaw_err_moving_rads",
@@ -535,7 +544,7 @@ class BipedEnv(DirectRLEnv):
                 root_dir=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")),
             )
             self.motion_ref = MotionReference(motion_cfg, self.device)
-            self.motion_ref.bind_to_robot(self.robot.joint_names)
+            self.motion_ref.bind_to_robot(self.policy_joint_names)
             self.motion_time = torch.zeros(self.num_envs, device=self.device)
             if self.cfg.animation_random_start:
                 self._randomize_motion_time(torch.arange(self.num_envs, device=self.device))
@@ -549,7 +558,7 @@ class BipedEnv(DirectRLEnv):
                 self.cfg.reference_npz_path, self.device,
                 root_dir=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")),
             )
-            self.gait_ref.bind_to_robot(self.robot.joint_names)
+            self.gait_ref.bind_to_robot(self.policy_joint_names)
             self._ref_std = dict(self.cfg.reference_std)
             g = self.gait_ref
             # The command limit is the TRAINING config's (never the table's): hand it to the table so
@@ -624,6 +633,74 @@ class BipedEnv(DirectRLEnv):
         else:
             self.targets = raw_targets
 
+        # Arm targets (robot with the upper body): one control step of the arm motion generator.
+        if self.arm_motion is not None:
+            self.arm_motion.step(self.step_dt, self.gait_phase)
+
+    def _setup_policy_joints(self) -> None:
+        """policy_joint_names -> self._pj (articulation indices of the policy joints, in policy order).
+
+        Everything joint-shaped in this env (obs, actions, limits, rewards) is in POLICY order and
+        size; robot.data arrays are articulation-shaped, so reads go through _pjsel / _pjrows and
+        writes pass joint_ids. With policy_joint_names None (legs-only robot) _pj is None and the
+        helpers return their input unchanged."""
+        names = list(self.robot.joint_names)
+        pol = getattr(self.cfg, "policy_joint_names", None)
+        self.arm_motion = None
+        self.arm_joint_names = []
+        if not pol:
+            self._pj = None
+            self._pj_list = None
+            self.policy_joint_names = names
+            self._art2pol = {i: i for i in range(len(names))}
+            return
+        missing = [n for n in pol if n not in names]
+        if missing:
+            raise ValueError(f"policy_joint_names not in the articulation: {missing}; joints are {names}")
+        ids = [names.index(n) for n in pol]
+        self._pj_list = ids
+        self._pj = torch.as_tensor(ids, device=self.device, dtype=torch.long)
+        self.policy_joint_names = list(pol)
+        self._art2pol = {a: p for p, a in enumerate(ids)}
+        arm = list(getattr(self.cfg, "arm_joint_names", []) or [])
+        if arm:
+            missing = [n for n in arm if n not in names]
+            if missing:
+                raise ValueError(f"arm_joint_names not in the articulation: {missing}")
+            self._arm_list = [names.index(n) for n in arm]
+            self.arm_joint_names = arm
+            from envs.isaaclab.mdp.arm_motion import ArmMotion
+            lim = self.robot.data.soft_joint_pos_limits[0, self._arm_list, :]
+            self.arm_motion = ArmMotion(self.num_envs, arm, lim[:, 0], lim[:, 1],
+                                        dict(getattr(self.cfg, "arm_motion", {}) or {}), self.device)
+            self.arm_motion.reset(torch.arange(self.num_envs, device=self.device))
+        # the legs' BAM actuator must cover exactly the policy joints (encoder model, saturation stats)
+        self._enc_maps = []
+        for act in [a for a in self.robot.actuators.values() if hasattr(a, "attach")]:
+            aids = act.joint_indices
+            aids = list(range(len(names))) if isinstance(aids, slice) else [int(i) for i in aids]
+            loc = [k for k, a in enumerate(aids) if a in self._art2pol]
+            if loc:
+                self._enc_maps.append((act, aids, torch.as_tensor(loc, device=self.device, dtype=torch.long),
+                                       torch.as_tensor([self._art2pol[aids[k]] for k in loc], device=self.device,
+                                                       dtype=torch.long)))
+
+    def _pjsel(self, t: torch.Tensor) -> torch.Tensor:
+        """Articulation-shaped [..., J_all] -> policy-shaped [..., J]."""
+        return t if self._pj is None else t[..., self._pj]
+
+    def _pjrows(self, t: torch.Tensor) -> torch.Tensor:
+        """Articulation-shaped [J_all, ...] -> policy-shaped [J, ...]."""
+        return t if self._pj is None else t[self._pj]
+
+    def _find_policy_joints(self, exprs):
+        """robot.find_joints, but returning POLICY indices (and only policy joints)."""
+        ids, names = self.robot.find_joints(exprs)
+        if self._pj is None:
+            return ids, names
+        keep = [(self._art2pol[i], n) for i, n in zip(ids, names) if i in self._art2pol]
+        return [k for k, _ in keep], [n for _, n in keep]
+
     def _init_residual_map(self) -> None:
         """residual: target = clamp(home + scale*a, limits); scale = s_pos for a >= 0 and s_neg for a < 0 when the
         run's action_scale_rad is asymmetric ({pos, neg} per type), else one scale. home == default_joint_pos, which
@@ -631,7 +708,7 @@ class BipedEnv(DirectRLEnv):
         every 'relative to default' term (obs, deviation rewards, dof_pos_l2, knee bend) is
         measured from it. Check that it really arrived, by joint NAME order, and is mirror-safe."""
         from utils.residual_action import JOINT_TYPES, check_residual_map, home_rad, scale_pair_rad
-        for i, name in enumerate(self.robot.joint_names):
+        for i, name in enumerate(getattr(self, "policy_joint_names", None) or self.robot.joint_names):
             want = ("l_" if i % 2 == 0 else "r_") + JOINT_TYPES[i // 2]
             if not name.startswith(want):
                 raise ValueError(f"residual map: joint {i} is {name!r}, expected {want}* "
@@ -683,7 +760,12 @@ class BipedEnv(DirectRLEnv):
         )
         # The filtered target is in encoder space. A servo with mount offset d drives its
         # encoder there, so the TRUE joint goes to target - d (see mount_offset in __init__).
-        self.robot.set_joint_position_target(self.filtered_targets - self.mount_offset)
+        if self._pj is None:
+            self.robot.set_joint_position_target(self.filtered_targets - self.mount_offset)
+        else:
+            self.robot.set_joint_position_target(self.filtered_targets - self.mount_offset, joint_ids=self._pj_list)
+            if self.arm_motion is not None:
+                self.robot.set_joint_position_target(self.arm_motion.targets, joint_ids=self._arm_list)
 
     def render(self) -> np.ndarray | None:
         if self.render_mode != "rgb_array" or self.video_camera is None:
@@ -734,9 +816,9 @@ class BipedEnv(DirectRLEnv):
         self.imu_lin_acc_b = imu_data.lin_acc_b
         self.imu_ang_vel_b = imu_data.ang_vel_b
         self.projected_gravity_b = imu_data.projected_gravity_b
-        self.joint_pos = self.robot.data.joint_pos
-        self.joint_vel = self.robot.data.joint_vel
-        self.joint_efforts = self.robot.data.applied_torque
+        self.joint_pos = self._pjsel(self.robot.data.joint_pos)
+        self.joint_vel = self._pjsel(self.robot.data.joint_vel)
+        self.joint_efforts = self._pjsel(self.robot.data.applied_torque)
         
         # Sensor lag. The self.* attributes above stay ground truth -- the reward terms and
         # _get_dones read them -- so the delayed copies live in locals used only for the
@@ -744,9 +826,15 @@ class BipedEnv(DirectRLEnv):
         joint_pos_obs, joint_vel_obs = self.joint_pos, self.joint_vel
         if self._servo_side_encoder:
             joint_pos_obs, joint_vel_obs = joint_pos_obs.clone(), joint_vel_obs.clone()
-            for act in self.bam_actuators:
-                ids = act._joint_ids()
-                joint_pos_obs[:, ids], joint_vel_obs[:, ids] = act.encoder_reading(joint_pos_obs[:, ids], joint_vel_obs[:, ids])
+            if self._pj is None:
+                for act in self.bam_actuators:
+                    ids = act._joint_ids()
+                    joint_pos_obs[:, ids], joint_vel_obs[:, ids] = act.encoder_reading(joint_pos_obs[:, ids], joint_vel_obs[:, ids])
+            else:
+                d = self.robot.data
+                for act, aids, loc, pol in self._enc_maps:
+                    qe, dqe = act.encoder_reading(d.joint_pos[:, aids], d.joint_vel[:, aids])
+                    joint_pos_obs[:, pol], joint_vel_obs[:, pol] = qe[:, loc], dqe[:, loc]
         if self.servo_obs_delay > 0:
             self.servo_obs_buffer = torch.roll(self.servo_obs_buffer, shifts=1, dims=1)
             self.servo_obs_buffer[:, 0] = torch.cat([self.joint_pos, self.joint_vel], dim=-1)
@@ -1024,7 +1112,7 @@ class BipedEnv(DirectRLEnv):
         r_dof_torques = rewards.joint_torques_l2(self.joint_efforts)
         
         # 9. dof_acc_l2 (w=-1.0e-6)
-        r_dof_acc = torch.sum(torch.square(self.robot.data.joint_acc), dim=1)
+        r_dof_acc = torch.sum(torch.square(self._pjsel(self.robot.data.joint_acc)), dim=1)
         
         # 10. dof_pos_limits (w=-1.0)
         r_dof_pos_limits = rewards.joint_pos_limits(self.joint_pos, self.joint_limits_min, self.joint_limits_max)
@@ -1131,7 +1219,7 @@ class BipedEnv(DirectRLEnv):
         # frame sampled once above (ref), fresh robot.data.joint_pos (self.joint_pos is one step stale here).
         if ref is not None and float(self.cfg.rewards.get("stand_pose_l2", 0.0)) != 0.0:
             r_stand_pose = rewards.stand_pose_l2(
-                self.robot.data.joint_pos,
+                self._pjsel(self.robot.data.joint_pos),
                 self.gait_ref.joint_field(ref, "joint_pos"),
                 ref_standing.float(),
             )
@@ -1141,7 +1229,8 @@ class BipedEnv(DirectRLEnv):
             _thr = float(self.cfg.gait_clock_stand_threshold)
             _stand = (torch.norm(self.commands[:, :2], dim=1) < _thr) & (self.commands[:, 2].abs() < _thr)
             r_stand_pose = rewards.stand_pose_l2(
-                self.robot.data.joint_pos, self.default_joint_pos.unsqueeze(0).expand_as(self.robot.data.joint_pos),
+                self._pjsel(self.robot.data.joint_pos),
+                self.default_joint_pos.unsqueeze(0).expand_as(self._pjsel(self.robot.data.joint_pos)),
                 _stand.float())
         else:
             r_stand_pose = torch.zeros(self.num_envs, device=self.device)
@@ -1458,7 +1547,7 @@ class BipedEnv(DirectRLEnv):
         """Per-episode torque headroom sums (Torque/*, Actuator/* at reset)."""
         # Read applied_torque fresh rather than self.joint_efforts, which is
         # assigned in _get_observations and therefore one step stale at this point.
-        _abs_tau = self.robot.data.applied_torque.abs()
+        _abs_tau = self._pjsel(self.robot.data.applied_torque).abs()
         self.torque_abs_sum += _abs_tau.mean(dim=1)
         if self.bam_actuators:
             _act = self.bam_actuators[0]
@@ -1562,8 +1651,8 @@ class BipedEnv(DirectRLEnv):
         feet_b = math_utils.quat_apply_inverse(quat, rel.reshape(-1, 3)).reshape(self.num_envs, 6)
 
         return {
-            "imitation_joint_pos": rewards.imitation_mse_exp(d.joint_pos, g.joint_field(ref, "joint_pos"), std["joint_pos"]),
-            "imitation_joint_vel": rewards.imitation_mse_exp(d.joint_vel, g.joint_field(ref, "joint_vel"), std["joint_vel"]),
+            "imitation_joint_pos": rewards.imitation_mse_exp(self._pjsel(d.joint_pos), g.joint_field(ref, "joint_pos"), std["joint_pos"]),
+            "imitation_joint_vel": rewards.imitation_mse_exp(self._pjsel(d.joint_vel), g.joint_field(ref, "joint_vel"), std["joint_vel"]),
             "imitation_foot_pos": rewards.imitation_mse_exp(feet_b, g.field(ref, "foot_pos_b"), std["foot_pos"]),
             "imitation_contact": rewards.imitation_contact_match(feet_in_contact[:, self._swap_lr], g.field(ref, "contact"), _soft, _agg_min),
             "imitation_orientation": rewards.imitation_mse_exp(d.projected_gravity_b, g.field(ref, "projected_gravity"), std["orientation"]),
@@ -1599,7 +1688,7 @@ class BipedEnv(DirectRLEnv):
         noise = (torch.rand(n, self.num_joints, device=self.device) * 2.0 - 1.0) * self.cfg.reference_rsi_joint_noise
         q = torch.clamp(g.joint_field(ref, "joint_pos") + noise, self.joint_limits_min, self.joint_limits_max)
         qd = g.joint_field(ref, "joint_vel")
-        self.robot.write_joint_state_to_sim(q, qd, env_ids=ids)
+        self.robot.write_joint_state_to_sim(q, qd, joint_ids=self._pj_list, env_ids=ids)
 
         # Base: keep xy/yaw from the reset event; roll/pitch from the reference gravity vector.
         # For R = Rz(yaw) Ry(pitch) Rx(roll), R^T (0, 0, -1) = (sin p, -sin r cos p, -cos r cos p).
@@ -1680,7 +1769,7 @@ class BipedEnv(DirectRLEnv):
             "com_lateral_abs_m": (com_offset_xy * left).sum(dim=-1).abs(),
             "com_outside_mm": com_dist * 1000.0,
             "lean_fwd_deg": torch.rad2deg(torch.asin(g[:, 0].clamp(-1.0, 1.0))),
-            "toe_in_deg": torch.rad2deg(-self.robot.data.joint_pos[:, self.hip_yaw_lr].mean(dim=1)),
+            "toe_in_deg": torch.rad2deg(-self._pjsel(self.robot.data.joint_pos)[:, self.hip_yaw_lr].mean(dim=1)),
             "vel_err_moving_ms": torch.where(moving, vel_err, nan),
             "yaw_err_moving_rads": torch.where(turning, yaw_err, nan),
         }
@@ -1883,7 +1972,9 @@ class BipedEnv(DirectRLEnv):
         # Reset action filter to the current ENCODER reading (filtered_targets live in encoder
         # space; _apply_action subtracts mount_offset), so the commanded true target equals
         # the true joint position and there is no reset transient.
-        self.filtered_targets[env_ids] = self.robot.data.joint_pos[env_ids] + self.mount_offset[env_ids]
+        self.filtered_targets[env_ids] = self._pjsel(self.robot.data.joint_pos[env_ids]) + self.mount_offset[env_ids]
+        if self.arm_motion is not None:
+            self.arm_motion.reset(env_ids)
 
         # Reset delay buffer and sample new per-env delay
         self.action_delay_buffer.index_fill_(0, env_ids, 0.0)
@@ -1918,7 +2009,7 @@ class BipedEnv(DirectRLEnv):
         # Seed the servo lag buffer with the post-reset encoder reading in every slot, so a
         # freshly reset env doesn't observe pre-reset joint state for its first few steps.
         self.servo_obs_buffer[env_ids] = torch.cat(
-            [self.robot.data.joint_pos[env_ids], self.robot.data.joint_vel[env_ids]], dim=-1
+            [self._pjsel(self.robot.data.joint_pos[env_ids]), self._pjsel(self.robot.data.joint_vel[env_ids])], dim=-1
         ).unsqueeze(1)
         # The Imu sensor is lazily updated and may still hold the pre-reset step here, so zero
         # rather than seeding from a stale read.

@@ -235,6 +235,9 @@ def trace_states(trace_path: str, hist: int, n: int = 15) -> list[np.ndarray]:
 # 2. Closed loop
 # ---------------------------------------------------------------------------
 
+_ARM_BODY_RE = re.compile(r"(l|r)_(shoulder|upper_arm|elbow|forearm)_link")
+
+
 def leg_sides(model):
     """(side, stem) per body id. side: 0 = left leg, 1 = right leg, -1 = world / base / other.
     Membership is by MJCF body name (l_* / r_* links), stem is the name without the l_/r_ prefix."""
@@ -242,6 +245,8 @@ def leg_sides(model):
     stem = [""] * model.nbody
     for b in range(model.nbody):
         n = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, b) or ""
+        if _ARM_BODY_RE.fullmatch(n):          # upper-body robot: arm links are not leg links
+            continue
         if n.startswith("l_"):
             side[b], stem[b] = 0, n[2:]
         elif n.startswith("r_"):

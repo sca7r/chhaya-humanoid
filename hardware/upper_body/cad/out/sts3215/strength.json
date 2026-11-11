@@ -1,0 +1,239 @@
+{
+ "loads": {
+  "T_STALL": 2.94,
+  "T_IMPACT": 4.9,
+  "F_HAND": 45.0,
+  "F_HEAD": 50.0
+ },
+ "strength_MPa": {
+  "along_layers": 50.0,
+  "across_layers": 25.0
+ },
+ "sf_min": 3.0,
+ "sections": [
+  {
+   "where": "upper-arm fork, horn ear at the window",
+   "load": "shoulder-roll torque 4.9 N*m",
+   "area_mm2": 94.7,
+   "I_mm4": 9739,
+   "stress_MPa": 8.4,
+   "strength_MPa": 50.0,
+   "SF": 6.0
+  },
+  {
+   "where": "forearm fork, horn ear at the window",
+   "load": "elbow torque 4.9 N*m",
+   "area_mm2": 94.7,
+   "I_mm4": 9739,
+   "stress_MPa": 8.4,
+   "strength_MPa": 50.0,
+   "SF": 6.0
+  },
+  {
+   "where": "upper-arm fork, both ears, sideways",
+   "load": "4.9 N*m about Y",
+   "area_mm2": 189.4,
+   "I_mm4": 106934,
+   "stress_MPa": 1.2,
+   "strength_MPa": 50.0,
+   "SF": 42.4
+  },
+  {
+   "where": "forearm fork, both ears, sideways",
+   "load": "45 N sideways on the claw tip",
+   "area_mm2": 189.4,
+   "I_mm4": 106934,
+   "stress_MPa": 1.2,
+   "strength_MPa": 50.0,
+   "SF": 42.3
+  },
+  {
+   "where": "forearm shell, mid-height, sideways",
+   "load": "45 N sideways on the claw tip",
+   "area_mm2": 132.9,
+   "I_mm4": 25985,
+   "stress_MPa": 2.6,
+   "strength_MPa": 50.0,
+   "SF": 18.9
+  },
+  {
+   "where": "forearm shell, mid-height, fore-aft",
+   "load": "45 N fore-aft on the claw tip",
+   "area_mm2": 132.9,
+   "I_mm4": 5393,
+   "stress_MPa": 7.2,
+   "strength_MPa": 50.0,
+   "SF": 7.0
+  },
+  {
+   "where": "claw housing walls, sideways",
+   "load": "45 N sideways on the claw tip",
+   "area_mm2": 64.0,
+   "I_mm4": 3526,
+   "stress_MPa": 5.3,
+   "strength_MPa": 50.0,
+   "SF": 9.4
+  },
+  {
+   "where": "claw housing walls, fore-aft",
+   "load": "45 N fore-aft on the claw tip",
+   "area_mm2": 64.0,
+   "I_mm4": 1366,
+   "stress_MPa": 13.0,
+   "strength_MPa": 50.0,
+   "SF": 3.8
+  },
+  {
+   "where": "fixed jaw, root, in the jaw plane",
+   "load": "45 N on the jaw tip",
+   "area_mm2": 65.8,
+   "I_mm4": 485,
+   "stress_MPa": 10.1,
+   "strength_MPa": 50.0,
+   "SF": 5.0
+  },
+  {
+   "where": "fixed jaw, root, across the jaw plane",
+   "load": "45 N on the jaw tip",
+   "area_mm2": 65.8,
+   "I_mm4": 269,
+   "stress_MPa": 13.5,
+   "strength_MPa": 50.0,
+   "SF": 3.7
+  },
+  {
+   "where": "fixed jaw, middle, in the jaw plane",
+   "load": "45 N on the jaw tip",
+   "area_mm2": 67.0,
+   "I_mm4": 512,
+   "stress_MPa": 5.9,
+   "strength_MPa": 50.0,
+   "SF": 8.4
+  },
+  {
+   "where": "fixed jaw, middle, across the jaw plane",
+   "load": "45 N on the jaw tip",
+   "area_mm2": 67.0,
+   "I_mm4": 274,
+   "stress_MPa": 8.1,
+   "strength_MPa": 50.0,
+   "SF": 6.2
+  },
+  {
+   "where": "moving jaw, near the hub",
+   "load": "0.30 N*m (its micro servo stalls / strips first)",
+   "area_mm2": 33.4,
+   "I_mm4": 125,
+   "stress_MPa": 8.1,
+   "strength_MPa": 50.0,
+   "SF": 6.1
+  },
+  {
+   "where": "wrist screws (4x M3), fore-aft",
+   "load": "45 N on the claw tip -> 113 N per screw",
+   "stress_MPa": 113.0,
+   "strength_MPa": 509.82158281536846,
+   "SF": 4.5
+  },
+  {
+   "where": "wrist screws (4x M3), sideways",
+   "load": "45 N on the claw tip -> 55 N per screw",
+   "stress_MPa": 54.5,
+   "strength_MPa": 509.82158281536846,
+   "SF": 9.4
+  },
+  {
+   "where": "shoulder bracket, plate beside the pad",
+   "load": "shoulder-roll torque 4.9 N*m",
+   "area_mm2": 140.7,
+   "I_mm4": 25775,
+   "stress_MPa": 4.5,
+   "strength_MPa": 50.0,
+   "SF": 11.2
+  },
+  {
+   "where": "neck above the flange, fore-aft hit",
+   "load": "50 N on top of the hoop",
+   "area_mm2": 380.2,
+   "I_mm4": 32798,
+   "stress_MPa": 2.6,
+   "strength_MPa": 25.0,
+   "SF": 9.7
+  },
+  {
+   "where": "neck above the flange, side hit",
+   "load": "50 N on top of the hoop",
+   "area_mm2": 380.2,
+   "I_mm4": 12789,
+   "stress_MPa": 3.7,
+   "strength_MPa": 25.0,
+   "SF": 6.7
+  },
+  {
+   "where": "chest legs, front plate, just above the feet, fore-aft",
+   "load": "75 N fore-aft on the upper body",
+   "area_mm2": 115.9,
+   "I_mm4": 537,
+   "stress_MPa": 6.2,
+   "strength_MPa": 25.0,
+   "SF": 4.0
+  },
+  {
+   "where": "chest legs, back plate, just above the feet, fore-aft",
+   "load": "75 N fore-aft on the upper body",
+   "area_mm2": 115.9,
+   "I_mm4": 537,
+   "stress_MPa": 6.2,
+   "strength_MPa": 25.0,
+   "SF": 4.0
+  },
+  {
+   "where": "chest legs, front plate, mid-height, fore-aft",
+   "load": "75 N fore-aft on the upper body",
+   "area_mm2": 104.0,
+   "I_mm4": 514,
+   "stress_MPa": 6.3,
+   "strength_MPa": 25.0,
+   "SF": 3.9
+  },
+  {
+   "where": "chest legs, back plate, mid-height, fore-aft",
+   "load": "75 N fore-aft on the upper body",
+   "area_mm2": 104.0,
+   "I_mm4": 514,
+   "stress_MPa": 6.3,
+   "strength_MPa": 25.0,
+   "SF": 3.9
+  },
+  {
+   "where": "chest legs, all four, sideways",
+   "load": "75 N sideways on the upper body",
+   "area_mm2": 208.0,
+   "I_mm4": 462399,
+   "stress_MPa": 0.3,
+   "strength_MPa": 25.0,
+   "SF": 83.1
+  },
+  {
+   "where": "horn screws (4x M3): bearing on the 4 mm ear",
+   "load": "4.9 N*m -> 175 N per screw",
+   "stress_MPa": 14.6,
+   "strength_MPa": 50.0,
+   "SF": 3.4
+  },
+  {
+   "where": "face screws (4x M2): bearing on the 3 mm plate",
+   "load": "4.9 N*m -> 77 N per screw",
+   "stress_MPa": 12.8,
+   "strength_MPa": 50.0,
+   "SF": 3.9
+  },
+  {
+   "where": "idler stub (dia 8), bending at the collar",
+   "load": "half of 45 N at the ear",
+   "stress_MPa": 1.8,
+   "strength_MPa": 25.0,
+   "SF": 14.0
+  }
+ ]
+}

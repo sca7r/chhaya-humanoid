@@ -1,0 +1,451 @@
+{
+  "variant": "sts3215",
+  "servo": {
+    "name": "sts3215",
+    "L": 45.22,
+    "W": 24.72,
+    "H": 35.0,
+    "a": 10.1,
+    "horn_t": 4.0,
+    "horn_r": 10.5,
+    "horn_pcd": 14.0,
+    "horn_hole": 3.2,
+    "face_holes_l": [
+      8.2,
+      32.7
+    ],
+    "face_holes_w": 10.25,
+    "mass_kg": 0.06,
+    "stall_nm": 2.94
+  },
+  "parts": {
+    "chest_frame": {
+      "volume_cm3": 46.524,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -36.5,
+        -65.02,
+        70.1,
+        30.6,
+        65.02,
+        137.51
+      ]
+    },
+    "head": {
+      "volume_cm3": 19.969,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -16.71,
+        -36.05,
+        137.49,
+        23.69,
+        36.05,
+        221.56
+      ]
+    },
+    "head_visor": {
+      "volume_cm3": 5.155,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        22.06,
+        -33.48,
+        152.05,
+        23.64,
+        33.48,
+        218.99
+      ]
+    },
+    "l_shoulder_bracket": {
+      "volume_cm3": 8.362,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -7.0,
+        65.96,
+        86.69,
+        28.54,
+        108.51,
+        139.01
+      ]
+    },
+    "l_roll_idler_cap": {
+      "volume_cm3": 2.512,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -18.3,
+        81.35,
+        86.3,
+        -9.5,
+        108.65,
+        128.5
+      ]
+    },
+    "l_upper_arm": {
+      "volume_cm3": 16.325,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -18.05,
+        77.99,
+        78.99,
+        33.52,
+        112.01,
+        139.01
+      ]
+    },
+    "l_elbow_link": {
+      "volume_cm3": 6.716,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        1.98,
+        77.98,
+        -15.31,
+        36.02,
+        115.52,
+        40.02
+      ]
+    },
+    "l_elbow_idler_cap": {
+      "volume_cm3": 2.512,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        5.35,
+        68.7,
+        -15.7,
+        32.65,
+        77.5,
+        26.5
+      ]
+    },
+    "l_forearm": {
+      "volume_cm3": 20.162,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        1.99,
+        68.95,
+        -45.5,
+        36.01,
+        120.52,
+        37.01
+      ]
+    },
+    "l_claw_base": {
+      "volume_cm3": 8.688,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        10.0,
+        75.33,
+        -113.33,
+        42.0,
+        110.25,
+        -45.5
+      ]
+    },
+    "l_claw_jaw": {
+      "volume_cm3": 2.05,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        37.0,
+        89.75,
+        -112.76,
+        42.0,
+        112.21,
+        -62.7
+      ]
+    },
+    "r_shoulder_bracket": {
+      "volume_cm3": 8.362,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -7.0,
+        -108.51,
+        86.69,
+        28.54,
+        -65.96,
+        139.01
+      ]
+    },
+    "r_roll_idler_cap": {
+      "volume_cm3": 2.512,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -18.3,
+        -108.65,
+        86.3,
+        -9.5,
+        -81.35,
+        128.5
+      ]
+    },
+    "r_upper_arm": {
+      "volume_cm3": 16.325,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -18.05,
+        -112.01,
+        78.99,
+        33.52,
+        -77.99,
+        139.01
+      ]
+    },
+    "r_elbow_link": {
+      "volume_cm3": 6.716,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        1.98,
+        -115.52,
+        -15.31,
+        36.02,
+        -77.98,
+        40.02
+      ]
+    },
+    "r_elbow_idler_cap": {
+      "volume_cm3": 2.512,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        5.35,
+        -77.5,
+        -15.7,
+        32.65,
+        -68.7,
+        26.5
+      ]
+    },
+    "r_forearm": {
+      "volume_cm3": 20.162,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        1.99,
+        -120.52,
+        -45.5,
+        36.01,
+        -68.95,
+        37.01
+      ]
+    },
+    "r_claw_base": {
+      "volume_cm3": 8.688,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        10.0,
+        -110.25,
+        -113.33,
+        42.0,
+        -75.33,
+        -45.5
+      ]
+    },
+    "r_claw_jaw": {
+      "volume_cm3": 2.05,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        37.0,
+        -112.21,
+        -112.76,
+        42.0,
+        -89.75,
+        -62.7
+      ]
+    },
+    "drill_template": {
+      "volume_cm3": 4.046,
+      "solids": 1,
+      "valid": true,
+      "watertight_stl": true,
+      "bbox_mm": [
+        -38.0,
+        -48.5,
+        70.1,
+        42.0,
+        48.5,
+        71.3
+      ]
+    }
+  },
+  "servos": {
+    "l_shoulder_pitch": {
+      "case_bounds_mm": [
+        [
+          -25.12,
+          27.0,
+          109.64
+        ],
+        [
+          20.1,
+          62.0,
+          134.36
+        ]
+      ]
+    },
+    "l_shoulder_roll": {
+      "case_bounds_mm": [
+        [
+          -9.5,
+          82.64,
+          86.88
+        ],
+        [
+          25.5,
+          107.36,
+          132.1
+        ]
+      ]
+    },
+    "l_arm_yaw": {
+      "case_bounds_mm": [
+        [
+          -16.12,
+          82.64,
+          44.0
+        ],
+        [
+          29.1,
+          107.36,
+          79.0
+        ]
+      ]
+    },
+    "l_elbow": {
+      "case_bounds_mm": [
+        [
+          6.64,
+          77.5,
+          -15.12
+        ],
+        [
+          31.36,
+          112.5,
+          30.1
+        ]
+      ]
+    },
+    "r_shoulder_pitch": {
+      "case_bounds_mm": [
+        [
+          -25.12,
+          -62.0,
+          109.64
+        ],
+        [
+          20.1,
+          -27.0,
+          134.36
+        ]
+      ]
+    },
+    "r_shoulder_roll": {
+      "case_bounds_mm": [
+        [
+          -9.5,
+          -107.36,
+          86.88
+        ],
+        [
+          25.5,
+          -82.64,
+          132.1
+        ]
+      ]
+    },
+    "r_arm_yaw": {
+      "case_bounds_mm": [
+        [
+          -16.12,
+          -107.36,
+          44.0
+        ],
+        [
+          29.1,
+          -82.64,
+          79.0
+        ]
+      ]
+    },
+    "r_elbow": {
+      "case_bounds_mm": [
+        [
+          6.64,
+          -112.5,
+          -15.12
+        ],
+        [
+          31.36,
+          -77.5,
+          30.1
+        ]
+      ]
+    }
+  },
+  "extras": {
+    "l_claw_servo": {
+      "mass_kg": 0.0134,
+      "link": "l_forearm_link",
+      "bounds_mm": [
+        [
+          10.0,
+          88.65,
+          -80.0
+        ],
+        [
+          37.0,
+          100.85,
+          -47.4
+        ]
+      ]
+    },
+    "r_claw_servo": {
+      "mass_kg": 0.0134,
+      "link": "r_forearm_link",
+      "bounds_mm": [
+        [
+          10.0,
+          -100.85,
+          -80.0
+        ],
+        [
+          37.0,
+          -88.65,
+          -47.4
+        ]
+      ]
+    }
+  }
+}
