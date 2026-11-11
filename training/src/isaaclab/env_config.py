@@ -51,7 +51,8 @@ _ACTUATOR_KEYS = {"params_file", "kp_fw", "kp_fw_range", "vin_range", "friction_
 _ACTUATOR_EXTRA_KEYS = {"deadband_counts"}       # MuJoCo / nominal value, mapped to deadband_rad below
 _BACKLASH_KEYS = {"enabled", "lash_deg_range", "impulse_cap", "mujoco_lash_deg", "encoder_side"}
 _REFERENCE_KEYS = {"npz_path", "stand_threshold", "rsi_prob", "rsi_joint_noise", "std"}
-_ARMS_KEYS = {"enabled", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
+_ARMS_KEYS = {"enabled", "control", "action_scale_rad", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
+_ARM_TYPES = ("shoulder_pitch", "shoulder_roll", "arm_yaw", "elbow")
 _ARM_MOTION_KEYS = {"mode_probs", "rest_offset_rad", "swing_amp_range", "random_bandwidth_hz", "random_amplitude",
                     "hold_period_s", "max_speed_rad_s"}
 
@@ -181,6 +182,16 @@ def _apply_arms(env_cfg, env_conf, *, training: bool) -> None:
     env_cfg.arm_joint_names = list(ARM_JOINT_NAMES)
     env_cfg.arm_body_regex = ARM_BODY_REGEX
     env_cfg.arm_motion = am
+    control = str(ub.get("control", "scripted"))
+    if control not in ("scripted", "policy"):
+        raise ValueError(f"env_config.arms.control {control!r}: expected scripted | policy")
+    env_cfg.arm_control = control
+    if control == "policy":
+        # Whole-body policy: 20 actions ([12 legs | 8 arms]) and a 74-dim proprio frame (50 + 3 x 8).
+        sc = _as_dict(ub.get("action_scale_rad"))
+        if set(sc) != set(_ARM_TYPES):
+            raise ValueError(f"env_config.arms.action_scale_rad: need exactly the keys {list(_ARM_TYPES)}, got {sorted(sc)}")
+        env_cfg.arm_action_scale_rad = {k: float(v) for k, v in sc.items()}
     # Mass DR on the arm links (the leg links' term matches ".*_link_1", which the arm links are not).
     rng = ub.get("mass_scale_range", (0.9, 1.1))
     if training and getattr(env_cfg, "enable_physics_randomization", False) and "randomize_mass" in env_cfg.events and rng:

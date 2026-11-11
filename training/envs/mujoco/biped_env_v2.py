@@ -356,8 +356,9 @@ class BipedEnvV2(BaseEnv):
         self._both_air_steps    = 0
 
         # History buffer (policy obs only)
-        base_actor_dim  = 50
-        base_critic_dim = 60 if critic_has_privileged_info else 50
+        # whole-body policy (arms.control: policy): + arm joint_pos_rel, joint_vel, previous actions, as in Isaac
+        base_actor_dim  = 50 + 3 * self._n_arm_act
+        base_critic_dim = base_actor_dim + (10 if critic_has_privileged_info else 0)
         self._base_actor_dim  = base_actor_dim
         self._base_critic_dim = base_critic_dim
         if self.use_history:
@@ -395,7 +396,7 @@ class BipedEnvV2(BaseEnv):
             "actor":  Box(-np.inf, np.inf, shape=(actor_dim,),  dtype=np.float32),
             "critic": Box(-np.inf, np.inf, shape=(critic_dim,), dtype=np.float32),
         })
-        self.action_space = Box(-1.0, 1.0, shape=(12,), dtype=np.float32)
+        self.action_space = Box(-1.0, 1.0, shape=(12 + self._n_arm_act,), dtype=np.float32)
 
         if seed is not None:
             np.random.seed(seed)
@@ -546,6 +547,7 @@ class BipedEnvV2(BaseEnv):
     # ------------------------------------------------------------------
     def _init_arms(self, params, act_cfg) -> None:
         self._arm_ids = None
+        self._n_arm_act = 0
         if self._arms_cfg is None:
             return
         from chhaya.model import ARM_JOINTS
@@ -573,6 +575,20 @@ class BipedEnvV2(BaseEnv):
         self._arm_rest = np.array([motions.REST[n] for n in self._arm_names])
         self._arm_goal = self._arm_rest.copy()
         self._arm_rng_seed = 0
+        # Whole-body policy: the policy commands the arms too (action [12 legs | 8 arms], same map as Isaac:
+        # target = clip(rest + scale * a, limits), EMA-filtered every substep like the legs).
+        control = str(self._arms_cfg.get("control", "scripted"))
+        if control not in ("scripted", "policy"):
+            raise ValueError(f"arms.control {control!r}: expected scripted | policy")
+        if control == "policy":
+            from chhaya.model import arm_limits
+            sc = dict(self._arms_cfg.get("action_scale_rad") or {})
+            self._arm_scale = np.array([float(sc[n[2:]]) for n in self._arm_names])
+            lim = np.array([arm_limits(n) for n in self._arm_names], dtype=np.float64)
+            self._arm_lim_min, self._arm_lim_max = lim[:, 0], lim[:, 1]
+            self._n_arm_act = len(self._arm_names)
+            self.arm_prev_actions = np.zeros(self._n_arm_act, dtype=np.float32)
+            self._arm_target = self._arm_rest.copy()
 
     def _reset_arms(self) -> None:
         self.data.qpos[self._arm_ids] = self._arm_rest
@@ -580,6 +596,9 @@ class BipedEnvV2(BaseEnv):
         mujoco.mj_forward(self.model, self.data)
         self.arm_servo.reset()
         self._arm_goal = self._arm_rest.copy()
+        if self._n_arm_act:
+            self.arm_prev_actions[:] = 0.0
+            self._arm_target = self._arm_rest.copy()
         if self._arm_mode == "random":
             self._arm_rng_seed += 1
             self._random_arms = self._motions.RandomArms(rng=np.random.default_rng(self._arm_rng_seed))
@@ -592,6 +611,14 @@ class BipedEnvV2(BaseEnv):
         else:
             pose = self._motions.REST
         return np.array([pose[n] for n in self._arm_names])
+
+    def _arm_obs(self) -> list:
+        if not self._n_arm_act:
+            return []
+        step = 2.0 * math.pi / 4096.0                       # encoder count, as the Isaac env quantises
+        q = np.round(self.data.qpos[self._arm_ids] / step) * step
+        dq = np.round(self.data.qvel[self._arm_dofs] / step) * step
+        return [(q - self._arm_rest).astype(np.float32), dq.astype(np.float32), self.arm_prev_actions]
 
     def _arm_torque(self) -> np.ndarray:
         """BAM torque for the arm joints, one substep (same external-torque and inertia rules as the legs)."""
@@ -700,7 +727,8 @@ class BipedEnvV2(BaseEnv):
             joint_vel,         # 12
             self.prev_actions, # 12
             gait_obs,          # 2
-        ])  # total = 50
+            *self._arm_obs(),  # whole-body policy: 3 x 8 (else nothing)
+        ])  # total = 50 (+ 24)
 
         if self._history is not None:
             self._history.append(obs_50.copy())
@@ -1090,6 +1118,10 @@ class BipedEnvV2(BaseEnv):
 
     def step(self, action: np.ndarray):
         action = np.clip(action, -1.0, 1.0)
+        arm_action = None
+        if self._n_arm_act:
+            action, arm_action = action[:12], action[12:]
+            self._arm_target = np.clip(self._arm_rest + self._arm_scale * arm_action, self._arm_lim_min, self._arm_lim_max)
 
         targets = self._actions_to_targets(action)
 
@@ -1110,7 +1142,7 @@ class BipedEnvV2(BaseEnv):
                 self.gait_phase + STEP_DT * 2.0 * math.pi * GAIT_CLOCK_FREQ * v_cmd
             ) % (2.0 * math.pi)
 
-        if self._arm_ids is not None:
+        if self._arm_ids is not None and not self._n_arm_act:
             self._arm_goal = self._arm_targets()
 
         # DECIMATION substeps at 200 Hz. Like Isaac, the EMA filter AND the servo model run
@@ -1123,6 +1155,8 @@ class BipedEnvV2(BaseEnv):
             )
             self.data.ctrl[self._act_ids] = self._servo_torque(self.filtered_targets)
             if self._arm_ids is not None:
+                if self._n_arm_act:
+                    self._arm_goal = ACTION_FILTER_ALPHA * self._arm_target + (1.0 - ACTION_FILTER_ALPHA) * self._arm_goal
                 self.data.ctrl[self._arm_act_ids] = self._arm_torque()
             if k == 0:
                 _v_imu_before = self._v_imu_world()
@@ -1145,6 +1179,8 @@ class BipedEnvV2(BaseEnv):
         # Updating it after _build_obs left the policy seeing a_{t-2} while action_rate
         # penalised a_t - a_{t-1}, a difference it could never observe.
         self.prev_actions[:] = action.copy()
+        if arm_action is not None:
+            self.arm_prev_actions[:] = arm_action
         obs = self._build_obs()
 
         return obs, reward, terminated, False, {}

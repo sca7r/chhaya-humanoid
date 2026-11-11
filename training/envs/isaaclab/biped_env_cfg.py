@@ -174,6 +174,13 @@ class BipedEnvCfg(DirectRLEnvCfg):
     # arm_body_regex: arm links, kept out of leg_contact_l2 (whose leg-body test is an l_/r_ prefix).
     policy_joint_names: list | None = None
     arm_joint_names: list = []
+    # arm_control: "scripted" = arm_motion drives the arms (legs-only policy, 12 actions);
+    # "policy" = whole-body policy: the arm joints join the action (12 + 8) and the observation (50 + 24).
+    arm_control: str = "scripted"
+    # whole-body policy: arm target = clamp(rest + scale * a, limits), scale [rad] per arm joint type
+    arm_action_scale_rad: dict = {}
+    # mirror signs of the arm joints in arm_joint_names order (None = all +1: Chhaya's arm axes are mirrored)
+    arm_mirror_signs: list | None = None
     arm_motion: dict = {}
     arm_body_regex: str = ""
 

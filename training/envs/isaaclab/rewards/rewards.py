@@ -1050,6 +1050,10 @@ REWARD_WEIGHT_SIGN: dict[str, int] = {
     "dof_acc_l2": -1,
     "dof_pos_limits": -1,               # amount outside the soft limits, >= 0
     "dof_pos_l2": -1,
+    "arm_action_rate_l2": -1,           # whole-body policy (Chhaya): arm block regularisers
+    "arm_pos_l2": -1,
+    "arm_torques_l2": -1,
+    "arm_pos_limits": -1,
     "ankle_torques_l2": -1,
     "angular_momentum": -1,
     "flight": -1,                       # 0/1 (or soft): both feet off the ground

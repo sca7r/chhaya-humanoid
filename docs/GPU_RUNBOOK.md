@@ -9,8 +9,8 @@ the instance busy only while it trains, and copy the results off before deleting
 2. Run the tests once (no GPU needed), as in `HANDOFF.md`. The 11 arm tests
    (`tests/test_arm_motion.py`, `tests/test_chhaya_mujoco.py`) must pass.
 3. Bake the gait table if you haven't: `(cd robot_motion_reference && python -m gait_studio.bake)`.
-4. Optional, saves hours: if you have a legs-only checkpoint from `config.yaml` with the same
-   `action_map`/home, keep it ready to upload. You can resume it on the robot with arms.
+4. Fix the electronics mounting and mass model first (`ELECTRONICS_LAYOUT.md`). Training on a
+   robot whose battery is in the wrong place wastes the run.
 
 ## 1. Instance
 
@@ -50,7 +50,7 @@ python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yam
 The startup log should show:
 - `[biped_env] policy joints (12): [...]`, then the arm joints (8), and no error about joints not
   being in the articulation;
-- the action and observation sizes are the **same** as a `config.yaml` run;
+- action size **20** and actor observation size **370** (5 × 74);
 - two actuator groups, `legs` and `arms`;
 - after a few hundred iterations, rewards that are finite and changing. Check TensorBoard
   (`tensorboard --logdir runs --bind_all`, then open port 6006 through the provider's tunnel or
@@ -61,30 +61,33 @@ If it crashes, fix it on the instance before training. Typical suspects:
 - the `randomize_arm_mass` event in `src/isaaclab/env_config.py`;
 - a tensor shape in `envs/isaaclab/biped_env.py` (`_pjsel` / `_arm_list`).
 
-Also watch one run with the viewer, or with `--video`, for a minute: the arms should move (swing,
-random, hold) and not hang limp.
+Also watch one run with the viewer, or with `--video`, for a minute: early in training the arms
+should twitch with the policy's exploration, not hang rigid.
 
 ## 4. Full run
 
 ```bash
 nohup python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless \
-      [--checkpoint <legs_only_model.pt>] > train.log 2>&1 &
+      > train.log 2>&1 &
 ```
 
 Use `nohup` or `tmux` so a dropped SSH session doesn't kill the run. Checkpoints go to
 `checkpoints/Chhaya_SAC*/` every `save_steps`.
 
 **When to stop.** The author's legs-only runs took about 40–370 M steps (2.5–5.5 h at 4096 envs).
-The arms add ~20–40 % simulation cost. Stop when, for about 30–60 min:
+The arms add ~20–40 % simulation cost, and a 20-joint policy starting from scratch needs more
+steps than a 12-joint one: plan for roughly 1.5–2× the legs-only numbers. Stop when, for about
+30–60 min:
 - `track_lin_vel_xy_exp` and the episode length have plateaued, and
 - terminations (`Episode_Termination/*`) are no longer falling.
 
 Don't run to the config's `steps` limit just because it's there.
 
 **Expected cost:**
-- setup ≈ 1 h, smoke test ≈ 0.25 h, run ≈ 5–8 h;
-- that's ≈ 7–9 h, so about ₹1,500–1,900. Set a budget alarm at ₹2,500.
-- Resuming a legs-only checkpoint usually cuts the run substantially.
+- setup ≈ 1 h, smoke test and fixes ≈ 0.5–1 h, run ≈ 8–14 h;
+- that's ≈ 10–16 h, so about ₹2,100–3,300 at ₹208/h. Set a budget alarm at ₹4,500.
+- These are estimates from the legs-only runs, not measurements: nobody has trained this robot
+  yet. Expect a second run after tuning the arm reward weights.
 
 ## 5. Before deleting the instance
 

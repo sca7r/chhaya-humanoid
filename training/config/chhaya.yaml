@@ -1,7 +1,7 @@
-# chhaya.yaml -- the training config for Chhaya (20 joints: legs driven by the policy, arms scripted).
+# chhaya.yaml -- the training config for Chhaya: one whole-body policy for all 20 joints (12 legs + 8 arms).
 # It is config.yaml (the legs-only rig) plus the env_config.arms block and model_name.
 # Train:   python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless
-# Resume a legs-only walking checkpoint (same policy interface):  ... --checkpoint <path/to/model.pt>
+# A legs-only checkpoint can NOT be resumed here (74-dim frame / 20 actions); set arms.control: scripted for that.
 train:
   seed: 42
   steps: 500000
@@ -37,14 +37,22 @@ train:
   symmetry_loss_weight: 0.0
 
   env_config:
-    # ---- Arms: 8 servo-driven joints the policy does not command -------------------------------
-    # Legs-only POLICY (same 12-joint obs/action as config.yaml, so a legs-only checkpoint can be
-    # resumed with --checkpoint and the Jetson bundle is unchanged). The 8 arm joints use the same
-    # BAM servo model and follow scripted motions drawn per episode, so the policy learns to walk
-    # carrying moving arms. Docs: docs/TRAINING.md.
+    # ---- Arms: whole-body policy --------------------------------------------------------------
+    # control: policy = the policy commands all 20 joints. Action = [12 legs | 8 arms], observation frame =
+    # the 50 leg dims + arm joint_pos_rel(8), joint_vel(8), previous arm actions(8) = 74. The arms use the
+    # same BAM STS3215 servo model as the legs. Arm target = clip(rest + action_scale_rad * a, limits).
+    # The arms have no task of their own yet: they are free to help balance, and the arm_* reward terms
+    # below keep them smooth and near the rest pose. Docs: docs/TRAINING.md.
+    # control: scripted = the old mode (12-joint policy, arms follow arm_motion as a moving payload).
     arms:
       enabled: true
-      arm_motion:
+      control: policy
+      action_scale_rad:                # reach of a = +-1 around the rest pose [rad]
+        shoulder_pitch: 1.0
+        shoulder_roll: 0.6
+        arm_yaw: 0.8
+        elbow: 1.0
+      arm_motion:                      # used only with control: scripted
         mode_probs: {rest: 0.3, swing: 0.3, random: 0.25, hold: 0.15}
         rest_offset_rad: 0.12          # +- per joint, constant per episode
         swing_amp_range: [0.1, 0.6]    # gait-synced shoulder swing amplitude [rad]
@@ -53,7 +61,7 @@ train:
         hold_period_s: [1.0, 3.0]
         max_speed_rad_s: 4.0           # STS3215 no-load ~4.9 rad/s
       mass_scale_range: [0.9, 1.1]     # DR on the arm link masses (training only)
-      mujoco_arm_mode: rest            # MuJoCo eval/gate: rest | swing | random
+      mujoco_arm_mode: rest            # control: scripted only. MuJoCo eval/gate: rest | swing | random
     reward_scale: 1.0
     reward_weights:
       # Primary locomotion
@@ -79,6 +87,11 @@ train:
       # action_rate_l2 is now SCHEDULED (action_rate_weight_* below): this value is only the
       # starting point.
       action_rate_l2: -0.01
+      # Arm block of the whole-body policy (ignored with arms.control: scripted). First guesses, untuned.
+      arm_action_rate_l2: -0.01
+      arm_pos_l2: -0.05                 # pull toward the rest pose; lower it to let the arms swing more
+      arm_torques_l2: -2.0e-3
+      arm_pos_limits: -1.0
       dof_torques_l2: -0.001   # was -0.0001 — 10× to penalise oscillatory PD torques
 
       dof_pos_limits: -1.0

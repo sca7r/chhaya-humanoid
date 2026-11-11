@@ -44,9 +44,9 @@ scripted; the walking policy doesn't know about them.
 
 ## Software
 
-The on-robot runtime (BipedRobotJetson, see [06](06_software.md)) drives the 12 leg servos. Driving
-the 8 arm servos and the claws from it is **not written yet**: the arm servos need holding at
-their rest pose (or a scripted motion) while the policy walks the legs.
+The on-robot runtime (BipedRobotJetson, see [06](06_software.md)) drives the 12 leg servos. Chhaya's
+policy commands all 20 joints, so the runtime needs the 8 arm servos added (same bus and protocol),
+plus the claws. That is **not written yet**.
 
 ## Check
 

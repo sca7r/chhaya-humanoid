@@ -71,7 +71,12 @@ class BipedEnv(DirectRLEnv):
         # Calculate Observation Dimensions
         # Proprio: 3+3+3+3+12+12+12+2 = 50
         # (+2 gait phase clock)
-        self.obs_proprio_dim = 50
+        # Chhaya whole-body policy (cfg.arm_control == "policy"): the arm joints are appended to the action
+        # ([12 legs | n arms]) and to the END of the proprio frame (arm joint_pos_rel, joint_vel, previous
+        # actions), so the first 50 dims and the first 12 actions keep the legs-only layout exactly.
+        self._n_arm_act = (len(getattr(cfg, "arm_joint_names", []) or [])
+                           if getattr(cfg, "arm_control", "scripted") == "policy" else 0)
+        self.obs_proprio_dim = 50 + 3 * self._n_arm_act
         # Privileged: 3 (lin_vel_w) + 1 (height) + 6 (contacts: 2 feet * 3 forces) = 10 (+ EXTRA_CRITIC_DIM)
         self.obs_priv_dim = 10 + int(self.EXTRA_CRITIC_DIM)
         
@@ -94,7 +99,7 @@ class BipedEnv(DirectRLEnv):
         
         # Set observation_space and action_space for DirectRLEnvCfg validation
         cfg.observation_space = self.num_obs_policy
-        cfg.action_space = 12
+        cfg.action_space = 12 + self._n_arm_act
         cfg.state_space = self.num_obs_critic
 
         # imu_step_averaged=False reproduces the old 4x accelerometer, only for evaluating
@@ -150,7 +155,7 @@ class BipedEnv(DirectRLEnv):
         self.default_joint_vel = self._pjrows(self.robot.data.default_joint_vel[0, :])
 
         # Buffers
-        self.num_actions = self.cfg.action_space
+        self.num_actions = self.cfg.action_space - self._n_arm_act   # leg actions; the arm block has its own buffers
         self.num_joints = len(self.policy_joint_names)
         
         self.actions = torch.zeros(self.num_envs, self.num_actions, device=self.device)
@@ -200,6 +205,8 @@ class BipedEnv(DirectRLEnv):
         delay_range = getattr(cfg, 'action_delay_steps_range', [0, 0])
         self.max_action_delay = int(delay_range[1])
         self.action_delay_buffer = torch.zeros(self.num_envs, self.max_action_delay + 1, self.num_joints, device=self.device)
+        if self._n_arm_act:
+            self.arm_delay_buffer = self.arm_targets.unsqueeze(1).repeat(1, self.max_action_delay + 1, 1)
         self.action_delay = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
 
         # Sensor lag buffers. Same ring-buffer convention as the actuator delay above:
@@ -343,6 +350,8 @@ class BipedEnv(DirectRLEnv):
                 ("imu_acc", 3), ("gyro", 3), ("projected_gravity", 3), ("commands", 3),
                 ("joint_pos", self.num_joints), ("joint_vel", self.num_joints),
                 ("previous_actions", self.num_joints), ("gait_clock", 2),
+                ("joint_pos", self._n_arm_act), ("joint_vel", self._n_arm_act),
+                ("previous_actions", self._n_arm_act),
             ]
         ])
         assert self.obs_noise_std.shape[0] == self.obs_proprio_dim, (
@@ -359,6 +368,8 @@ class BipedEnv(DirectRLEnv):
                 ("imu_acc", 3), ("gyro", 3), ("projected_gravity", 3), ("commands", 3),
                 ("joint_pos", self.num_joints), ("joint_vel", self.num_joints),
                 ("previous_actions", self.num_joints), ("gait_clock", 2),
+                ("joint_pos", self._n_arm_act), ("joint_vel", self._n_arm_act),
+                ("previous_actions", self._n_arm_act),
             ]
         ])
         self.vib_enabled = bool((self.vib_std > 0).any())
@@ -614,6 +625,10 @@ class BipedEnv(DirectRLEnv):
 
     def _pre_physics_step(self, actions: torch.Tensor):
         self.actions = actions.clone()
+        if self._n_arm_act:
+            # whole-body policy: [12 legs | arms]. The leg block goes through the unchanged pipeline below.
+            self.arm_actions = torch.clamp(self.actions[:, self.num_actions:], -1.0, 1.0)
+            self.actions = self.actions[:, :self.num_actions]
 
         # --- Command Updates ---
         self.command_generator.compute(self.base_quat)
@@ -633,9 +648,22 @@ class BipedEnv(DirectRLEnv):
         else:
             self.targets = raw_targets
 
-        # Arm targets (Chhaya): one control step of the arm motion generator.
+        # Arm targets (Chhaya): one control step of the arm motion generator (scripted arms) ...
         if self.arm_motion is not None:
             self.arm_motion.step(self.step_dt, self.gait_phase)
+        # ... or the policy's arm actions: target = clamp(rest + scale * a, limits), with the legs' action delay.
+        if self._n_arm_act:
+            raw_arm = self.arm_actions_to_targets(self.arm_actions)
+            if self.max_action_delay > 0:
+                self.arm_delay_buffer = torch.roll(self.arm_delay_buffer, shifts=1, dims=1)
+                self.arm_delay_buffer[:, 0] = raw_arm
+                self.arm_targets = self.arm_delay_buffer[torch.arange(self.num_envs, device=self.device), self.action_delay]
+            else:
+                self.arm_targets = raw_arm
+
+    def arm_actions_to_targets(self, a: torch.Tensor) -> torch.Tensor:
+        """Arm action in [-1, 1] -> arm joint target [rad] (residual map around the arm rest pose)."""
+        return torch.clamp(self.arm_default + self.arm_scale * torch.clamp(a, -1.0, 1.0), self.arm_lim_min, self.arm_lim_max)
 
     def _setup_policy_joints(self) -> None:
         """policy_joint_names -> self._pj (articulation indices of the policy joints, in policy order).
@@ -669,11 +697,14 @@ class BipedEnv(DirectRLEnv):
                 raise ValueError(f"arm_joint_names not in the articulation: {missing}")
             self._arm_list = [names.index(n) for n in arm]
             self.arm_joint_names = arm
-            from envs.isaaclab.mdp.arm_motion import ArmMotion
             lim = self.robot.data.soft_joint_pos_limits[0, self._arm_list, :]
-            self.arm_motion = ArmMotion(self.num_envs, arm, lim[:, 0], lim[:, 1],
-                                        dict(getattr(self.cfg, "arm_motion", {}) or {}), self.device)
-            self.arm_motion.reset(torch.arange(self.num_envs, device=self.device))
+            if self._n_arm_act:
+                self._setup_arm_policy(arm, lim)
+            else:
+                from envs.isaaclab.mdp.arm_motion import ArmMotion
+                self.arm_motion = ArmMotion(self.num_envs, arm, lim[:, 0], lim[:, 1],
+                                            dict(getattr(self.cfg, "arm_motion", {}) or {}), self.device)
+                self.arm_motion.reset(torch.arange(self.num_envs, device=self.device))
         # the legs' BAM actuator must cover exactly the policy joints (encoder model, saturation stats)
         self._enc_maps = []
         for act in [a for a in self.robot.actuators.values() if hasattr(a, "attach")]:
@@ -684,6 +715,42 @@ class BipedEnv(DirectRLEnv):
                 self._enc_maps.append((act, aids, torch.as_tensor(loc, device=self.device, dtype=torch.long),
                                        torch.as_tensor([self._art2pol[aids[k]] for k in loc], device=self.device,
                                                        dtype=torch.long)))
+
+    def _setup_arm_policy(self, arm: list, lim: torch.Tensor) -> None:
+        """Buffers and the action map of the policy-driven arms (cfg.arm_control == "policy").
+
+        arm order = cfg.arm_joint_names (L,R interleaved per type). home = the arm rest pose (the articulation's
+        default_joint_pos), scale = cfg.arm_action_scale_rad[type] for both sides."""
+        n, dev = len(arm), self.device
+        if n != self._n_arm_act:
+            raise ValueError(f"arm policy: {n} arm joints found, {self._n_arm_act} expected")
+        scale_cfg = dict(getattr(self.cfg, "arm_action_scale_rad", {}) or {})
+        scale = []
+        for i, name in enumerate(arm):
+            side, typ = name[:2], name[2:]
+            if side != ("l_" if i % 2 == 0 else "r_") or (i % 2 == 1 and arm[i - 1][2:] != typ):
+                raise ValueError(f"arm policy: arm_joint_names must be L,R interleaved per type, got {arm}")
+            if typ not in scale_cfg:
+                raise ValueError(f"arm policy: arm_action_scale_rad has no entry for {typ!r} (has {sorted(scale_cfg)})")
+            scale.append(float(scale_cfg[typ]))
+        self.arm_scale = torch.tensor(scale, device=dev)
+        if not bool((self.arm_scale > 0).all()):
+            raise ValueError(f"arm policy: arm_action_scale_rad must be > 0, got {scale_cfg}")
+        self._arm_ids_t = torch.as_tensor(self._arm_list, device=dev, dtype=torch.long)
+        self.arm_default = self.robot.data.default_joint_pos[0, self._arm_list].clone()
+        self.arm_lim_min, self.arm_lim_max = lim[:, 0].clone(), lim[:, 1].clone()
+        if bool(((self.arm_default <= self.arm_lim_min) | (self.arm_default >= self.arm_lim_max)).any()):
+            raise ValueError("arm policy: the arm rest pose must be strictly inside the joint limits")
+        self.arm_mirror_perm = [i + 1 if i % 2 == 0 else i - 1 for i in range(n)]
+        signs = list(getattr(self.cfg, "arm_mirror_signs", None) or [1.0] * n)
+        if len(signs) != n:
+            raise ValueError(f"arm policy: arm_mirror_signs needs {n} entries")
+        self.arm_mirror_signs = [float(v) for v in signs]
+        z = lambda: torch.zeros(self.num_envs, n, device=dev)
+        self.arm_actions, self.prev_arm_actions = z(), z()
+        self.arm_targets = self.arm_default.unsqueeze(0).repeat(self.num_envs, 1)
+        self.arm_filtered = self.arm_targets.clone()
+        self.arm_delay_buffer = None      # allocated in __init__ once max_action_delay is known
 
     def _pjsel(self, t: torch.Tensor) -> torch.Tensor:
         """Articulation-shaped [..., J_all] -> policy-shaped [..., J]."""
@@ -766,6 +833,10 @@ class BipedEnv(DirectRLEnv):
             self.robot.set_joint_position_target(self.filtered_targets - self.mount_offset, joint_ids=self._pj_list)
             if self.arm_motion is not None:
                 self.robot.set_joint_position_target(self.arm_motion.targets, joint_ids=self._arm_list)
+            if self._n_arm_act:
+                self.arm_filtered = (self.action_filter_alpha * self.arm_targets
+                                     + (1.0 - self.action_filter_alpha) * self.arm_filtered)
+                self.robot.set_joint_position_target(self.arm_filtered, joint_ids=self._arm_list)
 
     def render(self) -> np.ndarray | None:
         if self.render_mode != "rgb_array" or self.video_camera is None:
@@ -899,6 +970,7 @@ class BipedEnv(DirectRLEnv):
             joint_vel_obs,
             self.previous_actions,
             phase_obs,
+            *self._arm_obs(),
         ], dim=-1)
         
         # Privileged observations (Standard Critic) — 10 dims total
@@ -951,6 +1023,33 @@ class BipedEnv(DirectRLEnv):
             obs_policy = self.policy_history_buf.view(self.num_envs, -1)
             
         return {"policy": obs_policy, "critic": obs_critic}
+
+    def _arm_obs(self) -> list[torch.Tensor]:
+        """Whole-body policy: [arm joint_pos - rest, arm joint_vel, previous arm actions], appended to the proprio
+        frame. Same encoder quantisation as the legs. [] for the legs-only policy."""
+        if not self._n_arm_act:
+            return []
+        q = self.robot.data.joint_pos[:, self._arm_ids_t]
+        dq = self.robot.data.joint_vel[:, self._arm_ids_t]
+        if self.quantize_joint_obs:
+            q = torch.round(q / self.encoder_step_rad) * self.encoder_step_rad
+            dq = torch.round(dq / self.encoder_step_rad) * self.encoder_step_rad
+        return [q - self.arm_default, dq, self.prev_arm_actions]
+
+    def _arm_reward_terms(self) -> dict:
+        """Whole-body policy: regularisers on the arm block (weighted; {} for the legs-only policy). The arms get no
+        task reward: they are free to help balance, and these terms keep them smooth, cheap and near the rest pose."""
+        if not self._n_arm_act:
+            return {}
+        q = self.robot.data.joint_pos[:, self._arm_ids_t]
+        tau = self.robot.data.applied_torque[:, self._arm_ids_t]
+        over = torch.clamp(self.arm_lim_min - q, min=0.0) + torch.clamp(q - self.arm_lim_max, min=0.0)
+        return {
+            "arm_action_rate_l2": torch.sum(torch.square(self.arm_actions - self.prev_arm_actions), dim=1) * self.cfg.rewards.get("arm_action_rate_l2", 0.0),
+            "arm_pos_l2": torch.sum(torch.square(q - self.arm_default), dim=1) * self.cfg.rewards.get("arm_pos_l2", 0.0),
+            "arm_torques_l2": torch.sum(torch.square(tau), dim=1) * self.cfg.rewards.get("arm_torques_l2", 0.0),
+            "arm_pos_limits": torch.sum(over, dim=1) * self.cfg.rewards.get("arm_pos_limits", 0.0),
+        }
 
     def _phase_obs(self) -> torch.Tensor:
         """Gait-clock observation [N, 2] = (sin, cos) of the phase. The get-up env overrides it with zeros."""
@@ -1479,6 +1578,7 @@ class BipedEnv(DirectRLEnv):
             "upright": r_upright * self.cfg.rewards.get("upright", 0.0),
             "angular_momentum": r_angular_momentum * self.cfg.rewards.get("angular_momentum", 0.0),
             "flight": rewards.flight(feet_contact_rw) * self.cfg.rewards.get("flight", 0.0),
+            **self._arm_reward_terms(),
         }
         
         if self.gait_ref is not None:
@@ -1516,6 +1616,8 @@ class BipedEnv(DirectRLEnv):
         # re-seeded by _reset_idx, which runs after this.
         self.previous_previous_actions = self.previous_actions.clone()
         self.previous_actions = self.actions.clone()
+        if self._n_arm_act:
+            self.prev_arm_actions = self.arm_actions.clone()
 
         return total_reward
 
@@ -1975,6 +2077,14 @@ class BipedEnv(DirectRLEnv):
         self.filtered_targets[env_ids] = self._pjsel(self.robot.data.joint_pos[env_ids]) + self.mount_offset[env_ids]
         if self.arm_motion is not None:
             self.arm_motion.reset(env_ids)
+        if self._n_arm_act:
+            q_arm = self.robot.data.joint_pos[env_ids][:, self._arm_ids_t]
+            self.arm_filtered[env_ids] = q_arm
+            self.arm_targets[env_ids] = q_arm
+            self.arm_delay_buffer[env_ids] = q_arm.unsqueeze(1)
+            self.arm_actions.index_fill_(0, env_ids, 0.0)
+            # previous arm action = the action that holds the reset pose (0 at the rest pose)
+            self.prev_arm_actions[env_ids] = torch.clamp((q_arm - self.arm_default) / self.arm_scale, -1.0, 1.0)
 
         # Reset delay buffer and sample new per-env delay
         self.action_delay_buffer.index_fill_(0, env_ids, 0.0)
@@ -2276,9 +2386,10 @@ class BipedEnv(DirectRLEnv):
         j_perm  = torch.tensor(self.cfg.mirror_joint_perm,  device=d, dtype=torch.long)
         j_signs = torch.tensor(self.cfg.mirror_joint_signs, device=d)
 
-        # --- 50-dim actor obs mirror ---
-        p = torch.arange(50, device=d, dtype=torch.long)
-        s = torch.ones(50, device=d)
+        # --- actor obs mirror: the 50-dim leg frame, then (whole-body policy) 3 arm blocks ---
+        P = int(getattr(self, "obs_proprio_dim", 50))
+        p = torch.arange(P, device=d, dtype=torch.long)
+        s = torch.ones(P, device=d)
         s[1]  = -1.               # imu_lin_acc y
         s[3]  = -1.; s[5] = -1.  # imu_ang_vel x, z
         s[7]  = -1.               # gravity y
@@ -2290,24 +2401,32 @@ class BipedEnv(DirectRLEnv):
         # "sin(phi) > 0 -> right foot stance", so an L<->R swap means phi -> phi + pi, which
         # negates both sin and cos.
         s[48] = -1.; s[49] = -1.
+        na = int(getattr(self, "_n_arm_act", 0))
+        if na:
+            a_perm = torch.tensor(self.arm_mirror_perm, device=d, dtype=torch.long)
+            a_signs = torch.tensor(self.arm_mirror_signs, device=d)
+            for k in range(3):                                   # arm joint_pos_rel, joint_vel, previous actions
+                lo = 50 + k * na
+                p[lo:lo + na] = lo + a_perm;  s[lo:lo + na] = a_signs
         self._mirror_obs_perm  = p
         self._mirror_obs_signs = s
 
-        # --- 12-dim action mirror ---
-        self._mirror_action_perm  = j_perm
-        self._mirror_action_signs = j_signs
+        # --- action mirror: 12 legs (+ arms) ---
+        self._mirror_action_perm  = j_perm if not na else torch.cat([j_perm, 12 + a_perm])
+        self._mirror_action_signs = j_signs if not na else torch.cat([j_signs, a_signs])
 
         # --- 60-dim critic obs mirror (50 actor + 10 privileged; + EXTRA_CRITIC_DIM invariant dims, identity) ---
         # Privileged layout: [50:53]=lin_vel_b, [53]=height, [54:60]=feet_forces, [60:] = _extra_critic_obs
         extra = int(getattr(self, "EXTRA_CRITIC_DIM", 0))
-        cp = torch.arange(60 + extra, device=d, dtype=torch.long)
-        cs = torch.ones(60 + extra, device=d)
-        cp[:50] = p;  cs[:50] = s
-        cs[51]  = -1.  # lin_vel_b y  (offset 50 + 1)
+        # (whole-body policy: the proprio frame is P = 50 + arm dims, so every privileged index shifts by P - 50)
+        cp = torch.arange(P + 10 + extra, device=d, dtype=torch.long)
+        cs = torch.ones(P + 10 + extra, device=d)
+        cp[:P] = p;  cs[:P] = s
+        cs[P + 1]  = -1.  # lin_vel_b y
         # feet_forces [54:60] = [r_fx, r_fy, r_fz, l_fx, l_fy, l_fz]
         # mirror   → [l_fx, -l_fy, l_fz, r_fx, -r_fy, r_fz]
-        cp[54:60] = torch.tensor([57, 58, 59, 54, 55, 56], device=d, dtype=torch.long)
-        cs[54:60] = torch.tensor([ 1., -1.,  1.,  1., -1.,  1.], device=d)
+        cp[P + 4:P + 10] = P + torch.tensor([7, 8, 9, 4, 5, 6], device=d, dtype=torch.long)
+        cs[P + 4:P + 10] = torch.tensor([ 1., -1.,  1.,  1., -1.,  1.], device=d)
         self._mirror_critic_obs_perm  = cp
         self._mirror_critic_obs_signs = cs
 

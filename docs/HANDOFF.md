@@ -58,9 +58,12 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
   `hardware/docs/design.md`). Keep those interfaces when changing parts.
 - The legs are the original parts. A light restyle (rounding only) is allowed; joint positions, servo
   mounting and foot soles must not change.
-- STS3215 on every arm joint in simulation (the only servo with a validated BAM model). The real
-  build will run the legs-only policy with scripted arms on cheap servos.
-- Legs-only policy with scripted, randomised arm motion. The policy interface is unchanged.
+- STS3215 on all 20 joints in simulation (the only servo with a validated BAM model).
+- **Whole-body policy (decided 2026-11-12):** one policy commands all 20 joints (20 actions, 74-dim
+  frame). Scripted arms (`arms.control: scripted`) remain only as a fallback. See `TRAINING.md`.
+- **Electronics do not fit yet** (found 2026-11-12, `ELECTRONICS_LAYOUT.md`): the chest sits where the
+  original carries the computer and battery. A mounting module has to be designed, and the
+  model's mass distribution updated, **before** paying for training.
 - One robot, one project (decided 2026-11-11): no separate "upper body" folders, configs or docs.
 - Design language: like the legs. Servos are the structure, flat plates on their M2 face holes,
   dual-support forks, filleted joints, no rods or trusses, not boxy.
@@ -70,13 +73,15 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
 
 ## Next steps
 
+0. Electronics mounting and mass model (`ELECTRONICS_LAYOUT.md`), then regenerate the models.
 1. GPU: follow `GPU_RUNBOOK.md` (smoke test first: the Isaac code has never run).
 2. If the smoke test fails: fix it on the instance, then commit and push.
-3. Export, verify and gate on the VM, including `mujoco_arm_mode: swing` / `random`.
-4. On-robot runtime: BipedRobotJetson drives only the 12 leg servos; holding or scripting the 8 arm
-   servos and the claws from it is not written yet.
+3. Adapt `export_onnx.py` and `src/mujoco/policy_gate.py` to the 74-dim frame / 20 actions, then
+   export, verify and gate on the VM.
+4. On-robot runtime: BipedRobotJetson reads and commands only the 12 leg servos; it needs the 8 arm
+   servos added (same bus, same protocol) and the claws.
 5. Later: adapt `check_actuator.py` / `jitter_probe.py` / `make_fall_bank.py` and the get-up task
-   to the arms; write scripted arm gestures for the real robot (`training/chhaya/motions.py`).
+   to the arms; tasks for reaching and grasping (none exist).
 
 ## Things to verify on real hardware before printing
 
