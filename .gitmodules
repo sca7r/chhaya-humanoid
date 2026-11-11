@@ -1,0 +1,6 @@
+[submodule "training/torch_rl_algorithms"]
+	path = training/torch_rl_algorithms
+	url = https://github.com/AsterisCrack/torch-rl-algorithms.git
+[submodule "training/robot_motion_reference"]
+	path = training/robot_motion_reference
+	url = https://github.com/AsterisCrack/robot-motion-reference.git
