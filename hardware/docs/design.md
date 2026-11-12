@@ -12,9 +12,9 @@ to the servos' own holes.
 |---|---|
 | New joints | 8: `{l,r}_shoulder_pitch`, `{l,r}_shoulder_roll`, `{l,r}_arm_yaw`, `{l,r}_elbow` |
 | Servos | 8x STS3215 12 V (same as the legs, same bus, same BAM model) |
-| Mass of chest, head and arms | 731 g (480 g of it is the 8 STS3215s, 27 g the two claw micro servos) |
-| Robot mass | 2.392 kg (legs-only robot: 1.661 kg) |
-| Height | the head hoop top is ~0.52 m above the floor when standing |
+| Mass of chest, head, arms and electronics | 906 g: 480 g of it the 8 STS3215s, 27 g the claw micro servos, 245 g the battery and computer, minus 97 g of the original torso model's electronics stand-ins (see Electronics) |
+| Robot mass | 2.567 kg with battery and Raspberry Pi 5 (legs-only robot: 1.661 kg) |
+| Height | the head hoop top is ~0.54 m above the floor when standing |
 | Printed parts | 20 (9 left/right pairs + chest + head), plus the face disc; ~190 g PLA/PETG |
 | Physics | passes every check in `../../docs/physics/PHYSICS.md`: stands, holds worst arm poses at under 7 % of stall, arms moving never tip it, no arm/leg contact within gait ranges, stable at half timestep and with backlash |
 | Checks | every part is a single valid solid and a watertight STL; zero overlap between parts over 153 poses (each joint through its full range plus 80 random combinations); every moving part clears what it swings past by ≥ 1.0 mm over the whole range; MJCF and URDF compile in MuJoCo 3.2.7 (the repo's pin) and 4.0 |
@@ -37,7 +37,9 @@ its neighbours:
 | Claw (`claw_base` + `claw_jaw`) | wrist plate 16 x 31 mm, 4x M3 at (±4.5, ±12) mm, screwed in from below (`WRIST_*` in the CAD) | any tool with that plate |
 | Claw servo | MG90S-class micro servo, 2 tab screws | — |
 | Every bracket | only its own servo's M2 face holes / horn screws | reprint one part |
-| Chest | 4x M3 through the torso shelf | — |
+| Electronics rack | 4x M2.5 into the original computer bosses + 4x M3 through the torso's top plate | — |
+| Chest | 4 feet, M3 into heat-set inserts in the rack | — |
+| Computer | the rack's deck (Raspberry Pi 5 pattern 58 x 49, M2.5) | another deck for another board |
 
 **The claw.** One micro servo per hand (not simulated as a joint: it is fixed mass on the forearm, so
 the policy and the training code don't know about it). The fixed jaw is part of `claw_base`; the
@@ -188,3 +190,48 @@ safety factor is under 3. Results are in `cad/parametric/checks/` (`parts.json`,
 | `validate_model.py` | compiles the MuJoCo model and the URDF, prints the joint table |
 | `build_usd.py` | Isaac Lab USD with plain usd-core (no Isaac Sim needed) |
 | `render_robot.py` | pictures from the generated model |
+
+
+## Electronics
+
+Measured on the original body (`body.step`): its top is a rim tray, 78 x 99 mm inside, with 4 bosses in
+the Jetson Orin Nano's hole pattern (58 x 86 mm). The original robot carries the Jetson there and the
+battery strapped on top of it; the power PCB and the servo bus adapter hang inside the torso.
+
+Chhaya keeps that layout, because it puts the heavy parts low and over the hips:
+
+| Where | What | Notes |
+|---|---|---|
+| Inside the torso (unchanged) | power PCB, servo bus adapter, IMU (its tray) | as on the original robot |
+| Rack plate, in the rim tray | 3S 2200 mAh LiPo (105 x 34 x 24), lengthwise | strap through the slots; it sticks out ~26 mm front and back through the chest's arches |
+| Rack deck, above the battery | Raspberry Pi 5 with active cooler | USB/Ethernet end sticks out behind the chest back plate |
+| Inside the chest box (47 x 50 x 26 free) | 12 V → 5 V step-down for the Pi, servo wiring | |
+| Head plate | camera, small sensors | |
+
+**The chest stands on the rack, not on the shelf.** The first design bolted the chest's feet through the
+torso shelf, but the shelf is an open X of ribs: the front two holes went through nothing, and the legs'
+outer edges cut into the tray rim. The rack plate gives the feet solid ground (heat-set inserts) and is
+itself held by the 4 computer bosses and 4 M3 bolts through the torso's solid top plate.
+
+**The chest moved up 23 mm** to make room for the battery and the computer under it. Every arm joint and
+the head moved with it; nothing about the legs changed.
+
+**A Jetson does not fit.** It fills the whole rim tray (100 x 79 mm), where the rack and the chest's feet
+now are. A Jetson would need its own mounting design.
+
+**Running on a cable instead.** The power PCB has a DC input for a 12 V supply, so the robot can run
+tethered with the battery removed. Keep the battery's weight on the rack (a 180 g dummy) while tethered:
+the trained policy expects it. Running the policy on a laptop over USB (to the servo bus adapter and an
+IMU) also works electrically, but the cable pulls on the robot and the runtime would need porting; an
+on-board Pi is simpler and is what the model assumes.
+
+**Mass model.** The original torso inertial is kept. It includes ~97 g of stand-in blocks for the original
+electronics inside the rim tray; that share is subtracted, and the rack, battery (180 g) and computer
+(65 g) are added explicitly on the chest link (`tools/build_description.py`, `TORSO_STANDIN_*`). The
+battery and computer sizes are typical values in `chhaya_cad.py` (`BATT`, `PI*`): set them to your parts.
+**Weigh the finished torso** and correct the model before training if it differs.
+
+Checked by `tools/check_interference.py` ("torso fit"): no overlap between the original body, the rack,
+the chest, the battery and the computer; battery and computer clear the chest and body by ≥ 1 mm. And by
+`tools/strength_check.py`: the rack plate between the feet and the bosses (SF ≥ 4.7), the rack screws,
+and the taller chest legs (ribs deepened to 9 mm, SF ≥ 4.7).

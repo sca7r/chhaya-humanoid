@@ -19,6 +19,8 @@
     <mesh name="chest_link_col1" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_col1.stl" scale="0.001 0.001 0.001" />
     <mesh name="chest_link_col2" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_col2.stl" scale="0.001 0.001 0.001" />
     <mesh name="chest_link_col3" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_col3.stl" scale="0.001 0.001 0.001" />
+    <mesh name="chest_link_col4" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_col4.stl" scale="0.001 0.001 0.001" />
+    <mesh name="chest_link_col5" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_col5.stl" scale="0.001 0.001 0.001" />
     <mesh name="chest_link_servos" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/chest_link_servos.stl" scale="0.001 0.001 0.001" />
     <mesh name="l_shoulder_link" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/l_shoulder_link.stl" scale="0.001 0.001 0.001" />
     <mesh name="l_shoulder_link_col0" content_type="model/stl" file="../../../robot_hardware/robot_description/meshes/l_shoulder_link_col0.stl" scale="0.001 0.001 0.001" />
@@ -128,16 +130,20 @@
         </body>
       </body>
       <body name="chest_link" pos="0 0 0">
-        <inertial pos="-0.000392692 -2.94356e-09 0.126767" mass="0.186633" fullinertia="0.00043252 0.00014655 0.00038506 1.445e-11 -2.2818e-05 5.7199e-11" />
+        <inertial pos="-0.00733656 -3.65945e-05 0.128618" mass="0.362067" fullinertia="0.00065115 0.00052668 0.00061099 2.0442e-07 -0.00010118 -6.3946e-07" />
         <geom type="mesh" mesh="chest_link" contype="0" conaffinity="0" group="1" rgba="0.93 0.93 0.95 1" />
         <geom type="mesh" mesh="chest_link_servos" contype="0" conaffinity="0" group="1" rgba="0.12 0.12 0.14 1" />
         <geom type="mesh" mesh="chest_link_col0" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
         <geom type="mesh" mesh="chest_link_col1" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
         <geom type="mesh" mesh="chest_link_col2" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
         <geom type="mesh" mesh="chest_link_col3" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
-        <geom type="box" pos="-0.00251 0.0445 0.122" size="0.02261 0.0175 0.01236" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
-        <geom type="box" pos="-0.00251 -0.0445 0.122" size="0.02261 0.0175 0.01236" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
-        <body name="l_shoulder_link" pos="0.01 0.066 0.122">
+        <geom type="mesh" mesh="chest_link_col4" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
+        <geom type="mesh" mesh="chest_link_col5" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
+        <geom type="box" pos="-0.00251 0.0445 0.145" size="0.02261 0.0175 0.01236" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
+        <geom type="box" pos="-0.00251 -0.0445 0.145" size="0.02261 0.0175 0.01236" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
+        <geom type="box" pos="-0.0032 0 0.0912" size="0.0525 0.017 0.012" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
+        <geom type="box" pos="-0.014 0 0.1195" size="0.0435 0.028 0.0088" group="3" rgba="0.9 0.5 0.5 0.3" mass="0" />
+        <body name="l_shoulder_link" pos="0.01 0.066 0.145">
           <inertial pos="-0.000763136 0.0260703 -0.0115072" mass="0.074112" fullinertia="2.0076e-05 2.1578e-05 1.6977e-05 1.762e-06 -3.3498e-07 1.5208e-06" />
           <joint name="l_shoulder_pitch" pos="0 0 0" axis="0 1 0" range="-3.0 1.0" actuatorfrcrange="-2.94 2.94" />
           <geom type="mesh" mesh="l_shoulder_link" contype="0" conaffinity="0" group="1" rgba="0.93 0.93 0.95 1" />
@@ -174,7 +180,7 @@
             </body>
           </body>
         </body>
-        <body name="r_shoulder_link" pos="0.01 -0.066 0.122">
+        <body name="r_shoulder_link" pos="0.01 -0.066 0.145">
           <inertial pos="-0.000763136 -0.0260703 -0.0115072" mass="0.074112" fullinertia="2.0076e-05 2.1578e-05 1.6977e-05 -1.762e-06 -3.3498e-07 -1.5208e-06" />
           <joint name="r_shoulder_pitch" pos="0 0 0" axis="0 1 0" range="-3.0 1.0" actuatorfrcrange="-2.94 2.94" />
           <geom type="mesh" mesh="r_shoulder_link" contype="0" conaffinity="0" group="1" rgba="0.93 0.93 0.95 1" />

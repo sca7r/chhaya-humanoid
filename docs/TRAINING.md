@@ -3,7 +3,7 @@
 Chhaya has 20 servo joints: 12 in the legs and 8 in the arms (`{l,r}_shoulder_pitch`,
 `{l,r}_shoulder_roll`, `{l,r}_arm_yaw`, `{l,r}_elbow`). The halo head is fixed. Each claw has a
 micro servo that is **not** a simulated joint: it and the jaws are fixed mass on the forearm, so
-the training code never sees it. The robot weighs 2.39 kg. The mechanical design is in
+the training code never sees it. The robot weighs 2.57 kg with its battery and Raspberry Pi 5. The mechanical design is in
 `hardware/docs/design.md`.
 
 ## One whole-body policy for all 20 joints
@@ -116,7 +116,7 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
   - the 19 Chhaya tests pass (MuJoCo whole-body env; the Isaac env's arm action map and mirror tables, run on the CPU with the real methods lifted out of `biped_env.py`);
   - the rest of the test suite gives exactly the same results as the unmodified upstream code
     (7 failures there are upstream's own gait-table and config expectations).
-- USD: 21 rigid bodies, 20 revolute joints, 2.392 kg, joint frames matching the URDF to 0.0 mm.
+- USD: 21 rigid bodies, 20 revolute joints, 2.567 kg, joint frames matching the URDF to 0.0 mm.
 - Isaac-side code: compiles and passes pyflakes. It was **not run**: Isaac Sim needs an RTX GPU.
   The first thing to do on the GPU machine is the smoke test in `GPU_RUNBOOK.md`.
 

@@ -38,8 +38,8 @@ run, and the strength check ([`docs/design.md`](../docs/design.md)) assumes thes
 | l/r_claw_base | 1+1 | on its back (the housing's rear face on the bed). layers then run along the housing walls and the fixed finger, which is what the strength check assumes |
 | l/r_claw_jaw | 1+1 | flat. 100 % infill |
 | l/r_roll_idler_cap, l/r_elbow_idler_cap | 4 | plate flat, stub up. 100 % infill (it's tiny) |
-| drill_template | 1 | flat. marks the 4 shelf holes |
-| **Chest, head, arms and claws** | **21 parts** | About 0.2 kg; 4 walls, 30 % gyroid, PLA or (better for falls) PETG |
+| electronics_rack | 1 | plate flat on the bed, supports under the deck. 4 walls, 40 % infill: the chest stands on it |
+| **Chest, head, arms, claws and rack** | **21 parts** | About 0.22 kg; 4 walls, 30 % gyroid, PLA or (better for falls) PETG |
 
 Before printing the forks and pads, check the horn screw circle (`horn_pcd`, 14 mm) against your
 servo horns, and the claw pocket (`GR_L`, `GR_W`: 22.8 x 12.2 mm body) against your micro servo.

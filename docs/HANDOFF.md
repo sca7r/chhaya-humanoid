@@ -61,9 +61,9 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
 - STS3215 on all 20 joints in simulation (the only servo with a validated BAM model).
 - **Whole-body policy (decided 2026-11-12):** one policy commands all 20 joints (20 actions, 74-dim
   frame). Scripted arms (`arms.control: scripted`) remain only as a fallback. See `TRAINING.md`.
-- **Electronics do not fit yet** (found 2026-11-12, `ELECTRONICS_LAYOUT.md`): the chest sits where the
-  original carries the computer and battery. A mounting module has to be designed, and the
-  model's mass distribution updated, **before** paying for training.
+- **Electronics (2026-11-12, `ELECTRONICS_LAYOUT.md`):** chest raised 23 mm onto a printed electronics
+  rack; battery and Raspberry Pi 5 under the chest, PCB and bus adapter in the torso as on the original.
+  A Jetson no longer fits. Weigh the real torso before training.
 - One robot, one project (decided 2026-11-11): no separate "upper body" folders, configs or docs.
 - Design language: like the legs. Servos are the structure, flat plates on their M2 face holes,
   dual-support forks, filleted joints, no rods or trusses, not boxy.
@@ -73,7 +73,7 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
 
 ## Next steps
 
-0. Electronics mounting and mass model (`ELECTRONICS_LAYOUT.md`), then regenerate the models.
+0. Before printing: set the battery and computer sizes/masses in `chhaya_cad.py` to your parts and run `hardware/regenerate.sh`.
 1. GPU: follow `GPU_RUNBOOK.md` (smoke test first: the Isaac code has never run).
 2. If the smoke test fails: fix it on the instance, then commit and push.
 3. Adapt `export_onnx.py` and `src/mujoco/policy_gate.py` to the 74-dim frame / 20 actions, then

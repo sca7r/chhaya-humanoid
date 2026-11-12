@@ -146,7 +146,7 @@ def main():
     # --- chest legs (front and back plates, printed standing: stress crosses the layers).
     # Fore-aft: each plate's two legs bend out of their plane like fixed-fixed columns.
     ch = load("chest_frame")
-    z0, z1 = ub.SHELF_TOP_Z + 3.0, ub.CH_Z0 - 2.0
+    z0, z1 = ub.FEET_Z + 3.0, ub.CH_Z0 - 2.0
     h = z1 - z0
     for zc, nm in ((z0 + 4.0, "just above the feet"), ((z0 + z1) / 2, "mid-height")):
         for (xa, xb), side in (((ub.CH_X1 - ub.T_CH - ub.LEG_RIB - 0.2, ub.CH_X1 + 0.05), "front"), ((ub.CH_X0 - 0.05, ub.CH_X0 + ub.T_CH + ub.LEG_RIB + 0.2), "back")):
@@ -154,6 +154,24 @@ def main():
                  "75 N fore-aft on the upper body", clip={"x": (xa, xb)})
     bend("chest legs, all four, sideways", ch, "z", (z0 + z1) / 2, "x", F_CHEST * (ub.CH_Z0 + 17 - (z0 + z1) / 2) / 1000, S_ACROSS,
          "75 N sideways on the upper body")
+    # --- electronics rack: the chest stands on it. A fall tips the upper body (75 N at its centre of mass,
+    # ~17 mm above the chest bottom) about one pair of feet; the far pair pulls up, the near pair pushes down.
+    # Plate printed flat: bending in the plate's own layers. Section between each foot and its nearest support.
+    rk = load("electronics_rack")
+    h_cm = (ub.CH_Z0 + 17.0 - ub.FEET_Z) / 1000
+    feet = ub.feet_points()
+    span_x = (max(f[0] for f in feet) - min(f[0] for f in feet)) / 1000
+    span_y = 2 * abs(feet[0][1]) / 1000
+    f_foot = F_CHEST * h_cm / min(span_x, span_y) / 2          # per foot (two feet share the reaction)
+    for (fx, fy) in [f for f in feet if f[1] > 0]:      # one front and one back foot (the plate is symmetric)
+        bx, by = min(ub.BOSS_XY, key=lambda b: (b[0] - fx) ** 2 + (b[1] - fy) ** 2)
+        xc = (fx + bx) / 2
+        bend(f"rack plate, {'front' if fx > 0 else 'back'} foot to boss", rk, "x", xc, "y", f_foot * abs(xc - fx) / 1000, S_ALONG,
+             f"75 N fall on the upper body -> {f_foot:.0f} N per foot", clip={"y": (min(fy, by) - 8.0, max(fy, by) + 8.0), "z": (ub.RACK_Z0 - 4.5, ub.FEET_Z + 0.1)})
+    # rack screws: 4x M2.5 into the original bosses + 4x M3 through the torso plate (nuts) share the uplift
+    cap_m25 = math.pi * 2.5 * 6.0 * 0.75 * (S_ACROSS * 0.577)   # thread shear-out in a boss, 6 mm engaged
+    direct("rack screws into the original bosses (M2.5)", f"{f_foot:.0f} N uplift at a foot, one screw takes it", f_foot, cap_m25)
+
     # --- screws and bearing (closed form)
     sv = ub.STS3215
     f_horn = T_IMPACT * 1000 / (4 * sv.horn_pcd / 2)

@@ -68,10 +68,44 @@ SERVOS = {"sts3215": STS3215}
 # Layout (mm, base_link frame)
 # ------------------------------------------------------------------------------------------
 SHELF_TOP_Z = 70.1
-SHOULDER = (10.0, 66.0, 122.0)    # shoulder-pitch horn face centre
-ROLL = (29.5, 95.0, 122.0)        # shoulder-roll horn face centre (faces +X)
-YAW = (19.0, 95.0, 40.0)          # arm-yaw horn face centre (faces -Z)
-ELBOW = (19.0, 116.5, 20.0)       # elbow horn face centre (faces +Y)
+
+# ---- Torso top of the original body (measured from body.step; the body is an original part, unchanged).
+# The original robot carries its computer in the rim tray on top of the body, on 4 bosses with the Jetson
+# Orin Nano hole pattern (58 x 86 mm), and its battery strapped on top of the computer. The power PCB and
+# the servo bus adapter hang inside the torso.
+BOSS_XY = ((-21.44, -40.16), (-21.44, 45.84), (36.56, -40.16), (36.56, 45.84))   # M2.5 pilot holes
+BOSS_TOP_Z = 76.14
+RIM_TOP_Z = 77.7
+RIM_IN = (-37.8, 39.9, -49.5, 49.2)          # inner faces of the tray rim (x0, x1, y0, y1)
+SHELF_PLATE_TOP_Z = 70.13                    # top face of the torso's top plate (solid for |y| < ~16)
+ANCHOR_XY = ((-24.0, -12.0), (-24.0, 12.0), (32.0, -12.0), (32.0, 12.0))   # M3 through the top plate, nut below
+
+# ---- Electronics stack (typical sizes: CHECK YOURS). Battery on the rack plate, computer on the deck above.
+BATT = (105.0, 34.0, 24.0)       # 3S 2200 mAh LiPo, x (along the robot) / y / z
+BATT_KG = 0.180
+PI = (85.0, 56.0, 1.6)           # Raspberry Pi 5 board
+PI_HOLES = (58.0, 49.0)          # mounting hole spacing (M2.5)
+PI_COMP_H = 11.0                 # tallest part above the board inside the chest (active cooler, headers)
+PI_PORT_H = 16.0                 # USB / Ethernet block height (sits behind the chest back plate)
+PI_PORT_L = 21.0                 # USB / Ethernet block length from the board's back edge
+PI_KG = 0.065                    # board + active cooler + SD + standoffs
+PI_XC = -13.0                    # board centre x: ports out the back, front holes clear the front plate
+RACK_T = 3.0                     # rack plate on the bosses
+DECK_T = 2.5                     # computer deck
+PI_STANDOFF = 4.0
+RACK_Z0 = BOSS_TOP_Z + 0.06
+FEET_Z = RACK_Z0 + RACK_T        # the chest feet stand on the rack plate (79.2)
+BATT_Z0 = FEET_Z
+DECK_Z0 = BATT_Z0 + BATT[2] + 1.0
+PI_Z0 = DECK_Z0 + DECK_T + PI_STANDOFF
+
+# The chest stands on the rack, high enough for the battery and the computer underneath (+23 mm over the
+# first design). Everything above (shoulders, arms, head) moves up with it.
+CHEST_DZ = 23.0
+SHOULDER = (10.0, 66.0, 122.0 + CHEST_DZ)    # shoulder-pitch horn face centre
+ROLL = (29.5, 95.0, 122.0 + CHEST_DZ)        # shoulder-roll horn face centre (faces +X)
+YAW = (19.0, 95.0, 40.0 + CHEST_DZ)          # arm-yaw horn face centre (faces -Z)
+ELBOW = (19.0, 116.5, 20.0 + CHEST_DZ)       # elbow horn face centre (faces +Y)
 FOREARM_TO_TIP = 125.0
 
 JOINTS = {
@@ -437,10 +471,11 @@ def fork(p: Placed, down):
 # Parts
 # ------------------------------------------------------------------------------------------
 CH_X0, CH_X1 = -30.0, 23.6     # chest back / front plate outer faces
-CH_Z0, CH_Z1 = 104.0, 137.5    # chest bottom / top
+CH_Z0, CH_Z1 = 104.0 + CHEST_DZ, 137.5 + CHEST_DZ    # chest bottom / top
 T_CH = 2.5                     # chest plate thickness (strength_check: chest legs)
-LEG_RIB = 6.0                  # depth of the chest legs' stiffening ribs
-FEET_Y = (36.0, 48.0)          # legs land inside the shelf rim, clear of the computer standoffs
+LEG_RIB = 9.0                  # depth of the chest legs' stiffening ribs (9 since the legs grew 23 mm taller)
+FEET_Y = (36.0, 48.0)          # feet on the rack plate, inside the tray rim
+ARCH_Y = 32.0                  # half-width of the opening under the chest at its top (the computer deck passes)
 NECK = (3.3, 0.0)              # head flange centre (x, y) on the chest saddle
 
 
@@ -466,20 +501,20 @@ def part_chest_frame(sv: Servo):
         lo, hi = sorted((sgn * y_in, sgn * y_out))
         parts.append(prism((0, 0, 0), X, Z, rrect_sketch(CH_X0, CH_X1, CH_Z0, CH_Z1, 6.0), -hi, -lo))
     for x0 in (CH_X1 - T_CH, CH_X0):            # front / back plates with A-legs, yz plane
-        pts = [(-y_out, CH_Z1), (y_out, CH_Z1), (y_out, CH_Z0 + 6), (FEET_Y[1], SHELF_TOP_Z),
-               (FEET_Y[0], SHELF_TOP_Z), (26.0, CH_Z0 - 2), (-26.0, CH_Z0 - 2),
-               (-FEET_Y[0], SHELF_TOP_Z), (-FEET_Y[1], SHELF_TOP_Z), (-y_out, CH_Z0 + 6)]
+        pts = [(-y_out, CH_Z1), (y_out, CH_Z1), (y_out, CH_Z0 + 6), (FEET_Y[1], FEET_Z),
+               (FEET_Y[0], FEET_Z), (ARCH_Y, CH_Z0 - 2), (-ARCH_Y, CH_Z0 - 2),
+               (-FEET_Y[0], FEET_Z), (-FEET_Y[1], FEET_Z), (-y_out, CH_Z0 + 6)]
         parts.append(prism((x0, 0, 0), Y, Z, poly_sketch(pts, r=5.0), 0, T_CH))
         fx0, fx1 = (x0, x0 + T_CH + 7.0) if x0 > 0 else (x0 - 6.5, x0 + T_CH)
         for sy in (1, -1):
-            parts.append(box((fx0, sy * FEET_Y[0], SHELF_TOP_Z), (fx1, sy * FEET_Y[1], SHELF_TOP_Z + 3.0)))
+            parts.append(box((fx0, sy * FEET_Y[0], FEET_Z), (fx1, sy * FEET_Y[1], FEET_Z + 3.0)))
             # concave fillet between leg plate and foot tab
             if x0 > 0:
-                parts.append(fillet_strip((x0 + T_CH, 0, SHELF_TOP_Z + 3.0), (1, 0, 0), (0, 0, 1), Y, 3.5,
+                parts.append(fillet_strip((x0 + T_CH, 0, FEET_Z + 3.0), (1, 0, 0), (0, 0, 1), Y, 3.5,
                                           sy * FEET_Y[0] if sy > 0 else -FEET_Y[1],
                                           FEET_Y[1] if sy > 0 else -FEET_Y[0]))
             else:
-                parts.append(fillet_strip((x0, 0, SHELF_TOP_Z + 3.0), (-1, 0, 0), (0, 0, 1), Y, 3.5,
+                parts.append(fillet_strip((x0, 0, FEET_Z + 3.0), (-1, 0, 0), (0, 0, 1), Y, 3.5,
                                           sy * FEET_Y[0] if sy > 0 else -FEET_Y[1],
                                           FEET_Y[1] if sy > 0 else -FEET_Y[0]))
     # Stiffening rib along each leg's outer edge, pointing into the chest. A flat 2.5 mm leg bends
@@ -488,7 +523,7 @@ def part_chest_frame(sv: Servo):
     for x0 in (CH_X1 - T_CH, CH_X0):
         xa, xb = (x0 - LEG_RIB, x0 + 0.1) if x0 > 0 else (x0 + T_CH - 0.1, x0 + T_CH + LEG_RIB)
         for sy in (1, -1):
-            band = [(sy * y_out, CH_Z0 + 6.0), (sy * FEET_Y[1], SHELF_TOP_Z), (sy * (FEET_Y[1] - 2.5), SHELF_TOP_Z),
+            band = [(sy * y_out, CH_Z0 + 6.0), (sy * FEET_Y[1], FEET_Z), (sy * (FEET_Y[1] - 2.5), FEET_Z),
                     (sy * (y_out - 2.5), CH_Z0 + 6.0)]
             parts.append(prism((0, 0, 0), Y, Z, poly_sketch(band), xa, xb))
     parts.append(prism((0, 0, CH_Z0), X, Y, rrect_sketch(CH_X0, CH_X1, -y_out, y_out, 5.0), 0, 2.5))
@@ -498,15 +533,21 @@ def part_chest_frame(sv: Servo):
         frame = C(frame, p.drill(p.s_top, p.s_top + PLATE, cb=CB_M2, cb_side=+1),
                   cyl(p.P, p.s, sv.horn_r + 0.8, -PLATE - 1, 1))
     for sgn in (1, -1):        # cheek windows behind the horn
-        frame = C(frame, prism((0, 0, 0), X, Z, rrect_sketch(-27.0, -14.0, 108.0, 133.0, 4.0), -200, 200)
-                  .intersect(box((-40, sgn * 55, 90), (40, sgn * 70, 150))))
+        frame = C(frame, prism((0, 0, 0), X, Z, rrect_sketch(-27.0, -14.0, CH_Z0 + 4.0, CH_Z1 - 4.5, 4.0), -200, 200)
+                  .intersect(box((-40, sgn * 55, CH_Z0 - 14.0), (40, sgn * 70, CH_Z1 + 12.5))))
     frame = C(frame, prism((0, 0, 0), Y, Z, rrect_sketch(-21.0, 21.0, CH_Z0 + 5.0, CH_Z1 - 7.0, 6.0), -40, 40))
     frame = C(frame, prism((0, 0, CH_Z0), X, Y, rrect_sketch(CH_X0 + 7, CH_X1 - 7, -50.0, 50.0, 6.0), -1, 5))
-    for sy in (1, -1):         # rounded windows in the A-legs
-        tri = poly_sketch([(sy * 40.5, 80.0), (sy * 45.5, 80.0), (sy * 51.0, 97.0), (sy * 34.5, 97.0)], r=2.5)
-        frame = C(frame, prism((0, 0, 0), Y, Z, tri, -60, 60))
+    def leg_edges(z):          # inner / outer y of the left leg at height z
+        inner = FEET_Y[0] + (ARCH_Y - FEET_Y[0]) * (z - FEET_Z) / (CH_Z0 - 2 - FEET_Z)
+        outer = FEET_Y[1] + (y_out - FEET_Y[1]) * (z - FEET_Z) / (CH_Z0 + 6 - FEET_Z)
+        return inner, outer
+    za, zb = FEET_Z + 10.0, CH_Z0 - 9.0
+    for sy in (1, -1):         # rounded windows in the A-legs, 4.5 mm in from both edges
+        (ia, oa), (ib, ob) = leg_edges(za), leg_edges(zb)
+        quad = poly_sketch([(sy * (ia + 4.5), za), (sy * (oa - 4.5), za), (sy * (ob - 4.5 - 4.0), zb), (sy * (ib + 4.5), zb)], r=2.5)
+        frame = C(frame, prism((0, 0, 0), Y, Z, quad, -60, 60))
     for (fx, fy) in feet_points():
-        frame = C(frame, cyl((fx, fy, SHELF_TOP_Z), Z, 1.7, -1, 6))
+        frame = C(frame, cyl((fx, fy, FEET_Z), Z, 1.7, -1, 6))
     for (dx, dy) in HEAD_MOUNT_HOLES:
         frame = C(frame, cyl((NECK[0] + dx, NECK[1] + dy, CH_Z1), Z, 1.25, -5, 1))   # M3 self-tap
     return C(frame, pl.keepout(mate="top"), pr.keepout(mate="top"))
@@ -795,6 +836,7 @@ def build(variant: str = "sts3215"):
     P = placements(sv, "l")
     parts = {
         "chest_frame": part_chest_frame(sv),
+        "electronics_rack": part_electronics_rack(),
         "head": part_head(),
         "head_visor": part_head_visor(),
         "l_shoulder_bracket": part_shoulder_bracket(sv, P),
@@ -813,12 +855,69 @@ def build(variant: str = "sts3215"):
     return sv, parts, servos
 
 
-def drill_template():
-    t = box((-38, -48.5, SHELF_TOP_Z), (42, 48.5, SHELF_TOP_Z + 1.2))
-    t = t.cut(box((-30, -34, SHELF_TOP_Z - 1), (34, 34, SHELF_TOP_Z + 3)))
-    for (fx, fy) in feet_points():
-        t = t.cut(cyl((fx, fy, SHELF_TOP_Z), Z, 1.7, -1, 3))
-    return t
+def pi_holes():
+    hx, hy = PI_HOLES[0] / 2, PI_HOLES[1] / 2
+    return [(PI_XC + sx * hx, sy * hy) for sx in (-1, 1) for sy in (-1, 1)]
+
+
+RACK_POSTS = ((-24.0, 24.0), (-24.0, -24.0), (12.0, 24.0), (12.0, -24.0))   # 5 x 5 mm posts, plate -> deck
+
+
+def part_electronics_rack():
+    """The torso's electronics rack, and the chest's foundation (one printed part).
+
+    Plate: sits in the original body's rim tray on the 4 computer bosses (4x M2.5, the screws the original
+    computer used) and is bolted through the torso's top plate (4x M3 with nuts underneath, ANCHOR_XY) on
+    spacers. The chest's four feet screw into M3 heat-set inserts in bosses under the plate. The battery lies
+    on the plate (strap through the two slots), lengthwise, through the chest's front and back arches.
+    Deck: on 4 posts above the battery, carries the computer (Raspberry Pi 5 hole pattern, M2.5 standoffs);
+    its USB/Ethernet end sticks out behind the chest back plate.
+    Plug and play: another computer = another deck (the deck is the only computer-specific feature)."""
+    x0, x1, y0, y1 = RIM_IN
+    g = 0.5
+    plate = prism((0, 0, RACK_Z0), X, Y, rrect_sketch(x0 + g, x1 - g, y0 + g, y1 - g, 4.0), 0, RACK_T)
+    # lightening windows between the load paths (the plate keeps a ring + an X under the battery)
+    for (wx0, wx1, wy0, wy1) in ((-16.0, 6.0, -9.0, 9.0), (-14.0, 26.0, 26.0, 40.0), (-14.0, 26.0, -40.0, -26.0)):
+        plate = plate.cut(prism((0, 0, RACK_Z0), X, Y, rrect_sketch(wx0, wx1, wy0, wy1, 4.0), -1, RACK_T + 1))
+    parts = [plate]
+    for (ax, ay) in ANCHOR_XY:      # spacers down to the torso's top plate
+        parts.append(cyl((ax, ay, SHELF_PLATE_TOP_Z), Z, 4.0, 0, RACK_Z0 - SHELF_PLATE_TOP_Z + 0.5))
+    for (fx, fy) in feet_points():  # heat-set insert bosses under the chest feet
+        parts.append(cyl((fx, fy, RACK_Z0), Z, 3.6, -4.0, 0.5))
+    for (px, py) in RACK_POSTS:
+        parts.append(box((px - 2.5, py - 2.5, FEET_Z - 0.5), (px + 2.5, py + 2.5, DECK_Z0 + 0.5)))
+    hx = [h[0] for h in pi_holes()]
+    deck = prism((0, 0, DECK_Z0), X, Y, rrect_sketch(min(hx) - 3.5, max(hx) + 3.5, -29.0, 29.0, 4.0), 0, DECK_T)
+    deck = deck.cut(prism((0, 0, DECK_Z0), X, Y, rrect_sketch(min(hx) + 5.0, max(hx) - 5.0, -18.0, 18.0, 4.0), -1, DECK_T + 1))
+    parts.append(deck)
+    for (px, py) in pi_holes():
+        parts.append(cyl((px, py, DECK_Z0), Z, 3.0, 0, DECK_T + PI_STANDOFF))
+    rack = U(*parts)
+    for (bx, by) in BOSS_XY:        # M2.5 clearance into the original bosses, head counterbored
+        rack = C(rack, cyl((bx, by, RACK_Z0), Z, 1.4, -1, RACK_T + 1), cyl((bx, by, RACK_Z0 + RACK_T - 1.6), Z, 2.6, 0, 2))
+    for (ax, ay) in ANCHOR_XY:      # M3 through the spacer; head counterbored flush (the battery lies on it)
+        rack = C(rack, cyl((ax, ay, SHELF_PLATE_TOP_Z), Z, 1.7, -1, 20), cyl((ax, ay, RACK_Z0 + RACK_T - 2.0), Z, 3.0, 0, 3))
+    for (fx, fy) in feet_points():  # M3 heat-set insert pilots (4.0 mm), from the top
+        rack = C(rack, cyl((fx, fy, RACK_Z0 - 4.0), Z, 2.0, -0.1, RACK_T + 4.2))
+    for sy in (1, -1):              # battery strap slots (20 mm strap)
+        rack = C(rack, prism((0, 0, RACK_Z0), X, Y, rrect_sketch(-16.0, 8.0, sy * 18.0 - 1.5, sy * 18.0 + 1.5, 1.4), -1, RACK_T + 1))
+    for (px, py) in pi_holes():     # M2.5 self-tapping into the standoffs
+        rack = C(rack, cyl((px, py, DECK_Z0), Z, 1.1, -1, DECK_T + PI_STANDOFF + 1))
+    return rack
+
+
+def battery_standin():
+    bx = (CH_X0 + CH_X1) / 2
+    return box((bx - BATT[0] / 2, -BATT[1] / 2, BATT_Z0), (bx + BATT[0] / 2, BATT[1] / 2, BATT_Z0 + BATT[2]))
+
+
+def pi_standin():
+    """Raspberry Pi 5 envelope: board + parts up to PI_COMP_H, and the port block at its back end."""
+    xa, xb = PI_XC - PI[0] / 2, PI_XC + PI[0] / 2
+    board = box((xa, -PI[1] / 2, PI_Z0), (xb, PI[1] / 2, PI_Z0 + PI[2]))
+    comp = box((xa + PI_PORT_L + 1.0, -PI[1] / 2 + 3.0, PI_Z0 + PI[2]), (xb - 4.0, PI[1] / 2 - 3.0, PI_Z0 + PI[2] + PI_COMP_H))
+    ports = box((xa - 2.0, -PI[1] / 2 + 1.5, PI_Z0 + PI[2]), (xa + PI_PORT_L, PI[1] / 2 - 1.5, PI_Z0 + PI[2] + PI_PORT_H))
+    return board.union(comp).union(ports)
 
 
 def export_stl(wp, path):
@@ -832,7 +931,6 @@ def export_stl(wp, path):
 
 def export(variant: str = "sts3215"):
     sv, parts, servos = build(variant)
-    parts["drill_template"] = drill_template()
     d = CHECKS
     old = json.loads((d / "parts.json").read_text())["parts"] if (d / "parts.json").exists() else {}
     for name in old:                      # remove only the files this script wrote last time
@@ -863,6 +961,13 @@ def export(variant: str = "sts3215"):
         cq.exporters.export(wp, str(d / "extras" / f"{name}.stl"), tolerance=0.1)
         bb = wp.val().BoundingBox()
         info["extras"][name] = {"mass_kg": CLAW_SERVO_KG, "link": f"{side}_forearm_link",
+                                "bounds_mm": [[round(bb.xmin, 2), round(bb.ymin, 2), round(bb.zmin, 2)],
+                                              [round(bb.xmax, 2), round(bb.ymax, 2), round(bb.zmax, 2)]]}
+    # the electronics on the rack: stand-in solids (fit checks, collision boxes) and their mass
+    for name, wp, kg in (("battery", battery_standin(), BATT_KG), ("computer", pi_standin(), PI_KG)):
+        cq.exporters.export(wp, str(d / "extras" / f"{name}.stl"), tolerance=0.1)
+        bb = wp.val().BoundingBox()
+        info["extras"][name] = {"mass_kg": kg, "link": "chest_link",
                                 "bounds_mm": [[round(bb.xmin, 2), round(bb.ymin, 2), round(bb.zmin, 2)],
                                               [round(bb.xmax, 2), round(bb.ymax, 2), round(bb.zmax, 2)]]}
     (d / "parts.json").write_text(json.dumps(info, indent=2))

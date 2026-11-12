@@ -11,7 +11,7 @@ and a head built to carry sensors. It learns to walk with reinforcement learning
 | Servos | 20x Feetech/Waveshare STS3215 (12 V bus servos), plus 2 micro servos for the claws |
 | Hands | one-servo claws on a standard wrist plate (swap for any tool with 4 screws) |
 | Head | halo: a face disc in a hoop, with a drilled plate behind it for a camera and small boards |
-| Mass | 2.39 kg |
+| Mass | 2.57 kg (with battery and Raspberry Pi 5) |
 | Control | one learned policy drives all 20 joints at 50 Hz; the claws are scripted |
 | Structure | 35 printed parts; the servos themselves are the frame |
 | Compute | Raspberry Pi 5 or Jetson Orin Nano |

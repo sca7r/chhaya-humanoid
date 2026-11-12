@@ -9,8 +9,21 @@ the instance busy only while it trains, and copy the results off before deleting
 2. Run the tests once (no GPU needed), as in `HANDOFF.md`. The 11 arm tests
    (`tests/test_arm_motion.py`, `tests/test_chhaya_mujoco.py`) must pass.
 3. Bake the gait table if you haven't: `(cd robot_motion_reference && python -m gait_studio.bake)`.
-4. Fix the electronics mounting and mass model first (`ELECTRONICS_LAYOUT.md`). Training on a
-   robot whose battery is in the wrong place wastes the run.
+4. Check the battery and computer sizes and masses in `hardware/cad/parametric/chhaya_cad.py`
+   match the parts you will use (`ELECTRONICS_LAYOUT.md`), and regenerate if not.
+
+## Where to train
+
+| Option | Works? | Cost for one run (≈ 13–20 h incl. setup) |
+|---|---|---|
+| RTX 3060 laptop (6 GB) | **No** for Isaac Lab: Isaac Sim needs ≥ 8 GB VRAM (NVIDIA's page says 16 GB) and crashes at startup on 6 GB cards. Use the laptop for everything else: tests, MuJoCo eval and policy gate, CAD, TensorBoard | free |
+| RTX 4090 24 GB, rented (e.g. RunPod Community ≈ $0.34/h) | Yes: has RT cores and enough VRAM. Somewhat slower than the RTX PRO 6000, so expect the run to take ~1.3–1.5× longer | ≈ ₹400–700 at $0.34/h (≈ ₹1,000–1,800 on the $0.89/h Secure tier) |
+| RTX PRO 6000 (₹208/h, the original plan) | Yes, fastest | ≈ ₹2,100–3,300 |
+| A100 / H100 | **No**: no RT cores, Isaac Sim does not run | — |
+| MuJoCo training on the laptop CPU | The repo's MuJoCo trainer is legacy and lacks the Isaac env's rewards and randomisation; not usable without a port | — |
+
+Recommendation: rent an RTX 4090 for the smoke test (cheap), and keep it for the full run if the
+smoke test's steps per second are acceptable. Prices change; check the provider's console.
 
 ## 1. Instance
 

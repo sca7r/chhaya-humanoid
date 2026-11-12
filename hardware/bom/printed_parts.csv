@@ -27,4 +27,4 @@ l_roll_idler_cap.stl,1,PLA/PETG,100 % infill
 r_roll_idler_cap.stl,1,PLA/PETG,100 % infill
 l_elbow_idler_cap.stl,1,PLA/PETG,100 % infill
 r_elbow_idler_cap.stl,1,PLA/PETG,100 % infill
-drill_template.stl,1,PLA,Marks the 4 holes in the torso shelf for the chest; not part of the robot
+electronics_rack.stl,1,PLA/PETG,Flat (plate on the bed); supports under the deck. 4 walls 40 % infill. The chest stands on it; it holds the battery and the computer

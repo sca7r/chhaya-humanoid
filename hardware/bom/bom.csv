@@ -7,4 +7,4 @@ electronics,Waveshare Bus Servo Adapter (A),UART to serial bus servos,1,4.99,4.9
 power,LiPo battery,3S1P 11.1 V 2200 mAh with XT60,1,20.00,20.00,,,
 actuation,Micro servo for the claws,MG90S class (metal gear; 22.8 x 12.2 mm body),2,3.00,6.00,,,Price is an estimate. Measure the body before printing the claw base
 fasteners,M2 x 8 screws,pan or socket head up to 2.5 mm tall,48,,,,,Arm brackets into the servo face holes (the servos' own screws cover the legs)
-fasteners,M3 screws,x8: 16 pcs; x10: 4 pcs; x12 with nuts: 4 pcs; plus 4 washers dia 12,24,,,,,"Idler retainers (4 x M3x8 + washers), claws to wrists (8 x M3x8), head (4 x M3x10), chest to the torso shelf (4 x M3x12 + nuts)"
+fasteners,M3 screws,x8: 16 pcs; x10: 4 pcs; x12 with nuts: 4 pcs; plus 4 washers dia 12,24,,,,,"Idler retainers (4 x M3x8 + washers), claws to wrists (8 x M3x8), head (4 x M3x10), chest feet into the rack (4 x M3x8 + 4 M3 heat-set inserts, 4-5 mm long), rack through the torso plate (4 x M3x12 countersunk-free pan head + nuts); rack into the original computer bosses: 4 x M2.5x8"

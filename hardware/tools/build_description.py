@@ -36,6 +36,16 @@ PLA_EFFECTIVE_DENSITY = 1.24e3 * 0.75   # kg/m^3: PLA 1.24 g/cm^3, ~75% fill for
 HEAD_PAYLOAD_KG = 0.0                   # whatever you mount on the head ring (e.g. 0.004 for a Pi camera)
 CABLE_KG_PER_LINK = 0.004               # servo lead share per moving link
 
+# The original torso inertial (Robot.urdf base_link, kept as is) was computed by Fusion over the torso model,
+# which includes stand-in blocks for the original electronics inside the rim tray (above z = 70.2 mm). Chhaya
+# puts the electronics rack, battery and computer there instead, modelled explicitly, so the stand-ins' share
+# is removed (negative item on chest_link). Measured on base_link.stl: 68.9 cm3 above the shelf, centroid
+# (10.5, 0.1, 81.3) mm, at the base_link's average density (0.633 kg / 449.6 cm3). Weigh the real torso to
+# replace this estimate.
+TORSO_STANDIN_KG = 0.633299 * 68.9 / 449.6
+TORSO_STANDIN_COM_MM = (10.5, 0.1, 81.3)
+TORSO_STANDIN_SIZE_MM = (40.0, 59.0, 24.0)
+
 # Joint limits (rad). Sign conventions: shoulder_roll/arm_yaw axes are mirrored on the right,
 # so for both arms: +roll = abduct (arm out), +pitch = arm backward, -pitch = arm forward/up,
 # -elbow = flex forward, +yaw = rotate the upper arm outward.
@@ -49,7 +59,7 @@ LIMITS = {
 # link name -> (parent link, joint name or None, printed parts, servos carried)
 def links_for():
     L = {
-        "chest_link": ("base_link", None, ["chest_frame", "head", "head_visor"],
+        "chest_link": ("base_link", None, ["chest_frame", "electronics_rack", "head", "head_visor"],
                        ["l_shoulder_pitch", "r_shoulder_pitch"]),
     }
     for s in "lr":
@@ -128,6 +138,9 @@ def mass_props(variant, cad_dir):
             items.append((m, (lo + hi) / 2000 - o, box_inertia(m, (hi - lo) / 1000)))
             budget[n] = m * 1000
         if link == "chest_link":
+            c = np.array(TORSO_STANDIN_COM_MM) / 1000
+            items.append((-TORSO_STANDIN_KG, c - o, box_inertia(-TORSO_STANDIN_KG, np.array(TORSO_STANDIN_SIZE_MM) / 1000)))
+            budget["original_torso_standins_removed"] = round(-TORSO_STANDIN_KG * 1000, 1)
             # head payload (camera etc.) at the ring centre; 0 by default -- set HEAD_PAYLOAD_KG
             if HEAD_PAYLOAD_KG > 0:
                 cam = np.array(ub.head_center()) / 1000
@@ -149,6 +162,7 @@ def split_for_collision(part, mesh):
     for s_ in "lr":
         cuts[f"{s_}_forearm"] = [zb]                              # fork | shell + wrist plate
     cuts["chest_frame"] = [ub.CH_Z0 - 3.0]                       # chest box | A-legs
+    cuts["electronics_rack"] = [ub.DECK_Z0 - 0.5]                 # plate + posts | deck
     zs = cuts.get(part)
     if not zs:
         return [mesh]

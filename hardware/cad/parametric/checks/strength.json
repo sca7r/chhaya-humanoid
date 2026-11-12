@@ -172,47 +172,72 @@
   {
    "where": "chest legs, front plate, just above the feet, fore-aft",
    "load": "75 N fore-aft on the upper body",
-   "area_mm2": 115.9,
-   "I_mm4": 537,
-   "stress_MPa": 6.2,
+   "area_mm2": 119.1,
+   "I_mm4": 1268,
+   "stress_MPa": 5.1,
    "strength_MPa": 25.0,
-   "SF": 4.0
+   "SF": 4.9
   },
   {
    "where": "chest legs, back plate, just above the feet, fore-aft",
    "load": "75 N fore-aft on the upper body",
-   "area_mm2": 115.9,
-   "I_mm4": 537,
-   "stress_MPa": 6.2,
+   "area_mm2": 119.1,
+   "I_mm4": 1268,
+   "stress_MPa": 5.1,
    "strength_MPa": 25.0,
-   "SF": 4.0
+   "SF": 4.9
   },
   {
    "where": "chest legs, front plate, mid-height, fore-aft",
    "load": "75 N fore-aft on the upper body",
-   "area_mm2": 104.0,
-   "I_mm4": 514,
-   "stress_MPa": 6.3,
+   "area_mm2": 100.0,
+   "I_mm4": 1151,
+   "stress_MPa": 5.3,
    "strength_MPa": 25.0,
-   "SF": 3.9
+   "SF": 4.7
   },
   {
    "where": "chest legs, back plate, mid-height, fore-aft",
    "load": "75 N fore-aft on the upper body",
-   "area_mm2": 104.0,
-   "I_mm4": 514,
-   "stress_MPa": 6.3,
+   "area_mm2": 100.0,
+   "I_mm4": 1151,
+   "stress_MPa": 5.3,
    "strength_MPa": 25.0,
-   "SF": 3.9
+   "SF": 4.7
   },
   {
    "where": "chest legs, all four, sideways",
    "load": "75 N sideways on the upper body",
-   "area_mm2": 208.0,
-   "I_mm4": 462399,
+   "area_mm2": 200.0,
+   "I_mm4": 504873,
    "stress_MPa": 0.3,
    "strength_MPa": 25.0,
-   "SF": 83.1
+   "SF": 74.7
+  },
+  {
+   "where": "rack plate, front foot to boss",
+   "load": "75 N fall on the upper body -> 40 N per foot",
+   "area_mm2": 44.1,
+   "I_mm4": 33,
+   "stress_MPa": 8.6,
+   "strength_MPa": 50.0,
+   "SF": 5.8
+  },
+  {
+   "where": "rack plate, back foot to boss",
+   "load": "75 N fall on the upper body -> 40 N per foot",
+   "area_mm2": 44.1,
+   "I_mm4": 33,
+   "stress_MPa": 10.7,
+   "strength_MPa": 50.0,
+   "SF": 4.7
+  },
+  {
+   "where": "rack screws into the original bosses (M2.5)",
+   "load": "40 N uplift at a foot, one screw takes it",
+   "stress_MPa": 40.3,
+   "strength_MPa": 509.82158281536846,
+   "SF": 12.7
   },
   {
    "where": "horn screws (4x M3): bearing on the 4 mm ear",

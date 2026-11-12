@@ -4,7 +4,10 @@ tests (FCL via trimesh), not convex hulls.
 
 1. Interference: moves the CAD parts (and servo envelopes incl. horns) through every joint's
    range plus random whole-arm poses and fails on ANY overlap between parts of different links.
-2. Clearance: sweeps each arm joint and reports the smallest gap between everything on the
+2. Torso fit (exact B-rep, no tessellation): the original body, the electronics rack, the chest frame,
+   the battery and the computer must not overlap (touching = seated is fine), and the battery and the
+   computer must clear the chest and the body by >= CLR_MOVE (they are dropped in and strapped).
+3. Clearance: sweeps each arm joint and reports the smallest gap between everything on the
    moving side and everything on the fixed side, measured against the bare servo CASES (a part
    screwed to a horn is supposed to touch that horn). Every gap must be >= CLR_MOVE (1.0 mm,
    enough for print tolerance and elephant's foot), except the idler bearings (stub in ear
@@ -152,6 +155,33 @@ def claw_sweep():
     return out
 
 
+FIT_SEATED_MM3 = 1.0     # a face-to-face seat leaves a zero-thickness boolean sliver; anything bigger is an overlap
+
+
+def torso_fit():
+    """Overlap [mm3] and gap [mm] between every pair of fixed torso parts. Returns (rows, ok)."""
+    import cadquery as cq
+    from OCP.BRepExtrema import BRepExtrema_DistShapeShape
+    step = lambda n: cq.importers.importStep(str(ub.STEP_DIR / f"{n}.step")).val()
+    objs = {"body (original)": step("body"), "electronics_rack": step("electronics_rack"),
+            "chest_frame": step("chest_frame"), "battery": ub.battery_standin().val(), "computer": ub.pi_standin().val()}
+    need_gap = {frozenset(p) for p in (("battery", "chest_frame"), ("computer", "chest_frame"),
+                                       ("battery", "body (original)"), ("computer", "body (original)"),
+                                       ("battery", "computer"))}
+    names, rows, ok = list(objs), [], True
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            a, b = objs[names[i]], objs[names[j]]
+            ov = a.intersect(b).Volume()
+            d = BRepExtrema_DistShapeShape(a.wrapped, b.wrapped)
+            d.Perform()
+            gap = d.Value()
+            good = ov <= FIT_SEATED_MM3 and (frozenset((names[i], names[j])) not in need_gap or gap >= ub.CLR_MOVE)
+            ok &= good
+            rows.append({"a": names[i], "b": names[j], "overlap_mm3": round(ov, 2), "gap_mm": round(gap, 2), "ok": good})
+    return rows, ok
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--random", type=int, default=80)
@@ -178,6 +208,13 @@ def main():
     for k, v in list(report.items())[:20]:
         print("  ", k, v)
     ok &= not report
+
+    rows, fit_ok = torso_fit()
+    (CAD / "torso_fit.json").write_text(json.dumps(rows, indent=2))
+    print("\ntorso fit (original body, rack, chest, battery, computer):")
+    for r in rows:
+        print(f"  {r['a']:<17} x {r['b']:<17} overlap {r['overlap_mm3']:6.2f} mm3  gap {r['gap_mm']:6.2f} mm  {'OK' if r['ok'] else 'FAIL'}")
+    ok &= fit_ok
 
     cl = clearances(load_objects(cases_only=True))
     (CAD / "clearance.json").write_text(json.dumps(cl, indent=2))

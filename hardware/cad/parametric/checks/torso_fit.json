@@ -1,0 +1,72 @@
+[
+  {
+    "a": "body (original)",
+    "b": "electronics_rack",
+    "overlap_mm3": 0.52,
+    "gap_mm": 0.0,
+    "ok": true
+  },
+  {
+    "a": "body (original)",
+    "b": "chest_frame",
+    "overlap_mm3": 0.0,
+    "gap_mm": 2.55,
+    "ok": true
+  },
+  {
+    "a": "body (original)",
+    "b": "battery",
+    "overlap_mm3": 0.0,
+    "gap_mm": 1.46,
+    "ok": true
+  },
+  {
+    "a": "body (original)",
+    "b": "computer",
+    "overlap_mm3": 0.0,
+    "gap_mm": 32.96,
+    "ok": true
+  },
+  {
+    "a": "electronics_rack",
+    "b": "chest_frame",
+    "overlap_mm3": 0.0,
+    "gap_mm": 0.0,
+    "ok": true
+  },
+  {
+    "a": "electronics_rack",
+    "b": "battery",
+    "overlap_mm3": 0.0,
+    "gap_mm": 0.0,
+    "ok": true
+  },
+  {
+    "a": "electronics_rack",
+    "b": "computer",
+    "overlap_mm3": 0.0,
+    "gap_mm": 0.0,
+    "ok": true
+  },
+  {
+    "a": "chest_frame",
+    "b": "battery",
+    "overlap_mm3": 0.0,
+    "gap_mm": 16.84,
+    "ok": true
+  },
+  {
+    "a": "chest_frame",
+    "b": "computer",
+    "overlap_mm3": 0.0,
+    "gap_mm": 1.7,
+    "ok": true
+  },
+  {
+    "a": "battery",
+    "b": "computer",
+    "overlap_mm3": 0.0,
+    "gap_mm": 7.5,
+    "ok": true
+  }
+]

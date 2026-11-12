@@ -17,13 +17,13 @@ has been built and walks. See [`../NOTICE.md`](../NOTICE.md).
 
 | | |
 |---|---|
-| Height | About 52 cm standing |
-| Mass | 2.39 kg in the model |
+| Height | About 54 cm standing |
+| Mass | 2.57 kg in the model (with battery and Raspberry Pi 5) |
 | Degrees of freedom | 20: per leg hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch; per arm shoulder pitch, shoulder roll, arm yaw, elbow |
 | Actuators | 20× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud; 2 micro servos for the claws |
 | Hands | One-servo claws on a standard wrist plate |
 | Head | Halo head with a drilled plate for a camera and small boards |
-| Compute | NVIDIA Jetson Orin Nano Super, 50 Hz control loop (a Raspberry Pi 5 also works, see [Cost](#cost)) |
+| Compute | Raspberry Pi 5 on the electronics rack under the chest, 50 Hz control loop. The original's Jetson Orin Nano no longer fits (see [`docs/design.md`](docs/design.md#electronics)) |
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
 | Structure | 35 printed parts, PLA or PETG |

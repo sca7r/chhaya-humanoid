@@ -1,8 +1,8 @@
 {
   "variant": "sts3215",
-  "generated_links_kg": 0.7307,
+  "generated_links_kg": 0.9061,
   "per_link_kg": {
-    "chest_link": 0.1866,
+    "chest_link": 0.3621,
     "l_shoulder_link": 0.0741,
     "l_upper_arm_link": 0.0792,
     "l_elbow_link": 0.0726,
@@ -13,11 +13,15 @@
     "r_forearm_link": 0.0461
   },
   "items_g": {
-    "chest_frame": 43.3,
+    "chest_frame": 46.2,
+    "electronics_rack": 24.6,
     "head": 18.6,
     "head_visor": 4.8,
     "servo_l_shoulder_pitch": 60.0,
     "servo_r_shoulder_pitch": 60.0,
+    "battery": 180.0,
+    "computer": 65.0,
+    "original_torso_standins_removed": -97.1,
     "l_shoulder_bracket": 7.8,
     "l_roll_idler_cap": 2.3,
     "servo_l_shoulder_roll": 60.0,

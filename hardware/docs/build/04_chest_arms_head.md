@@ -25,8 +25,15 @@ Order matters, because some screws get covered:
    stub and is held by an M3 screw and washer (snug, not tight: it has to turn).
 4. Claw: screw the micro servo into `claw_base` (2 tab screws), centre it, screw the jaw to its horn
    in the closed position, then bolt the module to the wrist plate from below (4x M3).
-5. Drill the shelf with the template (4x Ø3.2), then bolt the chest on. The middle under the
-   chest stays open for the Pi and battery.
+5. Electronics rack ([`docs/design.md`](../design.md#electronics)): melt the 4 M3 heat-set inserts into
+   the bosses under its plate. Set it into the torso's rim tray on the 4 computer bosses and drill the
+   torso's top plate through the rack's 4 anchor holes (Ø3.2; the rack is the drill guide). Bolt it
+   down: 4x M2.5 into the bosses, 4x M3 through the top plate with nuts underneath (reach them through
+   the torso's open sides).
+6. Battery on the rack plate, lengthwise, strap through the two slots. Computer on the deck
+   (4x M2.5), USB/Ethernet end to the back.
+7. Lower the chest over the rack (the deck passes through the back arch) and screw its 4 feet into
+   the inserts (M3x8).
 
 ## Head and sensors
 
