@@ -186,7 +186,7 @@ def build(train_root: Path, out: Path):
         drv.CreateTargetPositionAttr(0.0)
 
     # ---- collision filtering: same pairs the MJCF excludes -----------------------------------
-    arm = [f"{s}_{a}" for s in "lr" for a in ("shoulder_link", "upper_arm_link", "elbow_link", "forearm_link")]
+    arm = [f"{s}_{a}" for s in "lr" for a in ("shoulder_link", "upper_arm_link")]
     fp = UsdPhysics.FilteredPairsAPI.Apply(base)
     fp.CreateFilteredPairsRel().SetTargets([Sdf.Path(f"/World/Robot/{a}") for a in arm])
     for s in "lr":

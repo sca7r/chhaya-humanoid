@@ -56,7 +56,7 @@ python -m chhaya.physics_check --out /tmp/phys                 # stands, holds p
 | Understand or change the mechanical design | [`hardware/docs/design.md`](hardware/docs/design.md) |
 | Simulate it | [`hardware/robot_description/urdf/chhaya.urdf`](hardware/robot_description/), `training/envs/assets/robotV2/chhaya.xml` (MuJoCo), `chhaya.usd` (Isaac Lab) |
 | Train the walking policy | [`docs/TRAINING.md`](docs/TRAINING.md), [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) |
-| Pick up the project where it stands | [`docs/HANDOFF.md`](docs/HANDOFF.md) |
+| Pick up the project where it stands | [`docs/HANDOFF.md`](docs/HANDOFF.md), [`docs/READINESS.md`](docs/READINESS.md) |
 
 ## Design in brief
 
@@ -73,8 +73,6 @@ python -m chhaya.physics_check --out /tmp/phys                 # stands, holds p
 
 ## Credits and licence
 
-Chhaya derives from [Sir Servington](https://github.com/AsterisCrack/BipedRobot), the open-source
-12-servo biped by Pablo Gomez Martinez: the legs, hips, torso, electronics, servo model and
-training stack are his design. `training/` is MIT and `hardware/` is CERN-OHL-P-2.0, as in the
-original, and new work follows the licence of the directory it is in. Details, source commits and
-the list of changes are in [NOTICE.md](NOTICE.md).
+`training/` is MIT and `hardware/` is CERN-OHL-P-2.0; new work follows the licence of the directory
+it is in. Parts of Chhaya are derived from open-source work; the credits, source commits and the list
+of changes that those licences require are in [NOTICE.md](NOTICE.md).

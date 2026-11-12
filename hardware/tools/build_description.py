@@ -316,13 +316,15 @@ def write_mjcf(variant, props, meshes, train_root, out_xml, mesh_rel):
             ET.SubElement(b, "geom", type="box", pos=fmt(ctr), size=fmt(half), group="3",
                           rgba="0.9 0.5 0.5 0.3", mass="0")
         bodies[link] = b
-    # Arms never touch the chest except through a hull overlap at the shoulder, so exclude those
-    # pairs; arm-vs-leg, arm-vs-arm and arm-vs-floor contacts stay on.
+    # The shoulder and upper-arm links sit against the chest (their hulls overlap it), so those pairs are
+    # excluded. The elbow link and the forearm (with the claw) DO collide with the torso and the chest: the
+    # policy commands the arms, and its hands can reach the torso. Arm-vs-leg, arm-vs-arm and arm-vs-floor
+    # contacts stay on too.
     contact = root.find("contact")
     if contact is None:
         contact = ET.SubElement(root, "contact")
     for s in "lr":
-        for a in ("shoulder_link", "upper_arm_link", "elbow_link", "forearm_link"):
+        for a in ("shoulder_link", "upper_arm_link"):
             ET.SubElement(contact, "exclude", body1="chest_link", body2=f"{s}_{a}")
             ET.SubElement(contact, "exclude", body1="base_link", body2=f"{s}_{a}")
         ET.SubElement(contact, "exclude", body1=f"{s}_shoulder_link", body2=f"{s}_elbow_link")

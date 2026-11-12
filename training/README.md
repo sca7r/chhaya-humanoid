@@ -5,48 +5,27 @@ evaluation, the servo model and policy export. Run everything from this folder.
 
 | For Chhaya | |
 |---|---|
-| Config | `config/chhaya.yaml` (the policy drives the 12 leg joints; the 8 arm joints follow scripted, randomised motion) |
+| Config | `config/chhaya.yaml` (one whole-body policy commands all 20 joints: 12 legs + 8 arms) |
 | Train | `python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless` |
 | How it works | [`../docs/TRAINING.md`](../docs/TRAINING.md) |
 | On a rented GPU | [`../docs/GPU_RUNBOOK.md`](../docs/GPU_RUNBOOK.md) |
-| Physics checks | `python -m chhaya.physics_check` → [`../docs/physics/PHYSICS.md`](../docs/physics/PHYSICS.md) |
+| Physics and servo-load checks | `python -m chhaya.physics_check`, `python -m chhaya.servo_load` → [`../docs/physics/`](../docs/physics/) |
 
-The rest of this page is the documentation of the stack as written by its author, Pablo Gomez
-Martinez, for the 12-servo Sir Servington biped that Chhaya derives from (see
-[`../NOTICE.md`](../NOTICE.md)). It describes the legs-only robot, which in this repository is the
-"legs-only rig" (`config/config.yaml`). Everything in it applies to Chhaya's legs unchanged; the
-photos and videos show Sir Servington.
+The rest of this page is the reference documentation of the training stack. It is written around
+the legs-only rig (`config/config.yaml`: Chhaya without chest, head and arms, the 12-joint robot the
+stack was first built for). Everything in it applies to Chhaya; where Chhaya differs (20 joints,
+whole-body policy) [`../docs/TRAINING.md`](../docs/TRAINING.md) is the authority. Credits and
+licences: [`../NOTICE.md`](../NOTICE.md).
 
 ---
 
-# BipedRobot (Sir Servington): original documentation
+# Training stack reference
 
-**A small and affordable 12-servo biped that learns to walk in simulation and runs the learned policy on the real robot.**
-Everything in this repo was written from scratch: the RL algorithms, the network backbones, the
-environments, the reward functions, the servo model and the gait generator.
+**A small 3D-printed robot that learns to walk in simulation and runs the learned policy on the real hardware.**
+The stack has its own RL algorithms, network backbones, environments, reward functions, servo model
+and gait generator.
 
-<p align="center">
-  <img src="media/walking_robot.gif" alt="The real robot walking with the learned policy" width="320"/>
-</p>
-
-<p align="center">
-  <em>The real robot walking with a policy trained entirely in simulation.</em>
-</p>
-
-**Build one:** the CAD, print files, BOM, PCB and build guide are in
-[BipedRobotHardware](https://github.com/AsterisCrack/BipedRobotHardware). The on-robot runtime is
-[BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson).
-
-<p align="center">
-  <img src="media/robot.jpeg" alt="The physical robot" width="23%"/>
-  &nbsp;
-  <img src="media/RobotTraining.gif" alt="Thousands of robots training in parallel in Isaac Lab" width="72%"/>
-</p>
-
-<p align="center">
-  <em>Left: the robot (12× Feetech STS3215, Jetson Orin Nano, BNO055 IMU, 3D-printed body).
-  Right: training in Isaac Lab. Each robot follows its own velocity command (arrows).</em>
-</p>
+**Build one:** the CAD, print files, BOM, PCB and build guide are in [`../hardware/`](../hardware/).
 
 ---
 
@@ -69,8 +48,7 @@ environments, the reward functions, the servo model and the gait generator.
   action map are all set in one config file, validated by a schema.
 - **Optional reference motion.** [Gait Studio](#optional-reference-motion-with-gait-studio) lets
   you design a gait in the browser and train the policy to imitate it. Training works without it.
-- **One-command deployment** to a self-contained ONNX bundle for the robot's Jetson
-  ([BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson)).
+- **One-command deployment** to a self-contained ONNX bundle for the on-robot runtime.
 
 ---
 
@@ -79,13 +57,13 @@ environments, the reward functions, the servo model and the gait generator.
 ### 1. Install
 
 ```bash
-git clone --recurse-submodules https://github.com/AsterisCrack/BipedRobot
-cd BipedRobot
+git clone --recurse-submodules <your Chhaya repository>
+cd chhaya/training
 pip install -r requirements.txt        # also installs torch_rl_algorithms in editable mode
 ```
 
 Training needs [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
-Run the training commands from `BipedRobot/` with Isaac Lab's Python. MuJoCo evaluation, export and
+Run the training commands from `training/` with Isaac Lab's Python. MuJoCo evaluation, export and
 the gate run without it.
 
 ### 2. Train
@@ -355,50 +333,23 @@ python -m pytest tests -q --ignore=tests/test_env.py --ignore=tests/test_transfo
 
 ---
 
-## Hardware and custom PCB
+## Hardware
 
-Everything needed to build the robot (CAD in STEP and Fusion 360, print files, BOM with prices, the PCB's
-source and fabrication files, wiring and a build guide) is in
-**[BipedRobotHardware](https://github.com/AsterisCrack/BipedRobotHardware)**, under CERN-OHL-P-2.0. Its robot
-description (URDF + meshes) is the one this repo simulates: it is included as the `robot_hardware/` submodule.
-
-- 12 Feetech STS3215 smart servos with position, speed, load, voltage and temperature feedback
-- NVIDIA Jetson Orin Nano, 50 Hz control loop ([BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson))
-- BNO055 IMU
-- 3D-printed structure
-- Custom power distribution PCB for stable, modular wiring
-
-<p align="center">
-  <img src="media/pcb.jpg" alt="Custom power distribution PCB" height="300"/>
-</p>
-
-<p align="center">
-  <em>The custom power distribution PCB.</em>
-</p>
-
-The PCB was fabricated and assembled with support from <a href="https://www.pcbway.com/">PCB Way</a>.
-Their service took the board from design to assembly quickly, which sped up hardware iteration.
-They offer PCB prototyping, assembly and component sourcing.
-
-🔗 https://www.pcbway.com/
+Everything needed to build the robot (CAD, print files, BOM, the power PCB's source and fabrication
+files, wiring and a build guide) is in [`../hardware/`](../hardware/), under CERN-OHL-P-2.0. Its robot
+description (URDF + meshes) is the one this folder simulates (`robot_hardware/` links to it).
 
 ---
 
 ## Acknowledgements
 
-<p align="center">
-  <img src="media/pcbway.png" alt="PCBWay logo" height="40"/>
-</p>
-
-Hardware development for this project was partially supported by <a href="https://www.pcbway.com/">PCB Way</a>
-(PCB fabrication and assembly). All design decisions and evaluations remain fully independent.
-
 The servo model builds on Rhoban's [BAM](https://github.com/Rhoban/bam). Gait Studio is inspired
 by Disney Research's *Interactive Design of Stylized Walking Gaits for Robotic Characters*
-(SIGGRAPH 2024).
+(SIGGRAPH 2024). The power PCB of the original leg platform was fabricated with support from
+[PCBWay](https://www.pcbway.com/). Full credits: [`../NOTICE.md`](../NOTICE.md).
 
 ---
 
 ## License
 
-[MIT](LICENSE.txt). The hardware design in BipedRobotHardware is licensed separately under CERN-OHL-P-2.0.
+[MIT](LICENSE.txt). The hardware design in `../hardware/` is licensed separately under CERN-OHL-P-2.0.

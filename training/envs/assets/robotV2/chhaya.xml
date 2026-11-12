@@ -259,19 +259,11 @@
     <exclude body1="base_link" body2="l_shoulder_link" />
     <exclude body1="chest_link" body2="l_upper_arm_link" />
     <exclude body1="base_link" body2="l_upper_arm_link" />
-    <exclude body1="chest_link" body2="l_elbow_link" />
-    <exclude body1="base_link" body2="l_elbow_link" />
-    <exclude body1="chest_link" body2="l_forearm_link" />
-    <exclude body1="base_link" body2="l_forearm_link" />
     <exclude body1="l_shoulder_link" body2="l_elbow_link" />
     <exclude body1="chest_link" body2="r_shoulder_link" />
     <exclude body1="base_link" body2="r_shoulder_link" />
     <exclude body1="chest_link" body2="r_upper_arm_link" />
     <exclude body1="base_link" body2="r_upper_arm_link" />
-    <exclude body1="chest_link" body2="r_elbow_link" />
-    <exclude body1="base_link" body2="r_elbow_link" />
-    <exclude body1="chest_link" body2="r_forearm_link" />
-    <exclude body1="base_link" body2="r_forearm_link" />
     <exclude body1="r_shoulder_link" body2="r_elbow_link" />
   </contact>
 </mujoco>

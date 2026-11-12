@@ -1,8 +1,7 @@
 # Handoff: Chhaya (state on 2026-11-11)
 
-Chhaya is one robot and one project: a 20-joint humanoid with claws and a sensor head. Its legs,
-electronics and training stack derive from the Sir Servington biped by Pablo Gomez Martinez
-(`NOTICE.md`).
+Chhaya is one robot and one project: a 20-joint humanoid with claws and a sensor head. Credits and
+licences for the open-source work it builds on are in `NOTICE.md`.
 
 ## Where things are
 
@@ -13,7 +12,7 @@ electronics and training stack derive from the Sir Servington biped by Pablo Gom
 | `training/` | the RL code (Isaac Lab + MuJoCo). Chhaya's config is `config/chhaya.yaml`; its models are `envs/assets/robotV2/chhaya.xml` and `chhaya.usd`; `chhaya/` has the joint tables, arm motions and the physics check |
 | `docs/` | `TRAINING.md` (how the policy and the arms work together), `GPU_RUNBOOK.md`, this file, `physics/` (physics check results), `BUDGET_ELECTRONICS.md` |
 | `training/robot_hardware` | a link to `../hardware` (the code's mesh paths go through it) |
-| `training/torch_rl_algorithms`, `training/robot_motion_reference` | submodules, pinned to the commits Sir Servington uses |
+| `training/torch_rl_algorithms`, `training/robot_motion_reference` | submodules, pinned |
 
 Two things keep their original names because the code and tests refer to them: the training task
 `BipedRobotV2`, and the legs-only rig (`config/config.yaml`, `robot_v2.xml`, `Robot.urdf`), which is
@@ -53,16 +52,15 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
   standard wrist plate (4x M3). The claw is fixed mass in simulation, scripted on the real robot.
 - Every printed part must pass `tools/strength_check.py` (safety factor >= 3 on real cross-sections)
   and `tools/check_interference.py` (>= 1.0 mm moving clearance, zero overlap) in `hardware/tools/`.
-- The legs are the original parts, unchanged: nothing the training depends on was touched.
 - Plug and play: every module has one standard interface (table in
   `hardware/docs/design.md`). Keep those interfaces when changing parts.
-- The legs are the original parts. A light restyle (rounding only) is allowed; joint positions, servo
+- The legs are fixed parts. A light restyle (rounding only) is allowed; joint positions, servo
   mounting and foot soles must not change.
 - STS3215 on all 20 joints in simulation (the only servo with a validated BAM model).
 - **Whole-body policy (decided 2026-11-12):** one policy commands all 20 joints (20 actions, 74-dim
   frame). Scripted arms (`arms.control: scripted`) remain only as a fallback. See `TRAINING.md`.
 - **Electronics (2026-11-12, `ELECTRONICS_LAYOUT.md`):** chest raised 23 mm onto a printed electronics
-  rack; battery and Raspberry Pi 5 under the chest, PCB and bus adapter in the torso as on the original.
+  rack; battery and Raspberry Pi 5 under the chest, PCB and bus adapter in the torso.
   A Jetson no longer fits. Weigh the real torso before training.
 - One robot, one project (decided 2026-11-11): no separate "upper body" folders, configs or docs.
 - Design language: like the legs. Servos are the structure, flat plates on their M2 face holes,

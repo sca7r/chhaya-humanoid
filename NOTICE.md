@@ -1,8 +1,8 @@
 # Notice and credits
 
-Chhaya is built on **Sir Servington**, the open-source biped by **Pablo Gomez Martinez**
-(GitHub: AsterisCrack). Without that work there would be no Chhaya: the legs, the electronics,
-the servo model and the whole training stack are his.
+Chhaya is its own robot. Its legs, hips, torso, power electronics, servo model and training stack are
+derived from open-source work by **Pablo Gomez Martinez** (GitHub: AsterisCrack), used under the
+licences below. Those licences require this credit and the list of changes to stay in the repository.
 
 | Part of this repository | Source | Licence |
 |---|---|---|
@@ -37,7 +37,7 @@ Made in November 2026.
 - `training/robot_hardware` is a link to `../hardware` instead of a submodule.
 - `docs/` at the repository root is new.
 
-The legs, hips, torso, electronics, servo model and training method are the original design.
+The legs, hips, torso, power electronics, servo model and training method come from the sources above.
 
 ## Licence of the new work
 

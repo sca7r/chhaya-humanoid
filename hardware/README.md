@@ -7,9 +7,8 @@ CAD, print files, bill of materials, power PCB, robot description (URDF) and bui
   <img src="media/chhaya/overview.png" alt="Chhaya" width="90%"/>
 </p>
 
-The picture is a render of the model: Chhaya has not been built yet. The legs, hips, torso and
-electronics are the Sir Servington design (photo: [`media/robot.jpeg`](media/robot.jpeg)), which
-has been built and walks. See [`../NOTICE.md`](../NOTICE.md).
+The picture is a render of the model: Chhaya has not been built yet. Credits and licences:
+[`../NOTICE.md`](../NOTICE.md).
 
 ---
 
@@ -23,7 +22,7 @@ has been built and walks. See [`../NOTICE.md`](../NOTICE.md).
 | Actuators | 20× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud; 2 micro servos for the claws |
 | Hands | One-servo claws on a standard wrist plate |
 | Head | Halo head with a drilled plate for a camera and small boards |
-| Compute | Raspberry Pi 5 on the electronics rack under the chest, 50 Hz control loop. The original's Jetson Orin Nano no longer fits (see [`docs/design.md`](docs/design.md#electronics)) |
+| Compute | Raspberry Pi 5 on the electronics rack under the chest, 50 Hz control loop. A Jetson Orin Nano does not fit (see [`docs/design.md`](docs/design.md#electronics)) |
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
 | Structure | 35 printed parts, PLA or PETG |
@@ -43,8 +42,8 @@ has been built and walks. See [`../NOTICE.md`](../NOTICE.md).
 | Build it | [`docs/build/`](docs/build/) |
 | Simulate it | [`robot_description/`](robot_description/) (URDF + meshes) |
 
-The Fusion 360 archive of the legs and the gerbers are downloads on the
-[Sir Servington release page](https://github.com/AsterisCrack/BipedRobotHardware/releases/latest).
+The Fusion 360 archive of the legs and the PCB gerbers are downloads on the release page of the
+leg platform's source repository (linked in [`../NOTICE.md`](../NOTICE.md)).
 
 ---
 
@@ -107,9 +106,9 @@ The training code reads the robot description from here through `training/robot_
   <img src="media/pcbway.png" alt="PCBWay logo" height="40"/>
 </p>
 
-- The legs, hips, torso, electronics and their documentation are
-  [Sir Servington](https://github.com/AsterisCrack/BipedRobotHardware) by Pablo Gomez Martinez.
-- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board for the original project.
+- The legs, hips, torso and power electronics derive from open-source work by Pablo Gomez Martinez
+  ([`../NOTICE.md`](../NOTICE.md)).
+- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board for the leg platform's source project.
 - The servo model used in simulation builds on Rhoban's [BAM](https://github.com/Rhoban/bam).
 - The URDF was exported from Fusion 360 with [fusion2urdf](https://github.com/syuntoku14/fusion2urdf)
   (MIT, see [`robot_description/LICENSE-fusion2urdf`](robot_description/LICENSE-fusion2urdf)).

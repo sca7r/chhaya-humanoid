@@ -25,7 +25,7 @@ import torch
 MODES = ("rest", "swing", "random", "hold")
 
 # Both arms share sign conventions: +roll = arm out, -pitch = forward/up, -elbow = flex, +yaw = outward.
-REST = {"shoulder_pitch": 0.0, "shoulder_roll": 0.12, "arm_yaw": 0.0, "elbow": -0.35}
+REST = {"shoulder_pitch": 0.0, "shoulder_roll": 0.20, "arm_yaw": 0.0, "elbow": -0.35}
 SAFE = {"shoulder_pitch": (-2.0, 0.6), "shoulder_roll": (0.08, 1.2), "arm_yaw": (-0.8, 0.8), "elbow": (-1.8, 0.0)}
 
 DEFAULTS = {

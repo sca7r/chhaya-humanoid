@@ -1,12 +1,17 @@
 # Changelog
 
-## v2.0 (2026-10-30)
+## Chhaya v1.0 (2026-11)
 
-First public release of Sir Servington, the robot the current policies in
-[BipedRobot](https://github.com/AsterisCrack/BipedRobot) are trained for and run on.
+- Whole robot: 20 servo joints (12 legs, 8 arms), one-servo claws, halo head with a sensor plate.
+- Electronics rack under the chest: battery and Raspberry Pi 5; the chest stands on the rack.
+- Parametric CAD for the chest, head, arms, claws and rack, with automatic clearance, fit and
+  strength checks (`regenerate.sh`).
+- URDF, MuJoCo and USD models generated from the CAD.
 
-- 12 Waveshare ST3215 servos, Jetson Orin Nano Super, BNO055 IMU, 3S LiPo.
-- Custom power distribution PCB, fabricated and assembled by PCBWay.
+## Leg platform v2.0 (2026-10-30)
+
+The legs, hips, torso and power electronics, as taken from their source (see `../NOTICE.md`).
+
+- 12 Waveshare ST3215 servos, BNO055 IMU, 3S LiPo.
+- Custom power distribution PCB.
 - URDF with an `imu_link` at the BNO055 mounting point.
-
-The model of the earlier V1 robot is still in BipedRobot (`--task BipedRobot`).

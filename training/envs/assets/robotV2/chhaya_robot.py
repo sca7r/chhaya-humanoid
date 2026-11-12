@@ -24,7 +24,7 @@ ARM_JOINT_NAMES = ["l_shoulder_pitch", "r_shoulder_pitch", "l_shoulder_roll", "r
                    "l_arm_yaw", "r_arm_yaw", "l_elbow", "r_elbow"]
 ARM_BODY_REGEX = r"(l|r)_(shoulder|upper_arm|elbow|forearm)_link"
 # arm rest pose = home/reset pose of the arms (chhaya/motions.py REST)
-ARM_REST = {"l_shoulder_pitch": 0.0, "r_shoulder_pitch": 0.0, "l_shoulder_roll": 0.12, "r_shoulder_roll": 0.12,
+ARM_REST = {"l_shoulder_pitch": 0.0, "r_shoulder_pitch": 0.0, "l_shoulder_roll": 0.20, "r_shoulder_roll": 0.20,
             "l_arm_yaw": 0.0, "r_arm_yaw": 0.0, "l_elbow": -0.35, "r_elbow": -0.35}
 
 _legs = BIPED_ROBOT_CFG.actuators["legs"]

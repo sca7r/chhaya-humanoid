@@ -35,7 +35,7 @@ class Fake:
 
     def __init__(self):
         leg_default = torch.zeros(12)
-        arm_default = torch.tensor([0.0, 0.0, 0.12, 0.12, 0.0, 0.0, -0.35, -0.35])
+        arm_default = torch.tensor([0.0, 0.0, 0.20, 0.20, 0.0, 0.0, -0.35, -0.35])
         self._arm_list = list(range(12, 20))
         self.robot = SimpleNamespace(data=SimpleNamespace(
             default_joint_pos=torch.cat([leg_default, arm_default]).unsqueeze(0).repeat(self.num_envs, 1)))
@@ -57,7 +57,7 @@ def test_arm_action_map():
     assert torch.allclose(e.arm_actions_to_targets(torch.zeros(4, 8)), e.arm_default.expand(4, 8))
     hi = e.arm_actions_to_targets(torch.ones(4, 8))[0]
     lo = e.arm_actions_to_targets(-torch.ones(4, 8))[0]
-    assert torch.allclose(hi, torch.tensor([1.0, 1.0, 0.72, 0.72, 0.8, 0.8, 0.1, 0.1]))     # elbow clamps at +0.1
+    assert torch.allclose(hi, torch.tensor([1.0, 1.0, 0.80, 0.80, 0.8, 0.8, 0.1, 0.1]))     # elbow clamps at +0.1
     assert torch.allclose(lo, torch.tensor([-1.0, -1.0, 0.05, 0.05, -0.8, -0.8, -1.35, -1.35]))  # roll clamps at 0.05
     assert torch.allclose(e.arm_actions_to_targets(5 * torch.ones(4, 8)), hi.expand(4, 8))   # action is clipped
 

@@ -15,7 +15,7 @@ Decided 2026-11-12: the policy learns the whole robot. The arms are no longer sc
 `envs/assets/robotV2/chhaya_robot.py` (L,R interleaved per type, like the legs).
 - legs: the unchanged residual map around the crouched home pose;
 - arms: `target = clip(rest + arms.action_scale_rad[type] * a, joint limits)`, around the arm rest pose
-  (roll 0.12, elbow −0.35), with the same action delay and EMA filter as the legs.
+  (roll 0.20, elbow −0.35: the hands hang 23 mm clear of the hips), with the same action delay and EMA filter as the legs.
 
 **Observation frame (74):** the 50-dim leg frame, unchanged, then arm `joint_pos − rest` (8),
 arm `joint_vel` (8) and the previous arm actions (8). With 5 frames of history the actor sees 370
@@ -64,7 +64,7 @@ env_config:
 ```
 
 A config without the `arms` block runs the legs-only rig (Chhaya without chest, head and arms),
-which the regression tests use and which behaves exactly like the original Sir Servington code.
+which the regression tests use.
 `config/chhaya.yaml` is Chhaya's config.
 
 ```bash

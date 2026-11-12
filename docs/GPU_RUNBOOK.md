@@ -31,6 +31,10 @@ after an interruption (`--checkpoint`). H200 / A100 / A30 are only useful after 
 Recommendation: rent an RTX 4090 for the smoke test (cheap), and keep it for the full run if the
 smoke test's steps per second are acceptable. Prices change; check the provider's console.
 
+**Storage:** about 100 GB. On RunPod: 30 GB container disk plus an 80 GB volume at `/workspace`
+(Isaac Sim + Isaac Lab ≈ 25 GB, Python packages ≈ 8 GB, caches ≈ 5 GB; the repo, checkpoints and logs
+are under 2 GB). Install everything on the volume so a stopped pod keeps it.
+
 ## 1. Instance
 
 | Choice | Pick | Why |

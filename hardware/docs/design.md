@@ -150,7 +150,7 @@ Both arms use the same sign conventions (the right arm's roll and yaw axes are m
 | Joint | Axis (left) | Range [rad] | Positive direction |
 |---|---|---|---|
 | shoulder_pitch | +Y | −3.0 … +1.0 | arm backward (negative = forward/up) |
-| shoulder_roll | +X | +0.05 … +2.6 | arm out to the side (the arms rest at 0.12, slightly away from the legs) |
+| shoulder_roll | +X | +0.05 … +2.6 | arm out to the side (the arms rest at 0.20, 23 mm clear of the hips) |
 | arm_yaw | +Z | −1.57 … +1.57 | upper arm rotates outward |
 | elbow | +Y | −2.0 … +0.1 | negative = flex |
 
@@ -161,7 +161,7 @@ at |y| = 95 mm.
 ## Legs
 
 Six joints per leg (hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch), unchanged from
-the Sir Servington design this robot derives from. The walking policy, the gait references and the
+the leg platform this robot is built on. The walking policy, the gait references and the
 servo model all depend on the legs' joint positions, servo mounting and foot soles, so those are
 fixed. The part most likely to break in a fall is `ankle_and_hip.stl`: see the print notes.
 
@@ -194,15 +194,15 @@ safety factor is under 3. Results are in `cad/parametric/checks/` (`parts.json`,
 
 ## Electronics
 
-Measured on the original body (`body.step`): its top is a rim tray, 78 x 99 mm inside, with 4 bosses in
-the Jetson Orin Nano's hole pattern (58 x 86 mm). The original robot carries the Jetson there and the
-battery strapped on top of it; the power PCB and the servo bus adapter hang inside the torso.
+Measured on the body (`body.step`): its top is a rim tray, 78 x 99 mm inside, with 4 bosses in the
+Jetson Orin Nano's hole pattern (58 x 86 mm). The tray was laid out for a Jetson with the battery
+strapped on top; the power PCB and the servo bus adapter hang inside the torso.
 
-Chhaya keeps that layout, because it puts the heavy parts low and over the hips:
+Chhaya keeps the heavy parts there, low and over the hips:
 
 | Where | What | Notes |
 |---|---|---|
-| Inside the torso (unchanged) | power PCB, servo bus adapter, IMU (its tray) | as on the original robot |
+| Inside the torso | power PCB, servo bus adapter, IMU (its tray) | |
 | Rack plate, in the rim tray | 3S 2200 mAh LiPo (105 x 34 x 24), lengthwise | strap through the slots; it sticks out ~26 mm front and back through the chest's arches |
 | Rack deck, above the battery | Raspberry Pi 5 with active cooler | USB/Ethernet end sticks out behind the chest back plate |
 | Inside the chest box (47 x 50 x 26 free) | 12 V → 5 V step-down for the Pi, servo wiring | |

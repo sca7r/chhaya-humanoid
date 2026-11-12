@@ -18,7 +18,7 @@ import numpy as np
 from chhaya.model import ARM_JOINTS, arm_limits
 
 REST = {"l_shoulder_pitch": 0.0, "r_shoulder_pitch": 0.0,
-        "l_shoulder_roll": 0.12, "r_shoulder_roll": 0.12,
+        "l_shoulder_roll": 0.20, "r_shoulder_roll": 0.20,
         "l_arm_yaw": 0.0, "r_arm_yaw": 0.0,
         "l_elbow": -0.35, "r_elbow": -0.35}
 
