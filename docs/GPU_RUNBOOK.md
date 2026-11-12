@@ -22,6 +22,12 @@ the instance busy only while it trains, and copy the results off before deleting
 | A100 / H100 | **No**: no RT cores, Isaac Sim does not run | — |
 | MuJoCo training on the laptop CPU | The repo's MuJoCo trainer is legacy and lacks the Isaac env's rewards and randomisation; not usable without a port | — |
 
+**JarvisLabs (checked 2026-11-12):** Isaac Sim needs RT cores, so of H200, A100, A30 and L4 only the
+**L4** (24 GB, $0.44/h on demand, $0.29/h spot) runs the current code; AWS uses L4s for Isaac Lab too. It is
+roughly 3x slower than a 4090, so a run takes ~1–2 days: ≈ $10–20. On spot, resume from the last checkpoint
+after an interruption (`--checkpoint`). H200 / A100 / A30 are only useful after a port to MuJoCo Warp
+(`TRAINING_OPTIONS.md`). An A10 (not A100) would also work: it has RT cores.
+
 Recommendation: rent an RTX 4090 for the smoke test (cheap), and keep it for the full run if the
 smoke test's steps per second are acceptable. Prices change; check the provider's console.
 
