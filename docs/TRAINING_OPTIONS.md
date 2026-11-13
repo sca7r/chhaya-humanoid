@@ -22,7 +22,7 @@
 | Option | Runs on the RTX 3060 laptop (6 GB)? | Porting work | Notes |
 |---|---|---|---|
 | **A. Current code on a rented RTX 4090** | no (rented) | none | ≈ ₹400–700 per run. Fastest path to a first policy |
-| **B. Isaac Lab 3.0, kit-less Newton (MuJoCo Warp solver)** | not ruled out by NVIDIA's docs; no published VRAM figure for kit-less | medium: 2.x → 3.0 breaking changes (quaternion order x,y,z,w, data proxies, launcher, importers) and Newton feature gaps | Keeps the Isaac Lab structure. Newton is still "under active development" per NVIDIA |
+| **B. Isaac Lab 3.0, Newton without Isaac Sim** | yes by NVIDIA's requirements (any RTX 20-series or newer CUDA GPU, no RT cores); tested here on a CPU, see `ISAACLAB3.md` | medium, about a week: 3.0's breaking changes plus three fixes to the robot file | Keeps the environment structure. The best laptop route |
 | **C. mjlab 1.6 (MuJoCo Warp, Isaac Lab-style API, Apache-2.0)** | yes in principle: needs any NVIDIA CUDA GPU, no RT cores, no Isaac Sim | large: rewrite the env as mjlab terms; reuse reward functions, BAM kernel and SAC | Has terrains, rich randomisation, custom GPU actuators, actuation delay, contact sensors. Training sim = eval sim (MuJoCo), which removes the PhysX→MuJoCo gap |
 | **D. Holosoma (Amazon FAR) + FastSAC on MuJoCo Warp** | likely, with fewer envs | large: humanoid framework built around G1/T1 | FastSAC trains humanoid walking in ~15 min on one RTX 4090. Off-policy like our SAC |
 
@@ -49,8 +49,9 @@ Ubuntu 22.04/24.04 (or Windows with WSL2), NVIDIA driver recent enough for CUDA 
 ## Recommendation
 
 1. Now: option A. The code is ready; one rented 4090 run gives the first policy for little money.
-2. In parallel: port to option C (mjlab), keeping our SAC, reward functions and BAM kernel. Once it
-   reproduces option A's policy quality in MuJoCo eval, later iterations run on the laptop for free.
+2. In parallel: port to option B (Isaac Lab 3.0 on Newton, `ISAACLAB3.md`). It is a smaller port than
+   mjlab and can be tested on a CPU. Once it reproduces option A's policy quality in MuJoCo eval, later
+   iterations run on the laptop for free.
 3. Adopt the FastSAC changes in whichever path is used; they cut training time the most.
 
 Sources: [Isaac Sim requirements](https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/requirements.html),
