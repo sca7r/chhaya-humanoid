@@ -9,15 +9,16 @@ from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, ImuCfg, RayCasterCfg, TiledCameraCfg, patterns
+from isaaclab.sensors import ContactSensorCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg, NewtonCollisionPipelineCfg, NewtonShapeCfg
 from isaaclab.utils.noise import GaussianNoiseCfg, NoiseModelCfg
 import isaaclab.terrains as terrain_gen
 from isaaclab.terrains import TerrainGeneratorCfg
 
-from .mdp.events import randomize_bam_actuator, randomize_rigid_body_com_absolute
+from .mdp.events import (randomize_bam_actuator, randomize_rigid_body_com_absolute, reset_joints_by_offset,
+                         reset_root_state_uniform)
 from envs.assets.robot.biped_robot import BIPED_ROBOT_CFG as BIPED_ROBOT_V1_CFG
 from envs.assets.robot.biped_robot import JOINT_LIMITS as JOINT_LIMITS_V1
 from envs.assets.robotV2.biped_robot import BIPED_ROBOT_CFG as BIPED_ROBOT_V2_CFG
@@ -27,6 +28,31 @@ from envs.assets.robotV2.biped_robot import JOINT_LIMITS as JOINT_LIMITS_V2
 # Purpose: ground perturbation training, NOT an obstacle course.
 # The robot is BLIND (no height scanner), so anything it cannot absorb reactively is just
 # noise in the reward. Worst feature is ~12 mm; see the per-terrain notes below for scaling.
+def flat_slab_terrain(difficulty: float, cfg):
+    """A flat tile as a 0.5 m thick slab with its top at z = 0.
+
+    Isaac Lab's MeshPlaneTerrainCfg is a zero-thickness sheet. Newton rejects a terrain made only of
+    such sheets ("mesh volume is too small"), so the flat ground is a slab instead.
+    """
+    import numpy as np
+    import trimesh
+    sx, sy = cfg.size
+    slab = trimesh.creation.box((sx, sy, 0.5), trimesh.transformations.translation_matrix((sx / 2, sy / 2, -0.25)))
+    return [slab], np.array([sx / 2.0, sy / 2.0, 0.0])
+
+
+@configclass
+class FlatSlabTerrainCfg(terrain_gen.SubTerrainBaseCfg):
+    function = flat_slab_terrain
+
+
+# Flat ground (use_rough_terrain: false). A generated slab, not terrain_type="plane": the stock plane
+# is a USD asset fetched from NVIDIA's servers, and kit-less training should not need the network.
+FLAT_TERRAIN_CFG = TerrainGeneratorCfg(
+    size=(8.0, 8.0), border_width=20.0, num_rows=20, num_cols=20, use_cache=False,
+    sub_terrains={"flat": FlatSlabTerrainCfg(proportion=1.0)},
+)
+
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
     size=(8.0, 8.0),
     border_width=20.0,
@@ -60,7 +86,7 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
         # scale, i.e. curbs, which is why it was too much.
 
         # Flat baseline. Keeps a safe fraction of envs for stable policy improvement.
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.25),
+        "flat": FlatSlabTerrainCfg(proportion=0.25),
 
         # Fine ground texture. NOTE: random_uniform_terrain IGNORES the difficulty parameter
         # (documented in hf_terrains.py), so this is ALWAYS at full range -- hence the small
@@ -106,10 +132,9 @@ class BipedRobotSceneCfg(InteractiveSceneCfg):
         update_period=0.005,
         track_air_time=True,
         force_threshold=1.0,
-        filter_prim_paths_expr=["/World/ground/terrain/GroundPlane/CollisionPlane"],
-    )
-    imu: ImuCfg = ImuCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/Robot/torso_link",
+        # floor part of each contact force. The terrain is a static SHAPE in Newton (no body), so the
+        # filter is a shape expression.
+        filter_shape_prim_expr=["/World/ground/.*"],
     )
 
 
@@ -122,11 +147,9 @@ class BipedRobotV2SceneCfg(InteractiveSceneCfg):
         update_period=0.005,
         track_air_time=True,
         force_threshold=1.0,
-        filter_prim_paths_expr=["/World/ground/terrain/GroundPlane/CollisionPlane"],
-    )
-    imu: ImuCfg = ImuCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/Robot/base_link",
-        offset=ImuCfg.OffsetCfg(pos=(-0.023673, 0.0, 0.025133)),
+        # floor part of each contact force. The terrain is a static SHAPE in Newton (no body), so the
+        # filter is a shape expression.
+        filter_shape_prim_expr=["/World/ground/.*"],
     )
 
 
@@ -472,29 +495,40 @@ class BipedEnvCfg(DirectRLEnvCfg):
     observation_vibration_amp_range: list = [0.0, 1.0]   # per-env amplitude multiplier, drawn uniformly at reset
 
     # simulation
+    # IMU position in the base_link frame [m] (BNO055 on the PCB). The env computes the IMU signals
+    # itself from the base state (BipedEnv._read_imu).
+    imu_offset_m: tuple = (-0.023673, 0.0, 0.025133)
+
+    # simulation: Isaac Lab 3.0, Newton backend, MuJoCo-Warp solver (no Isaac Sim, no RT cores needed).
+    # 200 Hz control-side step (the BAM servo model's dt), 2 solver substeps = 400 Hz physics.
+    # njmax / nconmax are PER ROBOT (constraint rows / contacts); raise them if the log warns of overflow.
     sim: sim_utils.SimulationCfg = sim_utils.SimulationCfg(
         dt=1 / 200,
         render_interval=decimation,
+        # The servo model (BamActuator) is our own torch code, computed every 200 Hz step: Isaac Lab's
+        # actuator path, not Newton's built-in actuators.
+        use_newton_actuators=False,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
             static_friction=1.0,
             dynamic_friction=1.0,
         ),
-        physx=sim_utils.PhysxCfg(
-            gpu_max_rigid_patch_count=10 * 2**15,
-            solver_type=1,
-        )
+        physics=NewtonCfg(
+            solver_cfg=MJWarpSolverCfg(njmax=1000, nconmax=300, cone="pyramidal", impratio=1.0,
+                                       integrator="implicitfast", use_mujoco_contacts=False),
+            collision_cfg=NewtonCollisionPipelineCfg(max_triangle_pairs=2_500_000),
+            num_substeps=2,
+            default_shape_cfg=NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0),
+        ),
     )
-    
 
-    # ground terrain
+    # ground terrain: always generated (flat slab or the rough mix), see FLAT_TERRAIN_CFG
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        terrain_type="plane",
-        terrain_generator=None,
-        max_init_terrain_level=5,
-        collision_group=0,
+        terrain_type="generator",
+        terrain_generator=FLAT_TERRAIN_CFG,
+        max_init_terrain_level=None,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
@@ -502,13 +536,9 @@ class BipedEnvCfg(DirectRLEnvCfg):
             dynamic_friction=1.0,
             restitution=0.0,
         ),
-        visual_material=sim_utils.MdlFileCfg(
-            mdl_path="{NVIDIA_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
-            project_uvw=True,
-        ),
         debug_vis=False,
     )
-    
+
     # lights
     light = AssetBaseCfg(
         prim_path="/World/light",
@@ -522,7 +552,7 @@ class BipedEnvCfg(DirectRLEnvCfg):
     # events
     events: dict[str, EventTerm] = {
         "reset_base": EventTerm(
-            func="isaaclab.envs.mdp:reset_root_state_uniform",
+            func=reset_root_state_uniform,
             mode="reset",
             params={
                 "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
@@ -537,7 +567,7 @@ class BipedEnvCfg(DirectRLEnvCfg):
             },
         ),
         "reset_robot_joints": EventTerm(
-            func="isaaclab.envs.mdp:reset_joints_by_scale",
+            func=reset_joints_by_offset,
             mode="reset",
             params={
                 # DEAD VALUES. _apply_curriculum overwrites both with
@@ -729,8 +759,7 @@ class BipedEnvCfg(DirectRLEnvCfg):
             self.terrain.terrain_type = "generator"
             self.terrain.terrain_generator = ROUGH_TERRAINS_CFG
             self.terrain.max_init_terrain_level = 0 if self.use_terrain_curriculum else None
-            self.terrain.collision_group = 0
-            self.scene.contact_forces.filter_prim_paths_expr = []
+            self.scene.contact_forces.filter_shape_prim_expr = []
             
 @configclass
 class BipedRoughEnvCfg(BipedEnvCfg):
@@ -746,6 +775,15 @@ class BipedRobotV2EnvCfg(BipedEnvCfg):
         num_envs=4096,
         env_spacing=0.5,
     )
+
+    # Policy joint order, by NAME (L,R interleaved per joint type). Isaac Lab 3.0 / Newton orders the
+    # articulation's joints depth-first (whole left leg, then the right), not PhysX's breadth-first
+    # order that used to coincide with this list, so the env always maps by name now.
+    policy_joint_names: list | None = [
+        "l_hip_yaw", "r_hip_yaw", "l_hip_roll_joint", "r_hip_roll_joint",
+        "l_hip_pitch_joint", "r_hip_pitch_joint", "l_knee_joint", "r_knee_joint",
+        "l_ankle_roll_joint", "r_ankle_roll_joint", "l_ankle_pitch_joint", "r_ankle_pitch_joint",
+    ]
 
     # robot-specific mappings
     joint_limits = JOINT_LIMITS_V2

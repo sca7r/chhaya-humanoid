@@ -15,7 +15,7 @@ import os
 from envs.assets.robotV2.biped_robot import BIPED_ROBOT_CFG
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-USD_PATH_CHHAYA = os.path.join(CURRENT_DIR, "chhaya.usd")
+USD_PATH_CHHAYA = os.path.join(CURRENT_DIR, "chhaya_newton.usd")   # make_newton_usd.py chhaya.usd
 
 LEG_JOINT_REGEX = r"(l|r)_(hip_yaw|hip_roll|hip_pitch|knee|ankle_roll|ankle_pitch).*"
 ARM_JOINT_REGEX = r"(l|r)_(shoulder_pitch|shoulder_roll|arm_yaw|elbow)"

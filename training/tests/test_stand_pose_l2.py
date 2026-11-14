@@ -111,7 +111,7 @@ def test_env_wiring_uses_the_shared_reference_frame_and_fresh_joint_pos():
     i_call = body.index("rewards.stand_pose_l2(")
     assert i_sample < i_call
     call = body[i_call:i_call + 300]
-    assert "self.robot.data.joint_pos" in call                                             # fresh, not the stale cache
+    assert "self.rd.joint_pos" in call                                             # fresh, not the stale cache
     assert 'self.gait_ref.joint_field(ref, "joint_pos")' in call
     assert "ref_standing.float()" in call                                                  # the step's stand mask ...
     assert "ref_standing = self._reference_standing()" in body[:i_sample]                  # ... computed once, before the sample

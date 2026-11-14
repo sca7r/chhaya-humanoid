@@ -14,103 +14,77 @@ the instance busy only while it trains, and copy the results off before deleting
 
 ## Where to train
 
-| Option | Works? | Cost for one run (≈ 13–20 h incl. setup) |
+Since 2026-11-14 the training runs on Isaac Lab 3.0 with the Newton backend (`ISAACLAB3.md`). It no
+longer needs Isaac Sim, RT cores or a large disk, so the choice of GPU is much wider than before.
+
+| Option | Works? | Notes |
 |---|---|---|
-| RTX 3060 laptop (6 GB) | **No** for Isaac Lab: Isaac Sim needs ≥ 8 GB VRAM (NVIDIA's page says 16 GB) and crashes at startup on 6 GB cards. Use the laptop for everything else: tests, MuJoCo eval and policy gate, CAD, TensorBoard | free |
-| RTX 4090 24 GB, rented (e.g. RunPod Community ≈ $0.34/h) | Yes: has RT cores and enough VRAM. Somewhat slower than the RTX PRO 6000, so expect the run to take ~1.3–1.5× longer | ≈ ₹400–700 at $0.34/h (≈ ₹1,000–1,800 on the $0.89/h Secure tier) |
-| RTX PRO 6000 (₹208/h, the original plan) | Yes, fastest | ≈ ₹2,100–3,300 |
-| A100 / H100 | **No**: no RT cores, Isaac Sim does not run | — |
-| MuJoCo training on the laptop CPU | The repo's MuJoCo trainer is legacy and lacks the Isaac env's rewards and randomisation; not usable without a port | — |
+| RTX 3060 laptop (6 GB) | Yes by NVIDIA's requirements; **not yet measured** | free. Start with 1024 robots and a 300 k replay buffer. Mains power, cooling stand, overnight runs |
+| RTX 4090 24 GB, rented (≈ $0.34/h on RunPod Community) | Yes | the reference choice for a full-size run (4096 robots) |
+| L4, A30, A100, H100, H200 (JarvisLabs and others) | Yes: RT cores are no longer needed | pick by price per hour; the simulation is the bottleneck, so a big data-centre card is not automatically faster per rupee |
+| CPU only | Yes, for tests | ≈ 30 robot-steps/s on 2 cores: checks the code, cannot train |
 
-**JarvisLabs (checked 2026-11-12):** Isaac Sim needs RT cores, so of H200, A100, A30 and L4 only the
-**L4** (24 GB, $0.44/h on demand, $0.29/h spot) runs the current code; AWS uses L4s for Isaac Lab too. It is
-roughly 3x slower than a 4090, so a run takes ~1–2 days: ≈ $10–20. On spot, resume from the last checkpoint
-after an interruption (`--checkpoint`). H200 / A100 / A30 are only useful after a port to MuJoCo Warp
-(`TRAINING_OPTIONS.md`). An A10 (not A100) would also work: it has RT cores.
+Nobody has run this on a GPU yet, so steps per second and the run time are unknown. Measure them in the
+smoke test below before committing to a long run. Prices change; check the provider's console.
 
-Recommendation: rent an RTX 4090 for the smoke test (cheap), and keep it for the full run if the
-smoke test's steps per second are acceptable. Prices change; check the provider's console.
+**Storage:** about 30 GB (Isaac Lab 3.0 environment ≈ 8 GB, caches ≈ 5 GB, repo, checkpoints and logs
+under 2 GB). On a rented machine put everything on the persistent volume.
 
-**Storage:** about 100 GB. On RunPod: 30 GB container disk plus an 80 GB volume at `/workspace`
-(Isaac Sim + Isaac Lab ≈ 25 GB, Python packages ≈ 8 GB, caches ≈ 5 GB; the repo, checkpoints and logs
-are under 2 GB). Install everything on the volume so a stopped pod keeps it.
+## 1. Machine
 
-## 1. Instance
+| Choice | Pick |
+|---|---|
+| GPU | any NVIDIA card of the RTX 20 generation or newer, driver 580.65+ |
+| Disk | 30 GB |
+| OS | Ubuntu 22.04 or 24.04 (or Windows with WSL2) |
 
-| Choice | Pick | Why |
-|---|---|---|
-| GPU | **RTX PRO 6000** (₹208/h) | Isaac Sim needs RT cores, which the H100/H200 don't have. It is also the cheapest of the three |
-| Disk | **100 GB** | Isaac Sim + Isaac Lab ≈ 30–40 GB, checkpoints and logs a few GB |
-| OS | Ubuntu 22.04 or 24.04 with a recent NVIDIA driver | the Isaac Sim pip install wants a recent glibc and driver |
-| Image | one with Isaac Sim / Isaac Lab preinstalled, if the provider offers it | skips ~30–45 min of paid setup |
+## 2. Install
 
-## 2. Install (only if the image doesn't have Isaac Lab)
-
-The code uses the `isaaclab.*` imports, so it needs **Isaac Lab 2.x** (2.3.x with Isaac Sim 5.x,
-Python 3.11, is the expected match). Don't use the 3.0 betas. Follow the official
-"Installation using Isaac Sim Pip Package" page for that version. In short:
-1. Make a Python 3.11 venv.
-2. `pip install` the `isaacsim` package from NVIDIA's index.
-3. Clone IsaacLab at the 2.3 tag and run `./isaaclab.sh --install`.
-
-Then the repo:
 ```bash
+git clone --branch v3.0.0 https://github.com/isaac-sim/IsaacLab.git
+cd IsaacLab && uv sync && source .venv/bin/activate      # Python 3.12, Newton backend, no Isaac Sim
 git clone --recurse-submodules https://github.com/<you>/chhaya.git && cd chhaya/training
+uv pip install -r requirements-isaaclab3.txt
 (cd robot_motion_reference && python -m gait_studio.bake)
-grep -v -E '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/req.txt   # keep Isaac Lab's own torch
-pip install -r /tmp/req.txt
 ```
 
 ## 3. Smoke test: about 10 minutes, do not skip
 
-The Isaac side of the arm code has never run (this was built without a GPU). Check it at small
-scale before paying for hours:
+The environment has run on a CPU only. Check it on the GPU at small scale first:
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless --num_envs 256
+python experimental/isaaclab3/env_check.py --num_envs 1024 --steps 200     # prints robot-steps/s
+python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --num_envs 1024
 ```
 
-The startup log should show:
-- `[biped_env] policy joints (12): [...]`, then the arm joints (8), and no error about joints not
-  being in the articulation;
-- action size **20** and actor observation size **370** (5 × 74);
-- two actuator groups, `legs` and `arms`;
-- after a few hundred iterations, rewards that are finite and changing. Check TensorBoard
-  (`tensorboard --logdir runs --bind_all`, then open port 6006 through the provider's tunnel or
-  `ssh -L 6006:localhost:6006`).
+`env_check.py` should print 20 joints, 21 bodies, 2.567 kg, action size **20**, observation **370**
+(5 × 74), foot forces that sum to about 25 N when standing, and no falls at zero action. In training,
+rewards should be finite and changing after a few hundred iterations (`tensorboard --logdir runs`).
 
-If it crashes, fix it on the instance before training. Typical suspects:
-- a joint or body name regex in `envs/assets/robotV2/chhaya_robot.py`;
-- the `randomize_arm_mass` event in `src/isaaclab/env_config.py`;
-- a tensor shape in `envs/isaaclab/biped_env.py` (`_pjsel` / `_arm_list`).
+Then raise `--num_envs` (2048, 4096) until GPU memory runs out, and note the steps per second: that
+number decides whether the laptop is enough or a rented card is worth it. If the log reports
+`nconmax` / `njmax` overflow, raise them in `BipedEnvCfg.sim` (`envs/isaaclab/biped_env_cfg.py`).
 
-Also watch one run with the viewer, or with `--video`, for a minute: early in training the arms
-should twitch with the policy's exploration, not hang rigid.
+If it crashes, fix it on that machine before training.
 
 ## 4. Full run
 
 ```bash
-nohup python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless \
+nohup python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml \
       > train.log 2>&1 &
 ```
 
 Use `nohup` or `tmux` so a dropped SSH session doesn't kill the run. Checkpoints go to
 `checkpoints/Chhaya_SAC*/` every `save_steps`.
 
-**When to stop.** The author's legs-only runs took about 40–370 M steps (2.5–5.5 h at 4096 envs).
-The arms add ~20–40 % simulation cost, and a 20-joint policy starting from scratch needs more
-steps than a 12-joint one: plan for roughly 1.5–2× the legs-only numbers. Stop when, for about
-30–60 min:
+**When to stop.** The legs-only runs on the old simulator took about 40–370 M steps. A 20-joint
+policy starting from scratch on a new simulator will differ; treat that only as an order of magnitude.
+Stop when, for about 30–60 min:
 - `track_lin_vel_xy_exp` and the episode length have plateaued, and
 - terminations (`Episode_Termination/*`) are no longer falling.
 
-Don't run to the config's `steps` limit just because it's there.
-
-**Expected cost:**
-- setup ≈ 1 h, smoke test and fixes ≈ 0.5–1 h, run ≈ 8–14 h;
-- that's ≈ 10–16 h, so about ₹2,100–3,300 at ₹208/h. Set a budget alarm at ₹4,500.
-- These are estimates from the legs-only runs, not measurements: nobody has trained this robot
-  yet. Expect a second run after tuning the arm reward weights.
+Don't run to the config's `steps` limit just because it's there. Expect a second run after tuning: the
+reward weights were tuned on PhysX and the arm weights have never been tuned.
 
 ## 5. Before deleting the instance
 

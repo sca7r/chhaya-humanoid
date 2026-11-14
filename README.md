@@ -22,7 +22,7 @@ and a head built to carry sensors. It learns to walk with reinforcement learning
 |---|---|
 | CAD, print files, URDF | done. The chest, head, arms and claws pass the automatic overlap, clearance (≥ 1 mm) and strength (safety factor ≥ 3) checks |
 | MuJoCo model and physics checks | done; all pass ([docs/physics/PHYSICS.md](docs/physics/PHYSICS.md)) |
-| Isaac Lab training setup | written and statically checked, **not yet run** (needs an RTX GPU): start with the smoke test in the GPU runbook |
+| Training setup | Isaac Lab 3.0 on Newton (no Isaac Sim; any recent NVIDIA GPU). Tested on a CPU: the environment, a short training run and playback work. **Not yet run on a GPU** ([docs/ISAACLAB3.md](docs/ISAACLAB3.md)) |
 | Walking policy | not trained yet |
 | Physical build | not built yet. The legs and electronics are a design that has been built and walks (see Credits); the arms, claws and head are new and unbuilt |
 | On-robot software for the arms | not written yet (the runtime drives the 12 leg servos) |

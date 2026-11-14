@@ -6,7 +6,7 @@ evaluation, the servo model and policy export. Run everything from this folder.
 | For Chhaya | |
 |---|---|
 | Config | `config/chhaya.yaml` (one whole-body policy commands all 20 joints: 12 legs + 8 arms) |
-| Train | `python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless` |
+| Train | `python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml` |
 | How it works | [`../docs/TRAINING.md`](../docs/TRAINING.md) |
 | On a rented GPU | [`../docs/GPU_RUNBOOK.md`](../docs/GPU_RUNBOOK.md) |
 | Physics and servo-load checks | `python -m chhaya.physics_check`, `python -m chhaya.servo_load` → [`../docs/physics/`](../docs/physics/) |
@@ -69,7 +69,7 @@ the gate run without it.
 ### 2. Train
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config.yaml --headless
+python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config.yaml
 ```
 
 | Argument | |
@@ -78,7 +78,7 @@ python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config.yam
 | `--config_path` | The YAML that defines the run (see [Configuring and experimenting](#configuring-and-experimenting)) |
 | `--num_envs N` | Number of parallel robots; defaults to the env config |
 | `--checkpoint <path>` | Resume from a checkpoint |
-| `--headless` | No viewer; much faster |
+| `--viz newton` | Open a viewer (default: none) |
 | `--video` | Record clips during training |
 
 TensorBoard logs go to `runs/`:
@@ -287,7 +287,7 @@ pip install -r gait_studio/requirements.txt
 python -m gait_studio.app                       # design: http://localhost:8080
 python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz
 cd ..
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config_gait_reference.yaml --headless
+python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config_gait_reference.yaml
 ```
 
 To add imitation to your own config, add a `reference:` block pointing at the table and give the

@@ -5,57 +5,37 @@ import numpy as np
 import argparse
 import time
 
-from isaaclab.app import AppLauncher
-
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Play Biped Robot in Isaac Lab")
-parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
-parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
-parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
+parser = argparse.ArgumentParser(description="Play a trained policy in Isaac Lab 3.0 (Newton)")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BipedRobot",
-                    help="BipedRobot (V1) | BipedRobotV2 (walking) | BipedRobotV2GetUp (fall recovery)")
+parser.add_argument("--task", type=str, default="BipedRobotV2",
+                    help="BipedRobotV2 (walking; Chhaya with env_config.arms) | BipedRobotV2GetUp (fall recovery)")
 parser.add_argument("--start_category", type=str, default=None,
                     help="BipedRobotV2GetUp only: start every episode from fall-bank states of this category "
                          "(upright | prone | supine | left_side | right_side | inverted).")
 parser.add_argument("--bank_split", type=str, default=None, choices=["train", "gate"],
                     help="BipedRobotV2GetUp only: which fall-bank split to start from (default: the config's).")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
-parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint to resume training.")
+parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint.")
 parser.add_argument("--config_path", type=str, default=None,
                     help="Training config. Default: the checkpoint dir's config.yaml (the run's own), "
                          "else config/config.yaml")
 parser.add_argument("--pushes", action="store_true",
                     help="Keep the training pushes (events.push_robot) on during playback, to watch "
                          "push recovery. Off by default: play runs the nominal, unperturbed robot.")
-parser.add_argument("--teleop", action="store_true",
-                    help="Drive the command from the keyboard (W/S fwd/back, A/D left/right, Q/E turn, "
-                         "Z/X speed -/+) or a gamepad (sticks, LB/RB speed). The camera follows the robot "
-                         "and episodes don't time out.")
-parser.add_argument("--push_scale", type=float, default=1.0,
-                    help="Space / pad A random push size, x the training push range edge. The push works "
-                         "with or without --teleop.")
+parser.add_argument("--steps", type=int, default=0, help="Stop after this many control steps (0 = until Ctrl-C).")
+parser.add_argument("--command", type=float, nargs=3, default=None, metavar=("VX", "VY", "WZ"),
+                    help="Fixed velocity command [m/s, m/s, rad/s] instead of the random training commands.")
 
-# append AppLauncher cli args
-AppLauncher.add_app_launcher_args(parser)
-# parse the arguments
+_training_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+for _p in (os.path.join(_training_root, "torch_rl_algorithms"), _training_root):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from src.isaaclab.launch import add_launch_args, launch
+
+add_launch_args(parser)          # --device, --viz newton (window) | rerun | viser | none
 args_cli = parser.parse_args()
-
-# always enable cameras to record video
-if args_cli.video:
-    args_cli.enable_cameras = True
-
-# launch omniverse app
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
-# AppLauncher reinitializes sys.path; re-add project paths after it launches.
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-_trl_root = os.path.join(_project_root, "torch_rl_algorithms")
-if _trl_root not in sys.path:
-    sys.path.insert(0, _trl_root)
 
 from torch_rl_algorithms.algorithms.sac.model import SAC
 from torch_rl_algorithms.algorithms.ddpg.model import DDPG
@@ -80,64 +60,6 @@ class IsaacLabWrapper(BaseIsaacLabWrapper):
             actions = torch.from_numpy(actions).to(self.device)
         obs, rew, terminated, truncated, info = self.env.step(actions)
         return self._process_obs(obs), rew, terminated, truncated, info
-
-class _Hud:
-    """A small omni.ui window with the teleop state; falls back to printing when the text changes."""
-
-    def __init__(self):
-        self._label = None
-        self._last = None
-        try:
-            import omni.ui as ui
-            self._window = ui.Window("Teleop", width=460, height=60)
-            with self._window.frame:
-                self._label = ui.Label("", style={"font_size": 18})
-        except Exception as e:
-            print(f"[play] no omni.ui HUD ({e}); printing the teleop state instead")
-
-    def set(self, text: str, console_text: str) -> None:
-        if self._label is not None:
-            self._label.text = text
-        elif console_text != self._last:
-            print(f"[teleop] {console_text}")
-        self._last = console_text
-
-
-def _make_teleop_tick(env, config):
-    from src.isaaclab.teleop import IsaacTeleop
-    from utils.teleop import axes_to_command, hud_text, push_range, sample_push
-
-    teleop = IsaacTeleop()
-    gen = env.command_generator
-    ranges, shape = env._cmd_full_ranges, gen.limit_shape
-    push_vr = push_range(getattr(config.train, "env_config", None))
-    rng = np.random.default_rng(args_cli.seed)
-    hud = _Hud()
-    state = {"t_push": None, "cmd": None}
-    if args_cli.teleop:
-        print("[play] teleop: W/S fwd/back  A/D left/right  Q/E turn  Z/X speed -/+  Space push  "
-              "(pad: sticks, LB/RB speed, A push). Keys need the Isaac Sim window focused.")
-    print(f"[play] push: Space / pad A, range {push_vr} x {args_cli.push_scale}")
-
-    def tick():
-        axes = teleop.poll()
-        if args_cli.teleop:
-            state["cmd"] = axes_to_command(*axes, ranges, shape, teleop.level.value)
-            gen.set_manual(state["cmd"])
-        if teleop.push_requested():
-            dv = sample_push(push_vr, rng, args_cli.push_scale)
-            env.apply_push(dv)
-            state["t_push"] = time.time()
-            print(f"[play] push dv=({dv[0]:+.2f}, {dv[1]:+.2f}) m/s  dwz={dv[2]:+.2f} rad/s")
-        shown = state["cmd"] if args_cli.teleop else env.commands[0].tolist()
-        age = None if state["t_push"] is None else time.time() - state["t_push"]
-        # console fallback: only the teleop command (a random heading-mode wz changes every step)
-        console = (hud_text(teleop.level, np.round(shown, 2), True) if args_cli.teleop
-                   else f"speed {teleop.level.pct}%")
-        hud.set(hud_text(teleop.level, shown, args_cli.teleop, age), console)
-
-    return tick
-
 
 def _latest_checkpoint() -> str | None:
     """Newest step_N.pt in the newest folder under the task's checkpoint root (checkpoints/, or checkpoints_getup/ for
@@ -215,21 +137,19 @@ def play():
         env_cfg.getup = g
     elif args_cli.start_category or args_cli.bank_split:
         raise SystemExit("--start_category / --bank_split need --task BipedRobotV2GetUp")
-    if args_cli.teleop:
-        env_cfg.episode_length_s = 1.0e6            # no time-out reset while driving
-        env_cfg.viewer.origin_type = "asset_root"   # camera follows env 0's robot
-        env_cfg.viewer.asset_name = "robot"
-        env_cfg.viewer.env_index = 0
-        env_cfg.viewer.eye = (1.2, 1.2, 0.7)
-        env_cfg.viewer.lookat = (0.0, 0.0, 0.0)
     print("[play] env contract:", describe_env_cfg(env_cfg))
 
-    env = BipedEnv(cfg=env_cfg, render_mode="rgb_array" if args_cli.video or args_cli.headless else None)
+    with launch(env_cfg, args_cli):
+        _run(config, env_cfg, checkpoint_path)
+
+
+def _run(config, env_cfg, checkpoint_path):
+    env = BipedEnv(cfg=env_cfg, render_mode=None)
     wrapped_env = IsaacLabWrapper(env, config)
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(env.device)
     print(f"Using device: {device}")
-    
+
     # Initialize Model
     use_history = config.train.use_history
     history_size = config.train.history_size
@@ -282,12 +202,8 @@ def play():
     if hasattr(_net, "eval"):
         _net.eval()
 
-    # Teleop / push (GUI only). The push works without --teleop too, to watch recovery under random commands.
-    tick = None
-    if env.sim.has_gui():
-        tick = _make_teleop_tick(env, config)
-    elif args_cli.teleop:
-        print("[play] --teleop needs the GUI (drop --headless); running random commands")
+    if args_cli.command is not None:
+        env.command_generator.set_manual(args_cli.command)
 
     # Play loop
     obs = wrapped_env.start()
@@ -296,10 +212,8 @@ def play():
     _step_count = 0
     _history_size = getattr(env_cfg, "history_size", 0) if getattr(env_cfg, "use_history", False) else 0
 
-    while simulation_app.is_running():
-        if tick is not None:
-            tick()      # a new command is applied in this step's _pre_physics_step: the next obs carries it
-
+    _total, _falls = 0, 0
+    while args_cli.steps <= 0 or _total < args_cli.steps:
         # For the first history_size steps after each reset, use stochastic rsample()
         # to match SAC training behaviour (policy was trained with rsample, not .mean).
         # The zero-padded history produces extreme obs at episode start that cause
@@ -321,14 +235,16 @@ def play():
 
         # Step environment
         obs, rew, terminated, truncated, info = wrapped_env.step(action)
+        _total += 1
+        _falls += int(terminated.sum())
 
         # Reset if needed
         if terminated.any() or truncated.any():
             obs = wrapped_env.start()
             _step_count = 0   # restart warmup on each episode reset
             
+    print(f"[play] {_total} control steps ({_total * env.step_dt:.1f} s) x {env.num_envs} robots | falls: {_falls}")
     env.close()
-    simulation_app.close()
 
 if __name__ == "__main__":
     play()

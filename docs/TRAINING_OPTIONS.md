@@ -1,5 +1,9 @@
 # Where and how to train Chhaya (checked 2026-11-12)
 
+**Decision, 2026-11-14: option B.** The training code now runs on Isaac Lab 3.0 with Newton
+(`ISAACLAB3.md`). The rest of this page is the comparison that led there; "current code" below means
+the Isaac Lab 2.x code before the port.
+
 ## What the current training needs
 
 | Need | What the code uses today |

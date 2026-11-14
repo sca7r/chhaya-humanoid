@@ -42,7 +42,8 @@ import math
 
 import torch
 
-import isaaclab.utils.math as math_utils
+from . import quat as math_utils
+from .compat import write_joint_state, write_root_pose, write_root_velocity
 
 from . import rewards
 from .biped_env import BipedEnv
@@ -78,7 +79,7 @@ class BipedGetUpEnv(BipedEnv):
         mix = {k: float(v) for k, v in dict(g["start_mix"]).items()}
         if set(mix) - {"bank", "standing"} or min(mix.values(), default=-1.0) < 0.0 or sum(mix.values()) <= 0.0:
             raise ValueError(f"getup.start_mix {mix}: keys bank / standing, non-negative, not all zero")
-        if not cfg.scene.contact_forces.filter_prim_paths_expr:
+        if not cfg.scene.contact_forces.filter_shape_prim_expr:
             raise ValueError("the get-up env needs the ground-filtered contact sensor (flat terrain)")
         super().__init__(cfg, render_mode, **kwargs)
         self._g = g
@@ -115,7 +116,7 @@ class BipedGetUpEnv(BipedEnv):
             self._categories = CATEGORIES
 
         # ---- heights for h_hat ------------------------------------------------------------------------------
-        self.h_stand = float(getattr(cfg, "spawn_height_m", None) or self.robot.data.default_root_state[0, 2].item())
+        self.h_stand = float(getattr(cfg, "spawn_height_m", None) or self.rd.default_root_pose[0, 2].item())
         h_floor = g.get("h_floor_m")
         if h_floor is None:
             if bank_meta is None:
@@ -192,7 +193,7 @@ class BipedGetUpEnv(BipedEnv):
             self.assist_applied.zero_()
             return
         asc = self._g["assist"]
-        d = self.robot.data
+        d = self.rd
         up = GR.uprightness(d.projected_gravity_b)
         h_hat = GR.height_progress(d.root_pos_w[:, 2] - self.scene.env_origins[:, 2], self.h_floor, self.h_stand)
         active = (up > float(asc["min_up"])) & (h_hat < float(asc["height_frac"]))
@@ -205,7 +206,7 @@ class BipedGetUpEnv(BipedEnv):
     # ------------------------------------------------------------------ rewards
     def _getup_state(self) -> dict:
         """Ground-truth quantities shared by the rewards, the success test and the diagnostics (fresh robot.data)."""
-        d, cs, g = self.robot.data, self.contact_sensor.data, self._g
+        d, cs, g = self.rd, self.cs, self._g
         grav = d.projected_gravity_b
         up = GR.uprightness(grav)
         h_hat = GR.height_progress(d.root_pos_w[:, 2] - self.scene.env_origins[:, 2], self.h_floor, self.h_stand)
@@ -231,7 +232,7 @@ class BipedGetUpEnv(BipedEnv):
                 "base_force": base_force, "self_force": self_f}
 
     def _get_rewards(self) -> torch.Tensor:
-        d, g = self.robot.data, self._g
+        d, g = self.rd, self._g
         s = self._s                           # computed by _get_dones this step (DirectRLEnv.step runs it first)
         q, qd, tau = d.joint_pos, d.joint_vel, d.applied_torque
         feet_quat = d.body_quat_w[:, self._feet_idx_t]
@@ -305,7 +306,7 @@ class BipedGetUpEnv(BipedEnv):
         self.rose |= self.rise_count >= self._hold_steps
 
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        d = self.robot.data
+        d = self.rd
         bad = (torch.isnan(d.joint_pos).any(dim=-1) | torch.isnan(d.joint_vel).any(dim=-1)
                | torch.isnan(d.root_pos_w).any(dim=-1)
                | ((d.root_pos_w[:, 2] - self.scene.env_origins[:, 2]).abs() > 2.0)
@@ -326,7 +327,7 @@ class BipedGetUpEnv(BipedEnv):
         self.start_cat[env_ids] = -1
         # Standing starts follow the same re-arm convention as the bank starts (previous action = the action of the
         # pose, not the walking reset's 0): the Jetson starts this policy that way whatever pose it re-arms in.
-        d = self.robot.data
+        d = self.rd
         self._reseed_after_joint_write(env_ids, d.joint_pos[env_ids].clone(), d.joint_vel[env_ids].clone())
         if self.bank_t is not None:
             pick = env_ids[torch.rand(len(env_ids), device=self.device) < self._p_bank]
@@ -358,18 +359,18 @@ class BipedGetUpEnv(BipedEnv):
         """Place envs `ids` in a given state: base height above the floor, tilt (yaw-free quat) composed with a heading
         (default: the heading the reset event just drew), joints, base-frame velocities; then re-seed the buffers that
         _reset_idx derived from the old pose (filtered targets, delays, previous action = the re-arm convention)."""
-        d = self.robot.data
+        d = self.rd
         if yaw is None:
             yaw = math_utils.euler_xyz_from_quat(d.root_quat_w[ids])[2]
         zeros = torch.zeros_like(yaw)
         quat = math_utils.quat_mul(math_utils.quat_from_euler_xyz(zeros, zeros, yaw), quat_noyaw)
         quat = quat / torch.norm(quat, dim=-1, keepdim=True)
-        self.robot.write_joint_state_to_sim(q, qd, env_ids=ids)
+        write_joint_state(self.robot, q, qd, env_ids=ids)
         pos = d.root_pos_w[ids].clone()
         pos[:, 2] = self.scene.env_origins[ids, 2] + root_z + float(self._g["spawn_clearance_m"])
-        self.robot.write_root_pose_to_sim(torch.cat([pos, quat], dim=-1), env_ids=ids)
+        write_root_pose(self.robot, torch.cat([pos, quat], dim=-1), env_ids=ids)
         vel = torch.cat([math_utils.quat_apply(quat, lin_vel_b), math_utils.quat_apply(quat, ang_vel_b)], dim=-1)
-        self.robot.write_root_velocity_to_sim(vel, env_ids=ids)
+        write_root_velocity(self.robot, vel, env_ids=ids)
         self._reseed_after_joint_write(ids, q, qd)
 
     def _seed_imu_buffer(self, env_ids: torch.Tensor) -> None:
@@ -377,7 +378,7 @@ class BipedGetUpEnv(BipedEnv):
         gyro, gravity direction. (Base frame; the env's misalignment rotation and biases apply on read-out.)"""
         if self.max_imu_obs_delay <= 0:
             return
-        d = self.robot.data
+        d = self.rd
         quat = d.root_quat_w[env_ids]
         down = torch.tensor([0.0, 0.0, -1.0], device=self.device).expand(len(env_ids), 3)
         grav_b = math_utils.quat_apply_inverse(quat, down)

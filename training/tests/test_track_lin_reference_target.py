@@ -198,7 +198,7 @@ def test_env_wiring_samples_the_reference_once_before_tracking():
     i_imit = body.index("self._imitation_terms(feet_pos, feet_contact_rw, clearance, ref)")
     assert body.index("self._advance_gait_phase(") < i_sample < i_track < i_imit
     assert body.count("_sample_reference(") == 1                               # one sample per step, shared
-    assert 'self.robot.data.root_lin_vel_b' in body[i_track:i_track + 400]     # fresh, not the stale cache
+    assert 'self.rd.root_lin_vel_b' in body[i_track:i_track + 400]     # fresh, not the stale cache
     assert "self.gait_ref.field(ref, \"base_lin_vel_b\")[:, :2]" in body[i_track - 200:i_track + 200]
     # command mode keeps its old stale-cache call
     assert "rewards.track_lin_vel_xy_exp_rel(\n                self.commands, self.base_lin_vel_b," in body

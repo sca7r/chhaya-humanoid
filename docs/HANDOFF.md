@@ -72,7 +72,7 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
 ## Next steps
 
 0. Before printing: set the battery and computer sizes/masses in `chhaya_cad.py` to your parts and run `hardware/regenerate.sh`.
-1. GPU: follow `GPU_RUNBOOK.md` (smoke test first: the Isaac code has never run).
+1. GPU: follow `GPU_RUNBOOK.md` (smoke test first: the Isaac Lab 3.0 code has run on a CPU only).
 2. If the smoke test fails: fix it on the instance, then commit and push.
 3. Adapt `export_onnx.py` and `src/mujoco/policy_gate.py` to the 74-dim frame / 20 actions, then
    export, verify and gate on the VM.

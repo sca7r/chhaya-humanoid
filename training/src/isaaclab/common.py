@@ -2,7 +2,6 @@ import os
 import torch
 import numpy as np
 import gymnasium as gym
-from isaaclab_tasks.utils import parse_env_cfg
 from torch_rl_algorithms.algorithms.utils import RunningMeanStd
 import envs.isaaclab
 

@@ -1,6 +1,7 @@
 import torch
 import isaaclab.sim as sim_utils
-from isaaclab.utils.math import wrap_to_pi, quat_from_euler_xyz
+from envs.isaaclab.quat import wrap_to_pi, quat_from_euler_xyz
+from envs.isaaclab.compat import wxyz_to_xyzw
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from utils.command_limit import limit_command, sample_in_limit, validate_shape
 from utils import teleop as T
@@ -213,7 +214,7 @@ class UniformVelocityCommand:
             lin = self._arrow_instances(root_pos_w, v, self._LIN_DZ[key], dot=(key == "cmd"))
             arc = self._arc_instances(root_pos_w, yaw, wz, r)
             pos, quat, scale, idx = (torch.cat([a, b], dim=1).flatten(0, 1) for a, b in zip(lin, arc))
-            marker.visualize(translations=pos, orientations=quat, scales=scale, marker_indices=idx)
+            marker.visualize(translations=pos, orientations=wxyz_to_xyzw(quat), scales=scale, marker_indices=idx)
 
     def _arrow_instances(self, root_pos_w, v, dz, dot: bool):
         """(pos, quat, scale, proto) per env, 2 instances: shaft (or dot) and head. Total length = k * |v|."""

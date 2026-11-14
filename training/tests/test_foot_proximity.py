@@ -345,8 +345,8 @@ def _method(name):
 def test_reward_reads_fresh_robot_data_for_both_feet():
     _, helper = _method("_foot_footprint_gap")
     # _feet_idx_t: device-tensor copy of feet_indices (a Python-list index syncs the GPU)
-    assert "self.robot.data.body_pos_w[:, self._feet_idx_t]" in helper
-    assert "self.robot.data.body_quat_w[:, self._feet_idx_t]" in helper
+    assert "self.rd.body_pos_w[:, self._feet_idx_t]" in helper
+    assert "self.rd.body_quat_w[:, self._feet_idx_t]" in helper
     assert "self._feet_idx_t = _ids(self.feet_indices)" in _src("envs/isaaclab/biped_env.py")
     assert "rewards.foot_footprint_gap(" in helper
     # feet_indices is [right, left]; the function takes (left, right)

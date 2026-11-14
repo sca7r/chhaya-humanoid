@@ -6,42 +6,28 @@ import numpy as np
 import argparse
 from datetime import datetime
 
-from isaaclab.app import AppLauncher
-
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Train Biped Robot in Isaac Lab")
-parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
-parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
-parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
+parser = argparse.ArgumentParser(description="Train the biped in Isaac Lab 3.0 (Newton)")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BipedRobot",
-                    help="BipedRobot (V1) | BipedRobotV2 (walking) | BipedRobotV2GetUp (fall recovery)")
+parser.add_argument("--task", type=str, default="BipedRobotV2",
+                    help="BipedRobotV2 (walking; Chhaya with env_config.arms) | BipedRobotV2GetUp (fall recovery)")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint to resume training.")
 parser.add_argument("--config_path", type=str, default="config/config.yaml", help="Path to training config")
+parser.add_argument("--steps", type=int, default=None, help="Override train.steps (short test runs).")
 
-# append AppLauncher cli args
-AppLauncher.add_app_launcher_args(parser)
-# parse the arguments
-args_cli = parser.parse_args()
-
-# always enable cameras to record video
-if args_cli.video:
-    args_cli.enable_cameras = True
-
-# launch omniverse app
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
-# AppLauncher reinitializes sys.path; re-add project paths after it launches.
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-# torch_rl_algorithms uses bare imports (from models.networks import ...)
-# so its own directory must be on sys.path as well.
-_trl_root = os.path.join(_project_root, "torch_rl_algorithms")
-if _trl_root not in sys.path:
-    sys.path.insert(0, _trl_root)
+_training_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+for _p in (os.path.join(_training_root, "torch_rl_algorithms"), _project_root, _training_root):
+    # torch_rl_algorithms uses bare imports (from models.networks import ...), so its own directory
+    # must be on sys.path as well.
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from src.isaaclab.launch import add_launch_args, launch
+
+add_launch_args(parser)
+args_cli = parser.parse_args()
 
 from torch_rl_algorithms.algorithms.sac.model import SAC
 from torch_rl_algorithms.algorithms.ddpg.model import DDPG
@@ -120,49 +106,16 @@ def train():
     if config.train.checkpoint_path:
         config.train.checkpoint_path = os.path.join(config.train.checkpoint_path, model_name)
 
-    # Inject camera into scene when --video is requested (camera adds GPU overhead, so opt-in only)
-    if args_cli.video:
-        from isaaclab.sensors import TiledCameraCfg as _TiledCameraCfg
-        from isaaclab.sim import PinholeCameraCfg as _PinholeCameraCfg
-        env_cfg.enable_video_camera = True
-        # Attach a small follow-camera to the robot's base_link for training video.
-        # pos: 0.5m in front of the robot, 0.4m above; looking back toward the robot.
-        # Adjust pos/rot to change the viewing angle.
-        env_cfg.scene.camera = _TiledCameraCfg(
-            prim_path="/World/envs/env_0/Robot/Robot/base_link/Camera",
-            offset=_TiledCameraCfg.OffsetCfg(
-                pos=(0.5, 0.0, 0.4),
-                rot=(0.5, -0.5, 0.5, -0.5),  # looking back (-X) and slightly down; ROS convention
-                convention="ros",
-            ),
-            data_types=["rgb"],
-            spawn=_PinholeCameraCfg(
-                focal_length=24.0,
-                focus_distance=0.6,
-                horizontal_aperture=20.955,
-                clipping_range=(0.01, 5.0),
-            ),
-            width=128,
-            height=72,
-            update_period=0.04,  # 25 Hz — reduces rendering overhead during training
-        )
+    if args_cli.steps is not None:
+        config.train.steps = args_cli.steps
 
-    # Create environment
-    env = BipedEnv(cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    # Open the simulation (kit-less Newton) and run everything inside it.
+    with launch(env_cfg, args_cli):
+        _run(config, env_cfg, log_dir, model_name)
 
-    # Wrap with video recorder before the RL wrapper so frames are captured at env.step() level
-    if args_cli.video:
-        import gymnasium as gym
-        video_dir = os.path.join(log_dir, model_name, "videos")
-        os.makedirs(video_dir, exist_ok=True)
-        env = gym.wrappers.RecordVideo(
-            env,
-            video_folder=video_dir,
-            step_trigger=lambda step: step % args_cli.video_interval == 0,
-            video_length=args_cli.video_length,
-            disable_logger=True,
-        )
-        print(f"[Video] Recording to {video_dir} every {args_cli.video_interval} steps, {args_cli.video_length} frames each.")
+
+def _run(config, env_cfg, log_dir, model_name):
+    env = BipedEnv(cfg=env_cfg, render_mode=None)
 
     # Wrap environment
     # With replay mirror augmentation on, make the stage-1 obs statistics mirror-symmetric (see
@@ -174,7 +127,7 @@ def train():
     )
 
     # Initialize Model (SAC)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(env.device)          # learner on the simulator's device
     print(f"Using device: {device}")
 
     use_history = config.train.use_history
@@ -226,7 +179,6 @@ def train():
     
     # Close
     env.close()
-    simulation_app.close()
 
 if __name__ == "__main__":
     train()

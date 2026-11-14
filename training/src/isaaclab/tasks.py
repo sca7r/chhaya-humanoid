@@ -1,7 +1,6 @@
 """--task name -> (env cfg class, env class, default checkpoint root). Shared by train.py and play.py.
 
-Imports are lazy (module:attr strings) because the env modules import Isaac Lab, which only works after the
-AppLauncher has started the simulator.
+Imports are lazy (module:attr strings) so that scripts can parse their arguments before Isaac Lab loads.
 """
 from __future__ import annotations
 
@@ -9,7 +8,7 @@ import importlib
 
 # name: (cfg "module:Class", env "module:Class", default checkpoints root for play's auto-select)
 TASKS: dict[str, tuple[str, str, str]] = {
-    "BipedRobot": ("envs.isaaclab.biped_env_cfg:BipedEnvCfg", "envs.isaaclab.biped_env:BipedEnv", "checkpoints"),
+    # (The old V1 robot task "BipedRobot" was not carried over to Isaac Lab 3.0: its USD is PhysX-only.)
     "BipedRobotV2": ("envs.isaaclab.biped_env_cfg:BipedRobotV2EnvCfg", "envs.isaaclab.biped_env:BipedEnv",
                      "checkpoints"),
     # Get-up / fall recovery (config/config_getup.yaml). Its outputs live in runs_getup/ and checkpoints_getup/.

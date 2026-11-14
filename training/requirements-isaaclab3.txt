@@ -1,0 +1,15 @@
+# Extra packages for training on Isaac Lab 3.0 (Newton, no Isaac Sim), on top of Isaac Lab's own
+# install (Python 3.12, PyTorch 2.11, NumPy 2, Warp, Newton). See docs/ISAACLAB3.md.
+# Do NOT install requirements.txt into this environment: it pins the old stack (torch cu118, numpy 1.26).
+-e torch_rl_algorithms/
+PyYAML
+pydantic>=2
+tensorboard
+tensorboardX
+tqdm
+pandas
+scipy
+mujoco>=3.2
+onnx
+onnxruntime
+pytest

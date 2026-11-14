@@ -272,12 +272,12 @@ class BipedEnvV2(BaseEnv):
 
         # ---- Resolve joint / actuator / body IDs -----------------------
         # int() cast: qposadr/dofadr may return a 1-element array in newer MuJoCo
-        self._qpos_ids = np.array([int(self.model.joint(n).qposadr) for n in JOINT_NAMES], dtype=int)
-        self._qvel_ids = np.array([int(self.model.joint(n).dofadr)  for n in JOINT_NAMES], dtype=int)
+        self._qpos_ids = np.array([int(self.model.joint(n).qposadr[0]) for n in JOINT_NAMES], dtype=int)
+        self._qvel_ids = np.array([int(self.model.joint(n).dofadr[0])  for n in JOINT_NAMES], dtype=int)
         self._act_ids  = np.array([int(self.model.actuator(n).id)   for n in JOINT_NAMES], dtype=int)
         if self._lash_deg > 0.0:
-            self._lash_qpos_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).qposadr) for n in JOINT_NAMES], dtype=int)
-            self._lash_qvel_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).dofadr) for n in JOINT_NAMES], dtype=int)
+            self._lash_qpos_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).qposadr[0]) for n in JOINT_NAMES], dtype=int)
+            self._lash_qvel_ids = np.array([int(self.model.joint(n + LASH_SUFFIX).dofadr[0]) for n in JOINT_NAMES], dtype=int)
         else:
             self._lash_qpos_ids = self._lash_qvel_ids = None
 
@@ -554,8 +554,8 @@ class BipedEnvV2(BaseEnv):
         from chhaya import motions
         self._motions = motions
         self._arm_names = list(ARM_JOINTS)
-        self._arm_ids = np.array([int(self.model.joint(n).qposadr) for n in self._arm_names], dtype=int)
-        self._arm_dofs = np.array([int(self.model.joint(n).dofadr) for n in self._arm_names], dtype=int)
+        self._arm_ids = np.array([int(self.model.joint(n).qposadr[0]) for n in self._arm_names], dtype=int)
+        self._arm_dofs = np.array([int(self.model.joint(n).dofadr[0]) for n in self._arm_names], dtype=int)
         self._arm_act_ids = np.array([int(self.model.actuator(n).id) for n in self._arm_names], dtype=int)
         self.arm_servo = BamServo(params, 1, len(self._arm_names), PHYSICS_DT,
                                   kp=float(act_cfg.get("kp_fw", DEFAULT_KP_FW)),

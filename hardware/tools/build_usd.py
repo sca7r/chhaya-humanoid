@@ -227,6 +227,13 @@ def main():
         out.unlink()
     build(a.train, out)
     print(out, json.dumps(verify(out), indent=1))
+    # Isaac Lab 3.0 / Newton loads the converted copy (colliders on the meshes, convex hulls, no MDL).
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("make_newton_usd", out.parent / "make_newton_usd.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    newton = out.with_name("chhaya_newton.usd")
+    print(newton, mod.convert(str(out), str(newton)))
 
 
 if __name__ == "__main__":

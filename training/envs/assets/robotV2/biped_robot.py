@@ -14,7 +14,7 @@ from envs.assets.robotV2.bam_actuator import BamActuatorCfg
 
 # Get the directory of the current file
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-USD_PATH = os.path.join(CURRENT_DIR, "robot.usd")
+USD_PATH = os.path.join(CURRENT_DIR, "robot_newton.usd")
 
 # Joint limits in degrees [min, max]
 # Tuned for ~30cm biped: maps the full [-1,1] action range to physically useful positions.
@@ -39,26 +39,10 @@ _JOINT_LIMITS_DEG = [
 JOINT_LIMITS = [[math.radians(lim) for lim in joint] for joint in _JOINT_LIMITS_DEG]
 
 BIPED_ROBOT_CFG = ArticulationCfg(
-    spawn=sim_utils.UsdFileCfg(
-        usd_path=USD_PATH,
-        activate_contact_sensors=True,
-        rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
-            retain_accelerations=False,
-            linear_damping=0.0,
-            angular_damping=0.0,
-            max_linear_velocity=1000.0,
-            max_angular_velocity=1000.0,
-            max_depenetration_velocity=1.0,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=2,
-        ),
-        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=2,
-        )
-    ),
+    # Isaac Lab 3.0 / Newton: the PhysX rigid-body and articulation solver properties are gone (the
+    # solver is configured once, in BipedEnvCfg.sim.physics). robot_newton.usd is robot.usd converted
+    # by make_newton_usd.py (colliders on the mesh prims, convex hulls, no MDL material).
+    spawn=sim_utils.UsdFileCfg(usd_path=USD_PATH, activate_contact_sensors=True),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.29), # Offset due to root offset in URDF
         joint_pos={

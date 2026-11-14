@@ -1,10 +1,9 @@
 """Smoke test: does Chhaya run in Isaac Lab 3.0 without Isaac Sim (Newton backend, MuJoCo-Warp solver)?
 
-    python make_newton_usd.py ../../envs/assets/robotV2/chhaya.usd chhaya_newton.usda
-    HEADLESS=1 python smoke_test.py --usd $PWD/chhaya_newton.usda [--device cuda:0 --num_envs 1024]
+    HEADLESS=1 python smoke_test.py --usd $PWD/../../envs/assets/robotV2/chhaya_newton.usd [--device cuda:0 --num_envs 1024]
 
 Runs on the CPU too (slow), so it needs no GPU. Expected: 20 joints, 21 bodies, 2.567 kg, no falls, base
-height ~0.28 m, vertical contact force = weight (25.2 N). Not Chhaya's training environment: a minimal
+height ~0.28 m, vertical contact force = weight (25.2 N). Not Chhaya's training environment (that check is env_check.py): a minimal
 DirectRLEnv with plain PD joints, to check the asset, terrain, contact sensor and API.
 
 Spawns chhaya.usd as an Articulation on generated rough terrain with a contact sensor, in a

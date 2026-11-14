@@ -32,6 +32,7 @@ class Fake:
     _n_arm_act = 8
     EXTRA_CRITIC_DIM = 0
     num_obs_policy = P * HIST
+    rd = property(lambda self: self.robot.data)     # BipedEnv.rd: robot data as tensors (compat.TorchData)
 
     def __init__(self):
         leg_default = torch.zeros(12)

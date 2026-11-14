@@ -4,6 +4,13 @@ These changes were first written against the old checkout. Everything outside
 `robot_motion_reference/` is listed here. The retargeting submodule's changes (the `gait_studio/`
 package, a README note, and the baked table in `processed/`) live in that repo.
 
+## Isaac Lab 3.0 / Newton (2026-11-14)
+
+The Isaac side moved from Isaac Lab 2.x on Isaac Sim (PhysX) to Isaac Lab 3.0 on Newton (MuJoCo-Warp
+solver, no Isaac Sim). Install, run commands, the list of changes and what is not ported are in
+`docs/ISAACLAB3.md`. Inside the env nothing changed in meaning: tensors and (w, x, y, z) quaternions,
+converted at the simulator by `envs/isaaclab/compat.py`. Tested on a CPU only.
+
 ## Elliptical (vx, vy) command limit (2026-10-24)
 
 Commands were limited per axis (a box: vx +-0.2, vy +-0.15, wz +-1.2). The combined corners are much harder
@@ -87,7 +94,7 @@ reset-event RNG change and the PhysX cache are switched off for the comparison.
   `_reset_idx` overwrote them): same distribution, **different RNG stream**.
 - **BAM actuator**: host-side pending flag + `torch.where` seeding (was 2 `.any()` syncs per substep),
   `linalg.inv_ex`. `actuator.parity.test_kernel_vs_bam`: worst 1.1e-16 rad.
-- **PhysX property cache** (`envs/isaaclab/physx_cache.py`): masses / inertias / COMs / materials are
+- **PhysX property cache** (`envs/isaaclab/physx_cache.py`; removed with the move to Isaac Lab 3.0 / Newton, 2026-11-14): masses / inertias / COMs / materials are
   read from PhysX once, then served from a write-through cache (the reads cost ~60 ms/it). PhysX does
   not round-trip them bit-exactly (6e-8 kg, 1.8e-6 m), so DR values differ from the old run at that
   level; `PhysxPropertyCache.verify()` compares against a fresh readback.

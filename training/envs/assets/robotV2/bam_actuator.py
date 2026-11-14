@@ -46,6 +46,7 @@ from isaaclab.actuators import ActuatorBase, ActuatorBaseCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.types import ArticulationActions
 
+from envs.isaaclab.compat import as_torch
 from actuator.bam_kernel import BamServo, apply_stall_cap, load_params
 
 logger = logging.getLogger(__name__)
@@ -56,17 +57,20 @@ class BamActuator(ActuatorBase):
 
     cfg: "BamActuatorCfg"
 
-    def __init__(self, cfg: "BamActuatorCfg", *args, **kwargs):
+    def __init__(self, cfg: "BamActuatorCfg", *args, stiffness=None, damping=None, **kwargs):
+        # stiffness / damping: Isaac Lab 3.0 passes the resolved PD gains to every explicit actuator.
+        # The BAM kernel is the controller (firmware P on duty), so they are unused.
         self.params = apply_stall_cap(load_params(cfg.params_file), cfg.stall_torque_cap_nm)
         # The kernel owns friction, and armature comes from the identified params unless
         # the cfg overrides it. Both are written to PhysX by the articulation from these
         # actuator values.
-        cfg.friction = 0.0
-        cfg.dynamic_friction = 0.0
-        cfg.viscous_friction = 0.0
-        if cfg.armature is None:
-            cfg.armature = self.params.armature
+        # Friction = 0 (the kernel owns it) and armature = the identified value are set on the cfg by
+        # BamActuatorCfg.__post_init__: Isaac Lab 3.0 resolves the joint properties it writes to the
+        # simulator from the cfg BEFORE it constructs the actuator.
         super().__init__(cfg, *args, **kwargs)
+        # Isaac Lab 3.0: the actuator no longer keeps an armature buffer (the articulation writes
+        # cfg.armature to the simulator). Keep our own nominal copy for the detached fallback.
+        self.armature = torch.full((self._num_envs, self.num_joints), float(cfg.armature), device=self._device)
 
         import isaaclab.sim as sim_utils
         dt = sim_utils.SimulationContext.instance().get_physics_dt()
@@ -110,7 +114,11 @@ class BamActuator(ActuatorBase):
         return slice(None) if isinstance(ids, slice) else ids
 
     def _mass_matrix(self) -> torch.Tensor:
-        return self._articulation.root_physx_view.get_generalized_mass_matrices()
+        # (N, 6 + J, 6 + J) for a floating base, joint-space inertia from the Newton model
+        return as_torch(self._articulation.data.mass_matrix)
+
+    def _joint_armature(self) -> torch.Tensor:
+        return as_torch(self._articulation.data.joint_armature)
 
     def _mass_diag(self) -> torch.Tensor:
         diag = torch.diagonal(self._mass_matrix(), dim1=-2, dim2=-1)[:, self._dof_offset:]
@@ -120,7 +128,7 @@ class BamActuator(ActuatorBase):
         """1 / (M^-1)_ii per actuated joint, armature included (see module docstring)."""
         M = self._mass_matrix()
         if not self._armature_in_mass_matrix:
-            arm = torch.nn.functional.pad(self._articulation.data.joint_armature.to(M.dtype), (self._dof_offset, 0))
+            arm = torch.nn.functional.pad(self._joint_armature().to(M.dtype), (self._dof_offset, 0))
             M = M + torch.diag_embed(arm)
         # inv_ex, not inv: same result, but inv checks its error codes with a host-device sync
         # (every physics substep). M is a mass matrix (SPD), so it is always invertible here.
@@ -128,7 +136,7 @@ class BamActuator(ActuatorBase):
         return 1.0 / inv_diag[:, self._joint_ids()]
 
     def _sim_armature(self) -> torch.Tensor:
-        return self._articulation.data.joint_armature[:, self._joint_ids()]
+        return self._joint_armature()[:, self._joint_ids()]
 
     def _probe_armature(self) -> None:
         """Once: does PhysX's mass-matrix diagonal already contain armature?
@@ -167,10 +175,10 @@ class BamActuator(ActuatorBase):
                 self._probe_armature()
             self.inertia_eff = self._effective_inertia()
             if self.cfg.tau_ext_source == "gravity":
-                g = self._articulation.root_physx_view.get_gravity_compensation_forces()
-                self.tau_ext = -g[:, self._dof_offset:][:, self._joint_ids()]
+                g = as_torch(self._articulation.data.gravity_compensation_forces)
+                self.tau_ext = -g[:, -self._articulation.num_joints:][:, self._joint_ids()]
             else:
-                qdd = self._articulation.data.joint_acc[:, self._joint_ids()]
+                qdd = as_torch(self._articulation.data.joint_acc)[:, self._joint_ids()]
                 self.tau_ext = self.inertia_eff * qdd - self.servo.tau_total
         elif not self._warned_detached:
             logger.warning("BamActuator: no articulation attached; using inertia=armature, tau_ext=0")
@@ -209,6 +217,13 @@ class BamActuatorCfg(ActuatorBaseCfg):
     """STS3215 via BAM. To switch to a new identification, change params_file; nothing else."""
 
     class_type: type = BamActuator
+
+    def __post_init__(self):
+        self.friction = 0.0
+        self.dynamic_friction = 0.0
+        self.viscous_friction = 0.0
+        if self.armature is None and isinstance(self.params_file, str):
+            self.armature = apply_stall_cap(load_params(self.params_file), self.stall_torque_cap_nm).armature
 
     # Explicit actuator: PhysX drive gains must be zero (the kernel is the controller).
     stiffness: float = 0.0

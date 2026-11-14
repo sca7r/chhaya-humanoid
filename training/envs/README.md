@@ -23,7 +23,7 @@ Both expose the same observation and action, run the same servo model
 ## Contents
 
 - `isaaclab/`: `biped_env.py` (`BipedEnv`), `biped_env_cfg.py` (defaults, event table, terrain), `mdp/`
-  (`commands.py`, `events.py`, `symmetry.py`), `rewards/rewards.py` (all reward functions), `physx_cache.py`.
+  (`commands.py`, `events.py`, `symmetry.py`), `rewards/rewards.py` (all reward functions), `compat.py` and `quat.py` (the Isaac Lab 3.0 boundary: tensors and w,x,y,z quaternions inside, converted at the simulator).
 - `mujoco/`: `biped_env_v2.py` (`BipedEnvV2`), `mujoco_env.py` (`MujocoEnv`, the older V1 robot),
   `base_env.py` (model loading, viewer), `distributed.py` (V1 wrappers).
 - `assets/robotV2/` (current robot: MJCF, USD, URDF, `ArticulationCfg`, `BamActuator`), `assets/robot/`

@@ -68,7 +68,7 @@ which the regression tests use.
 `config/chhaya.yaml` is Chhaya's config.
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless
+python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml
 ```
 
 ## Settings and hyperparameters (`config/chhaya.yaml`)
@@ -83,7 +83,7 @@ python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yam
 | Warm-up | 4096 random steps before learning |
 | Smoothness | CAPS temporal 1.0, spatial 1.0 (σ 0.1) |
 | Observation | 5-frame history, running normalisation, symmetry augmentation for the critic |
-| Parallel robots | 4096 (Isaac Lab default for this task; `--num_envs` to change) |
+| Parallel robots | 4096 (`--num_envs` to change; 1024 on a 6 GB GPU) |
 | Control / physics rate | 50 Hz policy, 200 Hz physics (decimation 4), 20 s episodes |
 | Terrain | rough terrain as randomisation, no terrain curriculum |
 | Domain randomisation | servo model (voltage, stiffness, friction), masses, action delay, sensor noise, bias and lag, pushes |
@@ -96,7 +96,7 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
 
 | File | Change |
 |---|---|
-| `envs/assets/robotV2/chhaya.usd` | Chhaya for Isaac Lab. A thin layer over `robot.usd`: the legs are the exact prims the old policies trained on, the chest and head are merged into `base_link`, and the meshes are embedded (no external files). Built with plain usd-core by `hardware/upper_body/tools/build_usd.py` |
+| `envs/assets/robotV2/chhaya.usd`, `chhaya_newton.usd` | Chhaya for Isaac Lab (`chhaya_newton.usd` is the copy the Newton backend loads, made by `make_newton_usd.py`). A thin layer over `robot.usd`: the legs are the exact prims the old policies trained on, the chest and head are merged into `base_link`, and the meshes are embedded (no external files). Built with plain usd-core by `hardware/upper_body/tools/build_usd.py` |
 | `envs/assets/robotV2/chhaya_robot.py` | `CHHAYA_ROBOT_CFG`: the USD, arm rest pose in `init_state`, actuator groups `legs` (first) and `arms` |
 | `envs/assets/robotV2/chhaya.xml` | Chhaya for MuJoCo (meshes from `robot_hardware/robot_description/meshes/`) |
 | `envs/isaaclab/mdp/arm_motion.py` | arm target generator (pure torch, unit-tested) |
@@ -117,14 +117,15 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
   - the rest of the test suite gives exactly the same results as the unmodified upstream code
     (7 failures there are upstream's own gait-table and config expectations).
 - USD: 21 rigid bodies, 20 revolute joints, 2.567 kg, joint frames matching the URDF to 0.0 mm.
-- Isaac-side code: compiles and passes pyflakes. It was **not run**: Isaac Sim needs an RTX GPU.
-  The first thing to do on the GPU machine is the smoke test in `GPU_RUNBOOK.md`.
+- Isaac Lab 3.0 (Newton) on a CPU: the real environment builds and stands, a short SAC run and
+  `play.py` work (`ISAACLAB3.md`). **Not run on a GPU yet**: do the smoke test in `GPU_RUNBOOK.md` first.
 
 ## Known limits
 
-- `src/isaaclab/check_actuator.py`, `jitter_probe.py` and `make_fall_bank.py` assume the legs-only
-  robot (12 joints). Use them with `config.yaml` (the legs-only rig), not `chhaya.yaml`.
-- The get-up task and the fall bank were not adapted to the arms.
+- `src/isaaclab/check_actuator.py`, `jitter_probe.py` and `make_fall_bank.py` still use the Isaac Lab 2.x
+  launcher and assume the legs-only robot: they do not start on Isaac Lab 3.0 (`ISAACLAB3.md`).
+- The get-up task was ported but not run (it needs a fall bank, whose generator is not ported), and it
+  was not adapted to the arms.
 - **Not adapted to the whole-body policy yet:** `src/isaaclab/export_onnx.py` (it insists on a
   50-dim frame and 12 actions), `src/mujoco/policy_gate.py` (same), and the on-robot runtime (reads
   and commands 12 servos). Do these after the first training run shows the policy learns.

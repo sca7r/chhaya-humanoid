@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
 
+from .. import quat as Q
+from ..compat import TorchData, as_torch, write_joint_state, write_root_pose, write_root_velocity
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
@@ -41,31 +44,73 @@ def randomize_rigid_body_com_absolute(
     every episode is an independent draw from a fixed distribution.
     """
     asset = env.scene[asset_cfg.name]
+    dev = asset.device
     if env_ids is None:
-        env_ids = torch.arange(env.scene.num_envs, device="cpu")
-    else:
-        env_ids = env_ids.cpu()
+        env_ids = torch.arange(env.scene.num_envs, device=dev)
+    env_ids = torch.as_tensor(env_ids, device=dev, dtype=torch.long)
 
     if asset_cfg.body_ids == slice(None):
-        body_ids = torch.arange(asset.num_bodies, dtype=torch.int, device="cpu")
+        body_ids = torch.arange(asset.num_bodies, dtype=torch.long, device=dev)
     else:
-        body_ids = torch.tensor(asset_cfg.body_ids, dtype=torch.int, device="cpu")
+        body_ids = torch.as_tensor(asset_cfg.body_ids, dtype=torch.long, device=dev)
 
     # Cache the nominal com once. Must happen before any randomization has been applied.
+    # Isaac Lab 3.0 / Newton: body_com_pos_b is (N, B, 3), position only (the com frame is body-aligned).
     if not hasattr(asset, "_nominal_coms"):
-        asset._nominal_coms = asset.root_physx_view.get_coms().clone()
+        asset._nominal_coms = as_torch(asset.data.body_com_pos_b).clone()
 
     range_list = [com_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z"]]
-    ranges = torch.tensor(range_list, device="cpu")
-    rand_samples = torch.empty((len(env_ids), 1, 3), device="cpu").uniform_(0.0, 1.0)
+    ranges = torch.tensor(range_list, device=dev)
+    rand_samples = torch.empty((len(env_ids), 1, 3), device=dev).uniform_(0.0, 1.0)
     rand_samples = ranges[:, 0] + rand_samples * (ranges[:, 1] - ranges[:, 0])
 
-    coms = asset.root_physx_view.get_coms().clone()
     # Assign from nominal rather than accumulate onto the current value.
-    coms[env_ids[:, None], body_ids, :3] = (
-        asset._nominal_coms[env_ids[:, None], body_ids, :3] + rand_samples
-    )
-    asset.root_physx_view.set_coms(coms, env_ids)
+    coms = asset._nominal_coms[env_ids[:, None], body_ids, :3] + rand_samples
+    asset.set_coms_index(coms=coms, body_ids=body_ids, env_ids=env_ids)
+
+
+def _uniform(ranges: dict, keys, n: int, device) -> torch.Tensor:
+    r = torch.tensor([ranges.get(k, (0.0, 0.0)) for k in keys], device=device)
+    return r[:, 0] + torch.rand(n, len(keys), device=device) * (r[:, 1] - r[:, 0])
+
+
+def reset_root_state_uniform(env, env_ids: torch.Tensor, pose_range: dict, velocity_range: dict,
+                             asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """Default root pose + env origin + a uniform draw; same maths as Isaac Lab's term of this name.
+
+    Own copy: in Isaac Lab 3.0 the stock term became a manager class (not callable from _reset_idx),
+    and this one works in the env's (w, x, y, z) convention through compat.py.
+    """
+    asset = env.scene[asset_cfg.name]
+    d = TorchData(asset.data)
+    env_ids = torch.as_tensor(env_ids, device=asset.device, dtype=torch.long)
+    n = len(env_ids)
+    keys = ("x", "y", "z", "roll", "pitch", "yaw")
+    pose0 = d.default_root_pose[env_ids]
+    r = _uniform(pose_range, keys, n, asset.device)
+    pos = pose0[:, 0:3] + env.scene.env_origins[env_ids] + r[:, 0:3]
+    quat = Q.quat_mul(pose0[:, 3:7], Q.quat_from_euler_xyz(r[:, 3], r[:, 4], r[:, 5]))
+    vel = d.default_root_vel[env_ids] + _uniform(velocity_range, keys, n, asset.device)
+    write_root_pose(asset, torch.cat([pos, quat], dim=-1), env_ids)
+    write_root_velocity(asset, vel, env_ids)
+
+
+def reset_joints_by_offset(env, env_ids: torch.Tensor, position_range: tuple[float, float],
+                           velocity_range: tuple[float, float],
+                           asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """Default joint state + a uniform offset, clamped to the soft limits (all joints)."""
+    asset = env.scene[asset_cfg.name]
+    d = TorchData(asset.data)
+    env_ids = torch.as_tensor(env_ids, device=asset.device, dtype=torch.long)
+    q = d.default_joint_pos[env_ids].clone()
+    qd = d.default_joint_vel[env_ids].clone()
+    q += torch.empty_like(q).uniform_(*position_range)
+    qd += torch.empty_like(qd).uniform_(*velocity_range)
+    lim = d.soft_joint_pos_limits[env_ids]
+    q = torch.maximum(torch.minimum(q, lim[..., 1]), lim[..., 0])
+    vlim = d.soft_joint_vel_limits[env_ids]
+    qd = torch.maximum(torch.minimum(qd, vlim), -vlim)
+    write_joint_state(asset, q, qd, env_ids=env_ids)
 
 
 def randomize_actuator_effort_limit(

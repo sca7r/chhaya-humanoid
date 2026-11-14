@@ -49,7 +49,7 @@ Known and accepted:
 | Centre of mass 8 mm ahead of the foot centre | 37 mm margin to the toes, 53 mm to the heels | The policy leans back slightly. Could be trimmed by sliding the battery back on the rack |
 | Hands reach the hips and thighs | 2–3 % of random arm poses in the policy's range touch a leg | These contacts are simulated, so the policy learns to avoid them |
 | Battery and the computer's ports stick out front and back | ~26 mm and ~22 mm | They take the hit in a fall. Add a printed bumper before fall tests on the real robot |
-| Torso collision mesh has 15,000 vertices | | Fine for Isaac (it builds convex hulls) and CPU MuJoCo; replace with boxes before any MuJoCo Warp port |
+| Torso collision mesh has 15,000 vertices | | Isaac Lab 3.0 collides its convex hull; CPU MuJoCo uses the mesh. Replace with boxes if contact cost shows up in profiling |
 
 Checks that pass on every rebuild (`hardware/regenerate.sh`): no overlap in 153 poses, moving gaps ≥ 1 mm,
 torso fit, all printed parts at safety factor ≥ 3, model consistency (URDF = MuJoCo = USD), and from
@@ -59,8 +59,9 @@ torso fit, all printed parts at safety factor ≥ 3, model consistency (URDF = M
 
 Not verified, and only a GPU can verify it:
 
-1. **The Isaac Lab code path has never run.** The MuJoCo side is tested; the Isaac side is checked piece
-   by piece on the CPU. The 10-minute smoke test in `GPU_RUNBOOK.md` is step one.
+1. **The training has not run on a GPU.** The Isaac Lab 3.0 environment, a short training run and
+   playback work on a CPU (`ISAACLAB3.md`); speed, memory use and learning quality are unknown. The
+   10-minute smoke test in `GPU_RUNBOOK.md` is step one. The reward weights were tuned on PhysX.
 2. **The arm reward weights are first guesses.** Expect a second run.
 3. **Export, the policy gate and the on-robot runtime still assume 12 joints.** They are needed after
    training, not for it.

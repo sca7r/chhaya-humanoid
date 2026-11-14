@@ -1,6 +1,6 @@
 """Make a copy of chhaya.usd that Isaac Lab 3.0's Newton backend can load (kit-less, no Isaac Sim).
 
-    python make_newton_usd.py ../../envs/assets/robotV2/chhaya.usd chhaya_newton.usda
+    python make_newton_usd.py chhaya.usd chhaya_newton.usd   (also run by hardware/tools/build_usd.py users after a rebuild)
 
 chhaya.usd is written for PhysX. Newton's USD parser (Newton 1.6) differs in three ways that matter here:
   1. The leg links' colliders carry PhysicsCollisionAPI on an Xform ABOVE the mesh (old Isaac Sim URDF
@@ -11,7 +11,9 @@ chhaya.usd is written for PhysX. Newton's USD parser (Newton 1.6) differs in thr
      Sim. -> drop the reference.
 Needs only OpenUSD (pxr), e.g. `pip install usd-core`.
 """
+import os
 import sys
+import tempfile
 
 from pxr import Usd, UsdPhysics
 
@@ -21,11 +23,12 @@ def convert(src: str, dst: str) -> dict:
     inst = [p for p in stage.Traverse() if p.IsInstance()]
     for p in inst:
         p.SetInstanceable(False)
-    stage.Flatten().Export(dst)
-    text = open(dst).read()
-    open(dst, "w").write("\n".join(line for line in text.split("\n") if "info:mdl:sourceAsset" not in line))
+    tmp = os.path.join(tempfile.mkdtemp(), "flat.usda")       # text, to drop the MDL lines
+    stage.Flatten().Export(tmp)
+    text = open(tmp).read()
+    open(tmp, "w").write("\n".join(line for line in text.split("\n") if "info:mdl:sourceAsset" not in line))
 
-    out = Usd.Stage.Open(dst)
+    out = Usd.Stage.Open(tmp)
     moved = hulls = 0
     for prim in list(out.Traverse()):
         if prim.GetTypeName() == "Xform" and prim.HasAPI(UsdPhysics.CollisionAPI):
@@ -42,7 +45,7 @@ def convert(src: str, dst: str) -> dict:
             if attr.Get() == "convexDecomposition":
                 attr.Set("convexHull")
                 hulls += 1
-    out.GetRootLayer().Save()
+    out.GetRootLayer().Export(dst)                              # .usd = binary crate, ~6x smaller
     colliders = sum(1 for p in out.Traverse() if p.HasAPI(UsdPhysics.CollisionAPI))
     return {"deinstanced": len(inst), "collision_api_moved_to_meshes": moved, "decomposition_to_hull": hulls, "colliders": colliders}
 
