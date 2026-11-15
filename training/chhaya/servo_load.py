@@ -24,8 +24,21 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
-STALL = 2.94          # N m, STS3215 at 12 V (actuator/params/sts3215_12v)
+STALL = 2.94          # N m, STS3215 at 12 V (actuator/params/sts3215_12v); replaced per config in main()
 CONT = STALL / 3.0    # N m, continuous-duty guide
+
+
+def stall_from_config(cfg_name):
+    """(leg stall, arm stall, description) of the servo model a config uses, at its supply voltage."""
+    import yaml
+    from actuator.bam_kernel import apply_stall_cap, load_params
+    act = yaml.safe_load(open(os.path.join(ROOT, "config", cfg_name)))["train"]["env_config"]["actuator"]
+    vin = float(act.get("vin", 12.0))
+    out = []
+    for key in ("params_file", "arms_params_file"):
+        p = apply_stall_cap(load_params(act.get(key) or act["params_file"]), act.get("stall_torque_cap_nm"))
+        out.append((p.stall_torque * vin / p.v_nominal, p.actuator))
+    return out[0][0], out[1][0], f"legs {out[0][1]}, arms {out[1][1]}, supply {vin:g} V"
 
 
 def make_env(cfg_name):
@@ -134,10 +147,15 @@ def analyse(cfg_name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=None)
+    ap.add_argument("--config", default="chhaya.yaml", help="config in config/ (chhaya_lite.yaml for the hobby servos)")
     a = ap.parse_args()
-    res = {"chhaya": analyse("chhaya.yaml"), "legs_only": analyse("config.yaml")}
+    global STALL, CONT
+    STALL, arm_stall, desc = stall_from_config(a.config)
+    CONT = STALL / 3.0
+    res = {"chhaya": analyse(a.config), "legs_only": analyse("config.yaml")}
     ch, lo = res["chhaya"], res["legs_only"]
-    lines = [f"Chhaya {ch['mass_kg']} kg, legs-only rig {lo['mass_kg']} kg. STS3215 at 12 V: stall {STALL} N m, continuous guide {CONT:.2f} N m.", ""]
+    lines = [f"{a.config}: {ch['mass_kg']} kg, legs-only rig {lo['mass_kg']} kg. Servos: {desc}. "
+             f"Leg stall {STALL:.2f} N m (continuous guide {CONT:.2f}), arm stall {arm_stall:.2f} N m.", ""]
     lines += ["| Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous | One foot, legs-only rig |", "|---|---|---|---|---|---|"]
     worst = 0.0
     for n, v in ch["single_support"].items():
@@ -149,14 +167,15 @@ def main():
     lines += ["", "| Arm pose | Joint | Torque [N m] | % of stall |", "|---|---|---|---|"]
     for pose, d in ch["arm_hold"].items():
         for n, v in d.items():
-            lines.append(f"| {pose} | {n} | {v:.2f} | {100 * v / STALL:.0f} % |")
+            lines.append(f"| {pose} | {n} | {v:.2f} | {100 * v / arm_stall:.0f} % |")
     res["worst_single_support_nm"] = worst
     text = "\n".join(lines)
     print(text)
     if a.out:
         os.makedirs(a.out, exist_ok=True)
-        open(os.path.join(a.out, "servo_load.json"), "w").write(json.dumps(res, indent=2))
-        open(os.path.join(a.out, "SERVO_LOAD.md"), "w").write("# Servo load check\n\n" + text + "\n")
+        tag = "" if a.config == "chhaya.yaml" else "_" + os.path.splitext(a.config)[0].replace("chhaya_", "")
+        open(os.path.join(a.out, f"servo_load{tag}.json"), "w").write(json.dumps(res, indent=2))
+        open(os.path.join(a.out, f"SERVO_LOAD{tag.upper()}.md"), "w").write("# Servo load check\n\n" + text + "\n")
     return 0
 
 

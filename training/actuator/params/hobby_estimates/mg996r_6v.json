@@ -1,0 +1,15 @@
+{
+    "model": "m1",
+    "actuator": "mg996r_6v",
+    "v_nominal": 6.0,
+    "kt": 0.8021409131831527,
+    "R": 4.327731335115318,
+    "error_gain_ratio": 1.0,
+    "armature": 0.01,
+    "max_velocity": 100.0,
+    "command_delay": 0.01,
+    "friction_base": 0.06,
+    "friction_viscous": 0.015,
+    "q_offset": 0.0,
+    "kd_fw": 2.0
+}

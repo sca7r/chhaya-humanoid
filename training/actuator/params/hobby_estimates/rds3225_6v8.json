@@ -1,0 +1,15 @@
+{
+    "model": "m1",
+    "actuator": "rds3225_6v8",
+    "v_nominal": 6.8,
+    "kt": 0.8441578181594129,
+    "R": 2.271138449349977,
+    "error_gain_ratio": 1.0,
+    "armature": 0.02,
+    "max_velocity": 100.0,
+    "command_delay": 0.01,
+    "friction_base": 0.12,
+    "friction_viscous": 0.03,
+    "q_offset": 0.0,
+    "kd_fw": 2.0
+}

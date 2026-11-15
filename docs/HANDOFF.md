@@ -69,6 +69,9 @@ writes each file to its final place (`hardware/cad/step/bodies`, `hardware/print
   bores are 0.3 mm running fits.
 - Strength: `tools/strength_check.py` must pass (safety factor ≥ 3 at every critical section).
 
+Two tracks: Chhaya (`config/chhaya.yaml`, STS3215) and Chhaya Lite (`config/chhaya_lite.yaml`, hobby servos,
+estimated servo model): see `CHHAYA_LITE.md`.
+
 ## Next steps
 
 0. Before printing: set the battery and computer sizes/masses in `chhaya_cad.py` to your parts and run `hardware/regenerate.sh`.

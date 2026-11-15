@@ -286,7 +286,7 @@ class BipedEnvV2(BaseEnv):
                                  act_cfg.get("stall_torque_cap_nm"))
         self.servo = BamServo(params, 1, 12, PHYSICS_DT,
                               kp=float(act_cfg.get("kp_fw", DEFAULT_KP_FW)),
-                              vin=DEFAULT_VIN, backlash=False, dtype=torch.float64)
+                              vin=float(act_cfg.get("vin", DEFAULT_VIN)), backlash=False, dtype=torch.float64)
         self.servo.kernel.torque_scale[:] = float(act_cfg.get("torque_scale", 1.0))
         # Ground friction for the eval/gate env: MuJoCo combines a contact pair by MAX, so set every geom's
         # sliding friction (2026-10-25: the real soles measure ~0.30-0.38 on hardwood; the MJCF floor is 1.0).
@@ -557,9 +557,11 @@ class BipedEnvV2(BaseEnv):
         self._arm_ids = np.array([int(self.model.joint(n).qposadr[0]) for n in self._arm_names], dtype=int)
         self._arm_dofs = np.array([int(self.model.joint(n).dofadr[0]) for n in self._arm_names], dtype=int)
         self._arm_act_ids = np.array([int(self.model.actuator(n).id) for n in self._arm_names], dtype=int)
+        if act_cfg.get("arms_params_file"):      # a different servo type on the arms (chhaya_lite.yaml)
+            params = apply_stall_cap(load_params(act_cfg["arms_params_file"]), act_cfg.get("stall_torque_cap_nm"))
         self.arm_servo = BamServo(params, 1, len(self._arm_names), PHYSICS_DT,
                                   kp=float(act_cfg.get("kp_fw", DEFAULT_KP_FW)),
-                                  vin=DEFAULT_VIN, backlash=False, dtype=torch.float64)
+                                  vin=float(act_cfg.get("vin", DEFAULT_VIN)), backlash=False, dtype=torch.float64)
         self.arm_servo.kernel.torque_scale[:] = float(act_cfg.get("torque_scale", 1.0))
         self.arm_servo.kernel.deadband[:] = float(act_cfg.get("deadband_counts", 0)) * (2.0 * math.pi / 4096.0)
         self.model.dof_frictionloss[self._arm_dofs] = 0.0

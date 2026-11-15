@@ -114,6 +114,9 @@ class BamParams:
     load_friction_external_quad: float = 0.0
     # Carried for provenance, never used in the maths.
     q_offset: float = 0.0
+    kd_fw: float = 0.0          # derivative gain of the controller, same units as kp but on speed
+                                # (0 = P only, the STS3215; hobby servos: hobby_estimates/README.md)
+    v_nominal: float = 12.0     # voltage the stall torque is quoted at (stall_torque, apply_stall_cap)
     actuator: str = ""
     source: str = ""
 
@@ -123,8 +126,8 @@ class BamParams:
 
     @property
     def stall_torque(self) -> float:
-        """Duty-limited stall torque at 12 V [N*m], useful for sanity-checking a fit."""
-        return MAX_PWM * 12.0 * self.kt / self.R
+        """Duty-limited stall torque at v_nominal (12 V for the STS3215) [N*m]."""
+        return MAX_PWM * self.v_nominal * self.kt / self.R
 
     @classmethod
     def from_json(cls, path: str | Path) -> "BamParams":
@@ -275,6 +278,8 @@ class BamKernel:
         err = self.q_smooth - q
         err = torch.where(torch.abs(err) <= self.deadband, torch.zeros_like(err), err)
         duty = err * self.kp * ERROR_GAIN * p.error_gain_ratio
+        if p.kd_fw != 0.0:      # PD controller (digital hobby servos); never taken for the STS3215
+            duty = duty - dq * (p.kd_fw * ERROR_GAIN * p.error_gain_ratio)
         lim = MAX_PWM * self.torque_scale
         self.duty = torch.clamp(duty, -lim, lim)
         volts = self.vin * self.duty

@@ -48,7 +48,9 @@ _COMMAND_KEYS = {"resampling_time_range", "heading_control_stiffness", "rel_stan
 _RANGE_KEYS = {"lin_vel_x", "lin_vel_y", "ang_vel_z", "heading"}
 _ACTUATOR_KEYS = {"params_file", "kp_fw", "kp_fw_range", "vin_range", "friction_scale_range", "torque_scale",
                   "tau_ext_source", "stall_torque_cap_nm", "deadband_counts_range"}
-_ACTUATOR_EXTRA_KEYS = {"deadband_counts"}       # MuJoCo / nominal value, mapped to deadband_rad below
+# deadband_counts: MuJoCo / nominal value, mapped to deadband_rad below. arms_params_file: a different
+# servo type on the arms. vin: the supply voltage of the MuJoCo env (Isaac draws vin_range).
+_ACTUATOR_EXTRA_KEYS = {"deadband_counts", "arms_params_file", "vin"}
 _BACKLASH_KEYS = {"enabled", "lash_deg_range", "impulse_cap", "mujoco_lash_deg", "encoder_side"}
 _REFERENCE_KEYS = {"npz_path", "stand_threshold", "rsi_prob", "rsi_joint_noise", "std"}
 _ARMS_KEYS = {"enabled", "control", "action_scale_rad", "arm_motion", "mass_scale_range", "mujoco_arm_mode"}
@@ -388,6 +390,17 @@ def _apply_actuator(env_cfg, env_conf) -> None:
             cfg.backlash_encoder_side = side
         if "deadband_counts" in act:
             cfg.deadband_rad = float(act["deadband_counts"]) * (2.0 * math.pi / 4096.0)
+
+    # A different servo type on the arms (config/chhaya_lite.yaml). Everything else is shared.
+    if act.get("arms_params_file"):
+        if "arms" not in actuators:
+            raise ValueError("actuator.arms_params_file given, but the robot has no 'arms' actuator group")
+        actuators["arms"].params_file = act["arms_params_file"]
+    if "params_file" in act or act.get("arms_params_file"):
+        # the rotor inertia written to the simulator comes from the params file: refresh it
+        from actuator.bam_kernel import apply_stall_cap, load_params
+        for cfg in bam_cfgs:
+            cfg.armature = apply_stall_cap(load_params(cfg.params_file), cfg.stall_torque_cap_nm).armature
 
     ev = env_cfg.events.get("randomize_bam_actuator")
     if ev is not None:
