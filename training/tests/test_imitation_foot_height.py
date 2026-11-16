@@ -190,7 +190,12 @@ def test_table_foot_height_field_is_stance_zero_and_two_wide():
     assert float(z["stand"][sl].max()) < 0.02 * _config_foot_height_std()    # stance baseline (0.06-0.12 mm) << the kernel std: no subtraction needed
     fh = z["data"][..., sl]
     assert abs(float(fh.min())) < 1e-4                     # stance ~0: the v2 bake dips to -0.04 mm (IK noise), kernel std is 10 mm
-    assert 0.008 < float(fh.max()) < 1.6 * _table_step_height(z)     # real swings, not runaway: peaks run up to 1.42 x the style's step_height
+    # Real swings, not runaway. The slowest cells peak at the style's step_height (10 mm); the peak then grows smoothly
+    # with |vx| to 2.39 x at the fastest cells (23.9 mm), because the shipped style's push-off (17.5 deg) and heel roll
+    # raise the sole point on long steps. (Bound was 1.6 x, measured on an earlier style without push-off.)
+    peak = fh.max(axis=(-1, -2))                                      # per command cell
+    assert 0.008 < float(peak.min()) < 1.1 * _table_step_height(z)
+    assert float(peak.max()) < 2.6 * _table_step_height(z)
 
 
 def test_table_reference_samples_foot_height_with_the_other_fields():
@@ -236,7 +241,7 @@ def _cfg_defaults():
 def test_env_cfg_defaults_keep_old_behaviour():
     d = _cfg_defaults()
     assert d["contact_height_thresh_m"] is None                    # force-only flag by default
-    assert d["reference_std"]["foot_height"] == 0.004
+    assert d["reference_std"]["foot_height"] == 0.015              # the env default since the import (was 0.004 when this test was written)
     assert d["reference_std"]["foot_pos"] == 0.02                  # the old keys are untouched
 
 

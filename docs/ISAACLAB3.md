@@ -28,7 +28,7 @@ Tested here on a 2-core CPU (no GPU was available):
 | Flat terrain | works; floor part of the foot forces is reported separately |
 | `train.py`, SAC, 4 robots, 220 iterations | runs, loss finite, checkpoints and config saved |
 | `play.py` from that checkpoint | runs |
-| Unit tests | 347 pass on Python 3.11 and 3.12; the same 7 old failures as before the port |
+| Unit tests | all pass: 360 on Python 3.11, 366 on 3.12 |
 | Speed | ≈ 30–40 robot-steps/s on 2 CPU cores (says nothing about a GPU) |
 
 **Not known until it runs on a GPU:** steps per second, how many robots fit in 6 GB, and whether the

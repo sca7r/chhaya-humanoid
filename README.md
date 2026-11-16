@@ -44,7 +44,7 @@ git clone --recurse-submodules https://github.com/<you>/chhaya.git
 cd chhaya/training
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm
-(cd robot_motion_reference && python -m gait_studio.bake)
+(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
 pytest tests/test_arm_motion.py tests/test_chhaya_mujoco.py    # 11 pass, no GPU needed
 python -m chhaya.physics_check --out /tmp/phys                 # stands, holds poses, survives a fall
 ```

@@ -27,14 +27,13 @@ git clone --recurse-submodules https://github.com/<you>/chhaya.git && cd chhaya/
 # int(model.joint(n).qposadr), which fails on numpy 2 / MuJoCo 4.
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm       # torch: use the CPU wheel on a VM without a GPU
-(cd robot_motion_reference && python -m gait_studio.bake)            # bakes the gait table the env loads
+(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)            # bakes the gait table the env loads
 pytest tests --ignore=tests/test_env.py --ignore=tests/test_transformer.py
 python -m chhaya.physics_check --out /tmp/phys                   # all checks pass
 ```
 
-Expected test result: 335 pass, 7 fail. The 7 are upstream's own (gait-table and config
-expectations; they fail identically on the untouched upstream import), and the two ignored files
-import modules that upstream doesn't ship.
+Expected test result: all pass (360 on Python 3.11). If 5–7 gait-table tests fail, the table was baked
+without `--style processed/gait_table_style.yaml`: re-bake it with the command above.
 
 On Windows the `training/robot_hardware` link needs `git config core.symlinks true` (or WSL).
 

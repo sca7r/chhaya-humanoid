@@ -145,7 +145,7 @@ def load_table(npz_path: str, root_dir: str = PROJECT_ROOT) -> dict:
     from utils.motion_reference import resolve_table_path
     path = resolve_table_path(npz_path, root_dir)
     if not os.path.exists(path):
-        raise FileNotFoundError(f"gait table not found: {path} (bake it with `python -m gait_studio.bake` in "
+        raise FileNotFoundError(f"gait table not found: {path} (bake it with `python -m gait_studio.bake --style processed/gait_table_style.yaml` in "
                                 f"robot_motion_reference/)")
     with np.load(path, allow_pickle=False) as z:
         names = [str(s) for s in z["field_names"]]

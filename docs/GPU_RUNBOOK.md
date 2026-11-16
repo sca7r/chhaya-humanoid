@@ -8,7 +8,9 @@ the instance busy only while it trains, and copy the results off before deleting
 1. Push this repository to your GitHub (see `HANDOFF.md`).
 2. Run the tests once (no GPU needed), as in `HANDOFF.md`. The 11 arm tests
    (`tests/test_arm_motion.py`, `tests/test_chhaya_mujoco.py`) must pass.
-3. Bake the gait table if you haven't: `(cd robot_motion_reference && python -m gait_studio.bake)`.
+3. Bake the gait table if you haven't (only the `config_gait_reference*.yaml` configs and some unit tests
+   read it; `chhaya.yaml` and `chhaya_lite.yaml` train without a motion reference). Always pass the style: a
+   plain `python -m gait_studio.bake` uses a different style and gives a different table: `(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)`.
 4. Check the battery and computer sizes and masses in `hardware/cad/parametric/chhaya_cad.py`
    match the parts you will use (`ELECTRONICS_LAYOUT.md`), and regenerate if not.
 
@@ -45,7 +47,7 @@ git clone --branch v3.0.0 https://github.com/isaac-sim/IsaacLab.git
 cd IsaacLab && uv sync && source .venv/bin/activate      # Python 3.12, Newton backend, no Isaac Sim
 git clone --recurse-submodules https://github.com/<you>/chhaya.git && cd chhaya/training
 uv pip install -r requirements-isaaclab3.txt
-(cd robot_motion_reference && python -m gait_studio.bake)
+(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
 ```
 
 ## 3. Smoke test: about 10 minutes, do not skip

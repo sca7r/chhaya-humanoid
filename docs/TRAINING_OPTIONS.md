@@ -16,7 +16,7 @@ the Isaac Lab 2.x code before the port.
 | Terrain | rough terrain generator (randomisation, no curriculum) |
 | Sensors | foot contact forces and air time, IMU (step-averaged accelerometer, gyro), joint encoders (quantised) |
 | Randomisation | masses, friction, COM, payload, action delay, servo parameters and voltage, sensor noise and bias, pushes |
-| Reference motion | baked gait table (`robot_motion_reference`, `gait_studio.bake`) for the imitation rewards |
+| Reference motion | none in `chhaya.yaml`; the legs-only `config_gait_reference*.yaml` configs use a baked gait table (`robot_motion_reference`) for imitation rewards |
 | RL | own PyTorch SAC: 1 M replay, batch 2048, 5-step returns, mirror-equivariant actor, symmetry augmentation, CAPS smoothness, 5-frame history |
 | Memory | replay buffer ≈ 5 GB at 1 M transitions (370-dim history obs, stored twice + critic obs) |
 | After training | MuJoCo eval and policy gate (CPU), ONNX export, on-robot runtime |

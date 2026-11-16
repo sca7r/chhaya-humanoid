@@ -707,7 +707,7 @@ Optional. Adds imitation of a gait table baked in
 
 | Key | Meaning |
 |---|---|
-| `npz_path` | The baked table. Must exist (bake with `python -m gait_studio.bake`) |
+| `npz_path` | The baked table. Must exist (bake with `python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz` in `robot_motion_reference/`; without `--style` a different table is baked) |
 | `stand_threshold` | Below this command magnitude the clock holds and the robot is expected to stand |
 | `rsi_prob` | Reference state initialisation: that fraction of resets starts on the table. `play.py` always starts from the default pose |
 | `rsi_joint_noise` | Joint noise on those starts [rad] |
