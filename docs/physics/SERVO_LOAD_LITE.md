@@ -4,12 +4,12 @@ chhaya_lite.yaml: 2.567 kg, legs-only rig 1.661 kg. Servos: legs rds3225_6v8, ar
 
 | Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous | One foot, legs-only rig |
 |---|---|---|---|---|---|
-| l_hip_yaw | 1.13 | 0.02 | 1 % | 3 % | 0.01 |
-| l_hip_roll_joint | 0.55 | 1.34 | 55 % | 164 % | 0.87 |
-| l_hip_pitch_joint | 0.85 | 0.04 | 2 % | 5 % | 0.03 |
-| l_knee_joint | 0.68 | 0.35 | 14 % | 43 % | 0.13 |
-| l_ankle_roll_joint | 0.55 | 1.37 | 56 % | 168 % | 0.82 |
-| l_ankle_pitch_joint | 0.67 | 0.18 | 7 % | 22 % | 0.32 |
+| l_hip_yaw | 0.05 | 0.10 | 4 % | 12 % | 0.01 |
+| l_hip_roll_joint | 0.09 | 1.32 | 54 % | 162 % | 0.87 |
+| l_hip_pitch_joint | 0.20 | 0.35 | 14 % | 43 % | 0.03 |
+| l_knee_joint | 0.27 | 0.28 | 12 % | 35 % | 0.13 |
+| l_ankle_roll_joint | 0.02 | 1.23 | 50 % | 150 % | 0.82 |
+| l_ankle_pitch_joint | 0.47 | 1.26 | 52 % | 155 % | 0.32 |
 
 | Knee bend | Knee torque, both legs | Knee torque, one leg | % of stall (one leg) |
 |---|---|---|---|
@@ -25,6 +25,6 @@ chhaya_lite.yaml: 2.567 kg, legs-only rig 1.661 kg. Servos: legs rds3225_6v8, ar
 | arm forward | l_arm_yaw | 0.00 | 0 % |
 | arm forward | l_elbow | 0.03 | 2 % |
 | arm sideways | l_shoulder_pitch | 0.01 | 1 % |
-| arm sideways | l_shoulder_roll | 0.19 | 16 % |
+| arm sideways | l_shoulder_roll | 0.19 | 15 % |
 | arm sideways | l_arm_yaw | 0.00 | 0 % |
 | arm sideways | l_elbow | 0.00 | 0 % |

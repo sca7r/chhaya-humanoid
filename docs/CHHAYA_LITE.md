@@ -1,4 +1,4 @@
-# Chhaya Lite: the budget variant with hobby servos (started 2026-11-15)
+# Chhaya Lite: the budget variant with hobby servos (started 2026-11-15, datasheets checked 2026-11-16)
 
 Two training tracks now run side by side from the same code:
 
@@ -29,7 +29,7 @@ Only the 17 config values marked `LITE` in `chhaya_lite.yaml` (a test checks tha
 
 | Changed | Chhaya | Lite | Basis |
 |---|---|---|---|
-| Leg servo torque / speed | 2.94 N·m, 4.9 rad/s | 2.45 N·m, 8.1 rad/s at 6.8 V | datasheet |
+| Leg servo torque / speed | 2.94 N·m, 4.9 rad/s | 2.45 N·m, 6.2 rad/s at 6.8 V | datasheet (torque: the lowest of three published figures) |
 | Arm servo torque / speed | 2.94 N·m, 4.9 rad/s | 1.22 N·m at 6.8 V, 7.5 rad/s at 6 V | datasheet |
 | Supply | 10.2–12.6 V | 6.0–6.8 V | 2S battery through a regulator |
 | Controller | P only, full drive at about 10° of error | P + D, full drive at about 3° (2–4.8° randomised) | guess |
@@ -48,24 +48,36 @@ STS3215 files do not use them, so the Chhaya track is numerically unchanged.
 nearly the same (RDS3225 about 60 g, MG996R 55 g, STS3215 55 g), so the mass error is about 60 g in
 2.57 kg. The frame redesign comes after this check says the servos are worth it.
 
-## First results (CPU, no policy yet)
+## How it behaves (CPU, no policy yet)
 
 | Check | Chhaya | Lite |
 |---|---|---|
-| Worst static leg load, standing on one foot | 1.34 N·m = 46 % of stall | 1.37 N·m = 56 % of stall |
+| Worst static leg load, standing on one foot | 1.34 N·m = 46 % of stall | 1.32 N·m = 54 % of stall |
 | Arm held straight out | 0.20 N·m = 7 % of stall | 0.20 N·m = 16 % of stall |
-| Standing still in MuJoCo, no policy: joint jitter (RMS speed) | 0.008 rad/s | 0.13 rad/s |
-| Isaac Lab 3.0, 4 robots, zero action for 1.2 s | 0 falls | 1 fall |
+| Standing with zero action in MuJoCo, 10 s | stands, joint jitter 0.012 rad/s | falls after 4.2 s, jitter 0.16 rad/s |
+| Isaac Lab 3.0, 4 robots, zero action for 1.2 s | all stand | none fell, one was sagging |
 | Isaac Lab 3.0 environment builds and steps (20 actions, 370 observations) | yes | yes |
 
 Full load table: `physics/SERVO_LOAD_LITE.md`.
 
-Reading:
-- **Torque is enough.** The RDS3225 legs and MG996R arms carry the static loads with margin.
-- **The risk is jitter, not strength.** A stiff controller plus gear play makes the joints hunt. With no
-  gear play the Lite model stands as quietly as the STS3215 one; with 2° of play it shakes about 16 times
-  more. Whether a policy can walk on that is what training will show, and how big the effect really
-  is depends on the guessed numbers above.
+**Torque is enough; gear play decides everything.** Standing with zero action, by gear play and
+controller stiffness (`python -m chhaya.lite_stand_scan`; cell = time of fall / leg joint jitter in rad/s,
+"-" = stood for 10 s):
+
+| Gear play | Full drive at 4.8° error | at 3.0° (nominal) | at 2.0° |
+|---|---|---|---|
+| 0.0° | - / 0.004 | - / 0.004 | - / 0.004 |
+| 0.5° | - / 0.008 | - / 0.007 | - / 0.008 |
+| 1.0° | - / 0.039 | - / 0.070 | - / 0.095 |
+| 2.0° (nominal) | - / 0.105 | 4.2 s / 0.156 | 4.3 s / 0.199 |
+| 3.0° | 3.5 s / 0.183 | 2.3 s / 0.246 | 2.2 s / 0.310 |
+
+- With 0.5° of play or less, Lite is as quiet as the STS3215 robot.
+- From about 2° the joints hunt (stiff controller pushing through the slack) and the robot shakes itself
+  over without a policy. A trained policy closes the loop and may cope; that is what training will show.
+- No datasheet gives the gear play of either servo. It is the first thing to measure on a real one:
+  hold the horn, power the servo, and read the free movement at the end of a 100 mm arm
+  (1.75 mm of movement = 1°).
 
 ## Before building Lite
 
@@ -76,6 +88,23 @@ Reading:
    - 20 analog inputs for the pots (a microcontroller board or ADC chips, 12-bit or better).
    - PWM with 1 µs resolution or better. A PCA9685 at 50 Hz has 4.9 µs steps, about 0.66° on a 270°
      servo, which is too coarse.
-   - A 6.8 V supply sized for stall currents (several amps per servo; check the datasheets).
-3. **Frame:** new servo pockets in `hardware/cad/parametric/chhaya_cad.py` and new legs. The legs are
+   - PWM at 200–330 Hz for the RDS3225 (it accepts 50–330 Hz); the model assumes a 10 ms command delay.
+3. **Servo versions and travel.** Hip pitch and knee move through 240°, so the legs need the **270°**
+   RDS3225, not the 180° one. The shoulder pitch joint has a 229° range and the MG996R turns about 180°:
+   limit that joint in the redesign, or use a 270° servo there.
+4. **Current.** Stall is 2.9 A per RDS3225 and 2.5 A per MG996R (datasheets). All 20 never stall together;
+   size the 6.8 V supply for about 20 A peaks.
+5. **Frame:** new servo pockets in `hardware/cad/parametric/chhaya_cad.py` and new legs. The legs are
    then no longer the design that has already walked.
+
+## A neural network for the servo or the noise?
+
+Possible, and a known method (an "actuator network" trained on logged command and position data, then
+used in place of, or on top of, the physics model). It cannot be trained from datasheets: it needs
+recordings from the real servos, the same recordings the measurement in step 1 produces. Order of work:
+record, fit the physics model first (few parameters, needs little data), then add a small network for
+whatever the physics model still gets wrong.
+
+Datasheet sources: [RDS3225 at servodatabase.com](https://servodatabase.com/servo/dsservo/rds3225),
+[RDS3225 seller listing](https://aifitlab.com/products/dsservo-rds3225-servo-motor),
+[MG996R TowerPro sheet](https://people.ece.cornell.edu/land/courses/ece4760/FinalProjects/f2017/kmv48_rp625/kmv48_rp625/kmv48_rp625/MG996RTowerPro.pdf).
