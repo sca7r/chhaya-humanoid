@@ -114,7 +114,7 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
 - MuJoCo, with the repo's pins (numpy 1.26.3, MuJoCo 3.2.7):
   - the physics checks in `docs/physics/PHYSICS.md` all pass;
   - the 19 Chhaya tests pass (MuJoCo whole-body env; the Isaac env's arm action map and mirror tables, run on the CPU with the real methods lifted out of `biped_env.py`);
-  - the rest of the test suite gives exactly the same results as the unmodified upstream code.
+  - the whole test suite passes.
 - USD: 21 rigid bodies, 20 revolute joints, 2.567 kg, joint frames matching the URDF to 0.0 mm.
 - Isaac Lab 3.0 (Newton) on a CPU: the real environment builds and stands, a short SAC run and
   `play.py` work (`ISAACLAB3.md`). **Not run on a GPU yet**: do the smoke test in `GPU_RUNBOOK.md` first.
