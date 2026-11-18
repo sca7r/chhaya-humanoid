@@ -11,6 +11,27 @@ the PPO baseline.
 No reference code had been published when this was written; `training/supermimic/` is a
 reimplementation from the paper.
 
+## Two world models: `--model eth` (default) and `--model v1`
+
+Added 2026-11-19 after the official code ([HybridRobotics/supermimic](https://github.com/HybridRobotics/supermimic),
+released 2026-11-10) and ETH's velocity-walking port ([terrain-grounded imagination](https://github.com/leggedrobotics/terrain-grounded-imagination),
+G1, tested on hardware) were compared with `v1`. Both learn **only the dynamics** and compute reward and
+termination analytically from the predicted state; `v1` learned a reward head over our 56-term reward,
+and on the CPU its policy ended worse than standing still.
+
+| | `eth` (`supermimic/eth.py`) | `v1` |
+|---|---|---|
+| Dynamics | MLP (LayerNorm + GELU) predicts the next velocities; joint angles, base height and gravity direction are integrated (semi-implicit, decimation-weighted) | MLP predicts the next value of all 142 state entries |
+| Reward | analytic, 13 terms × dt (Table A.6 / ETH style): velocity and yaw tracking, upright, standing pose, joint limits, action rate, vertical and roll/pitch rates, swing-foot clearance, foot slip, single support, feet down when standing, hip and arm deviation. Feet from URDF forward kinematics (`LegFK`) | learned head |
+| Termination | the env's 45° tilt rule as a sigmoid | learned head |
+| World-model loss | state only; physical quantities scaled by nominal errors (Bryson's rule), others by their std | state + reward + termination, all normalised |
+| Value bounds | ± dt·(sum of positive weights) / (1 − γ) | range of rewards seen |
+
+Checked: `LegFK` matches MuJoCo (`chhaya.xml`) to 1e-4 m (`tests/test_supermimic_eth.py`) and the simulator's
+foot heights to 2e-7 m; the foot rest height is measured at start-up (printed). `env/model_reward` logs what the
+analytic reward pays on real simulator transitions; `env/episode_length` is still the honest progress measure.
+The env's own reward (`env/episode_return`) is no longer what the policy optimises.
+
 ## Run
 
 ```bash

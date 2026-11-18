@@ -4,6 +4,16 @@ A condensed record of the design conversation with Harsh (2026-11-09 to 2026-11-
 behind the current state are not lost. It replaces reading the chat itself, which is long and full of
 plans that were later changed. Newest first. `HANDOFF.md` has the current state and next steps.
 
+## 2026-11-19: SuperMimic rewritten the ETH way; training on the RTX 3060 laptop
+
+- Cross-checked against the paper, the official code (released 2026-11-10) and the awesome-supermimic list.
+  The official code and the only velocity-walking ports (ETH terrain-grounded imagination, XSoma) learn only
+  the dynamics and compute reward/termination analytically. Harsh chose that (ETH has hardware proof):
+  `supermimic/eth.py`, default `--model eth`; `v1` kept for comparison. Details: `SUPERMIMIC.md`.
+- Laptop: Isaac Lab 3.0 (Newton, no Isaac Sim) runs on the RTX 3060 6 GB in WSL2; Chhaya env at 1024
+  robots ≈ 1,800 robot-steps/s. Runs go through a job queue (`~/queue` in WSL, Windows task `ChhayaQueue`).
+  Every laptop change is logged in WSL `~/CHHAYA_RESTORE.md`: Harsh wants the laptop back to default after.
+
 ## 2026-11-18: SuperMimic trainer (optional)
 
 - Asked to use SuperMimic (arXiv:2610.28480: learned world model + backpropagation through imagined
