@@ -1,4 +1,6 @@
-# Handoff: Chhaya (state on 2026-11-11)
+# Handoff: Chhaya (state on 2026-11-18)
+
+Why things are the way they are, in date order: `PROJECT_LOG.md`.
 
 Chhaya is one robot and one project: a 20-joint humanoid with claws and a sensor head. Credits and
 licences for the open-source work it builds on are in `NOTICE.md`.
@@ -19,21 +21,24 @@ Two things keep their original names because the code and tests refer to them: t
 Chhaya without the chest, head and arms. The regression tests run on the rig, and it is also how
 you bring up the legs before mounting the arms.
 
-## Setting up on your VM
+## Setting up
+
+Training runs on Isaac Lab 3.0 (Python 3.12): install as in `ISAACLAB3.md`. Its environment also runs
+all tests. A plain Python 3.11 venv with the repo's pins runs the tests and the MuJoCo side too.
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/chhaya.git && cd chhaya/training
-# Python 3.11 venv with the repo's pins. numpy MUST be 1.26.x: upstream's MuJoCo env does
-# int(model.joint(n).qposadr), which fails on numpy 2 / MuJoCo 4.
-python3.11 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt pytest tqdm       # torch: use the CPU wheel on a VM without a GPU
-(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)            # bakes the gait table the env loads
+cd chhaya/training
+(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
 pytest tests --ignore=tests/test_env.py --ignore=tests/test_transformer.py
 python -m chhaya.physics_check --out /tmp/phys                   # all checks pass
 ```
 
-Expected test result: all pass (360 on Python 3.11). If 5–7 gait-table tests fail, the table was baked
-without `--style processed/gait_table_style.yaml`: re-bake it with the command above.
+The zip deliveries already contain the baked gait table, so the bake step is only needed after a
+fresh `git clone` (the table is a generated file, not in git). Only the gait-reference configs and
+some tests read it; `chhaya.yaml` and `chhaya_lite.yaml` do not.
+
+Expected test result: all pass (363 on Python 3.11, 369 on 3.12, measured 2026-11-18 from the zip).
+If 5–8 gait-table tests fail, the table is missing or was baked without the `--style` argument.
 
 On Windows the `training/robot_hardware` link needs `git config core.symlinks true` (or WSL).
 
@@ -75,9 +80,10 @@ estimated servo model): see `CHHAYA_LITE.md`.
 
 0. Before printing: set the battery and computer sizes/masses in `chhaya_cad.py` to your parts and run `hardware/regenerate.sh`.
 1. GPU: follow `GPU_RUNBOOK.md` (smoke test first: the Isaac Lab 3.0 code has run on a CPU only).
+   Then optionally SuperMimic (`SUPERMIMIC.md`) against SAC at equal wall time.
 2. If the smoke test fails: fix it on the instance, then commit and push.
-3. Adapt `export_onnx.py` and `src/mujoco/policy_gate.py` to the 74-dim frame / 20 actions, then
-   export, verify and gate on the VM.
+3. Adapt `export_onnx.py`, `src/mujoco/policy_gate.py` and `play.py` to the 74-dim frame / 20 actions
+   (and to SuperMimic checkpoints), then export, verify and gate.
 4. On-robot runtime: BipedRobotJetson reads and commands only the 12 leg servos; it needs the 8 arm
    servos added (same bus, same protocol) and the claws.
 5. Later: adapt `check_actuator.py` / `jitter_probe.py` / `make_fall_bank.py` and the get-up task
