@@ -71,6 +71,9 @@ which the regression tests use.
 python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml
 ```
 
+An alternative trainer, SuperMimic (a learned world model of the simulator and backpropagation through
+imagined rollouts), uses the same environment and config: `SUPERMIMIC.md`. The settings below are SAC's.
+
 ## Settings and hyperparameters (`config/chhaya.yaml`)
 
 | Setting | Value |

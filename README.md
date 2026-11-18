@@ -24,6 +24,7 @@ and a head built to carry sensors. It learns to walk with reinforcement learning
 | MuJoCo model and physics checks | done; all pass ([docs/physics/PHYSICS.md](docs/physics/PHYSICS.md)) |
 | Training setup | Isaac Lab 3.0 on Newton (no Isaac Sim; any recent NVIDIA GPU). Tested on a CPU: the environment, a short training run and playback work. **Not yet run on a GPU** ([docs/ISAACLAB3.md](docs/ISAACLAB3.md)) |
 | Walking policy | not trained yet |
+| Model-based trainer (SuperMimic) | implemented as an option next to SAC; learns a toy task, runs stably on Chhaya on a CPU; walking not yet tried on a GPU ([docs/SUPERMIMIC.md](docs/SUPERMIMIC.md)) |
 | Budget variant (Chhaya Lite) | simulation set up with RDS3225 / MG996R hobby servos from datasheet estimates; frame not redesigned ([docs/CHHAYA_LITE.md](docs/CHHAYA_LITE.md)) |
 | Physical build | not built yet. The legs and electronics are a design that has been built and walks (see Credits); the arms, claws and head are new and unbuilt |
 | On-robot software for the arms | not written yet (the runtime drives the 12 leg servos) |
