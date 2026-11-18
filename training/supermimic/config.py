@@ -11,6 +11,8 @@ from typing import Tuple
 
 @dataclass(frozen=True)
 class SuperMimicConfig:
+    # "eth": dynamics-only world model, analytic reward and termination (eth.py); "v1": learned reward/termination heads
+    model: str = "v1"                               # train_supermimic.py defaults to "eth"
     # --- world model (paper: MLP 2048x3, k=8, Adam 2e-4, 10 batches of 2048 windows per update) ---
     wm_hidden: Tuple[int, ...] = (1024, 1024, 1024)
     head_hidden: Tuple[int, ...] = (512, 512)       # reward and termination heads

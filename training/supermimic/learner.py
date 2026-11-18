@@ -53,7 +53,15 @@ class SuperMimic:
         S, A, C, F = env.state_dim, env.action_dim, env.ctx_dim, len(lay.obs)
         self.obs_idx = torch.tensor(lay.obs, dtype=torch.long, device=self.dev)
         self.noise_std = torch.tensor(lay.obs_noise_std, dtype=torch.float32, device=self.dev)
-        self.wm = WorldModel(S, A, C, lay, cfg.wm_hidden, cfg.head_hidden).to(self.dev)
+        if cfg.model == "eth":
+            from .eth import ChhayaMDP, WorldModelEth
+            mdp = ChhayaMDP(lay.phys, self.dev)
+            if hasattr(env, "calibrate_sole"):
+                print(f"[supermimic] foot rest height {env.calibrate_sole(mdp):.4f} m")
+            self.wm = WorldModelEth(S, A, C, lay, cfg.wm_hidden, mdp).to(self.dev)
+        else:
+            self.wm = WorldModel(S, A, C, lay, cfg.wm_hidden, cfg.head_hidden).to(self.dev)
+        self._mr = [0.0, 0]                             # model reward on real transitions: sum, count
         self.actor = Actor(F, lay.history, A, cfg.actor_hidden, lay.action_bound).to(self.dev)
         self.critic = mlp(S + C, cfg.critic_hidden, 1).to(self.dev)
         opt = lambda m: torch.optim.Adam(m.parameters(), lr=cfg.lr, betas=cfg.adam_betas)
@@ -90,6 +98,8 @@ class SuperMimic:
             s_next = env.state()
             ok = ~done
             self.wm.update_stats(s[ok], s_next[ok], c[ok], r[ok])
+            if hasattr(self.wm, "mdp") and ok.any():      # what the analytic reward pays in the simulator
+                self._mr[0] += float(self.wm.mdp.reward(s[ok], a[ok], s_next[ok]).sum()); self._mr[1] += int(ok.sum())
             s = s_next
             self._ep_ret += r
             self._ep_len += 1
@@ -217,6 +227,9 @@ class SuperMimic:
                     rets = torch.cat([f[0] for f in self._finished]); lens = torch.cat([f[1] for f in self._finished])
                     logs["env/episode_return"], logs["env/episode_length"] = float(rets.mean()), float(lens.mean())
                     self._finished = []
+                if self._mr[1]:
+                    logs["env/model_reward"] = self._mr[0] / self._mr[1]
+                    self._mr = [0.0, 0]
                 now = time.time()
                 logs["perf/iters_per_s"] = cfg.log_every / max(now - last, 1e-9)
                 logs["perf/env_steps"] = float(self.env_steps * self.env.n)

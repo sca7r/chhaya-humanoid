@@ -47,6 +47,31 @@ class ChhayaAdapter:
             shift_dst=pp, shift_src=prev_legs, hold=cmd, history=max(int(env.history_size), 1), action_bound=1.0)
         if len(env.obs_noise_std) != P:
             raise ValueError("observation noise vector does not match the proprio frame")
+        self.layout.phys = self._phys(P, nl, na)
+
+    def _phys(self, P: int, nl: int, na: int) -> dict:
+        """Where the physical quantities sit in state() (see its docstring), for supermimic/eth.py."""
+        import os
+        e, d = self.env, self.env.rd
+        J = int(d.joint_pos.shape[1])
+        lim = d.soft_joint_pos_limits[0]
+        b = P + 10
+        lay = self.layout
+        return {"v_b": (P, P + 3), "h": (P + 3, P + 4), "q": (b, b + J), "qd": (b + J, b + 2 * J),
+                "w_b": (b + 2 * J, b + 2 * J + 3), "g_b": (b + 2 * J + 3, b + 2 * J + 6), "cmd": (9, 12),
+                "action_dst": list(lay.action_dst), "action_src": list(lay.action_src),
+                "joint_names": list(e.robot.joint_names), "q0": d.default_joint_pos[0].tolist(),
+                "soft_lo": lim[:, 0].tolist(), "soft_hi": lim[:, 1].tolist(),
+                "dt": float(e.cfg.sim.dt * e.cfg.decimation), "decimation": int(e.cfg.decimation),
+                "urdf": os.path.join(os.path.dirname(__file__), "..", "robot_hardware", "robot_description", "urdf",
+                                     "Robot.urdf" if na == 0 else "chhaya.urdf")}
+
+    def calibrate_sole(self, mdp) -> float:
+        """Foot-link height when standing at reset = the rest height the reward's foot terms measure from."""
+        mdp.sole = 0.0
+        _, z = mdp.feet(self.state())
+        mdp.sole = float(z.median())
+        return mdp.sole
 
     # ---------------------------------------------------------------- learner interface
     def reset(self) -> None:

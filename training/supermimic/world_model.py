@@ -34,6 +34,7 @@ class Layout:
     hold: List[int] = field(default_factory=list)         # state slots that keep their value (the command)
     history: int = 1                                  # policy observation frames
     action_bound: float = 1.0
+    phys: dict = field(default_factory=dict)          # physical-state slices etc. for the analytic model (eth.py)
 
 
 class WorldModel(nn.Module):

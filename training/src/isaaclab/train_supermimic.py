@@ -28,6 +28,8 @@ ap.add_argument("--config_path", default=os.path.join(ROOT, "config/chhaya.yaml"
 ap.add_argument("--task", default="BipedRobotV2")
 ap.add_argument("--num_envs", type=int, default=1024)
 ap.add_argument("--preset", choices=("paper", "laptop", "tiny"), default="laptop")
+ap.add_argument("--model", choices=("eth", "v1"), default="eth",
+                help="eth: analytic reward/termination, dynamics-only world model; v1: learned reward head")
 ap.add_argument("--iterations", type=int, default=None)
 ap.add_argument("--minutes", type=float, default=None, help="wall-clock budget (the paper: 3 h on one H100)")
 ap.add_argument("--lr", type=float, default=None)
@@ -62,7 +64,7 @@ def main():
     if not args.pushes:
         cfg.events.pop("push_robot", None)
     smc = {"paper": SuperMimicConfig(), "laptop": laptop(), "tiny": tiny()}[args.preset]
-    smc = replace(smc, seed=args.seed, **({"lr": args.lr} if args.lr else {}),
+    smc = replace(smc, seed=args.seed, model=args.model, **({"lr": args.lr} if args.lr else {}),
                   **({"min_transitions_per_iter": args.min_transitions} if args.min_transitions is not None else {}))
     name = f"{config.train.model_name.replace('_SAC', '')}_SuperMimic_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     log_dir = os.path.join(args.log_dir, name)
@@ -82,6 +84,7 @@ def main():
         def show(it, logs):
             keys = ("wm/state", "wm/reward", "wm/term", "policy/J", "policy/imagined_reward",
                     "policy/imagined_survival", "critic/loss", "env/episode_return", "env/episode_length",
+                    "env/model_reward",
                     "perf/iters_per_s", "perf/env_steps")
             print(f"[supermimic] it {it} " + " ".join(f"{k.split('/')[1]}={logs[k]:.4g}" for k in keys if k in logs),
                   flush=True)
