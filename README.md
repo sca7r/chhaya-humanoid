@@ -103,14 +103,14 @@ need a new policy.
 
 ```bash
 cd training
-python -m src.mujoco.drive --bundle exported/chhaya_final
+python -m src.mujoco.drive --bundle exported/chhaya_final     # then open http://localhost:8000
 ```
 
 | Input | How it works | Status |
 |---|---|---|
-| Tap a spot | right double-click the floor in the viewer: the robot turns, walks there and stops | available in simulation |
-| Keyboard | `I` `M` forward and back, `J` `L` turn, `U` `O` step sideways, `K` stop | available in simulation |
-| Phone | the same tap-to-walk on a floor map, served by the Raspberry Pi | planned |
+| Tap a spot | tap the floor in the live view in your browser: the robot turns, walks there and stops | available in simulation |
+| Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in simulation |
+| Public web demo | the same page running entirely in the visitor's browser, hosted on GitHub Pages | planned |
 | Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
 
 Commands are limited to the range the policy was trained on (`config/chhaya.yaml`), whatever the input.
