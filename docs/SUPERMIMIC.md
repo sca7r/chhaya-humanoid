@@ -128,3 +128,17 @@ walk is therefore still open: it needs a GPU run in the paper's regime.
 - Return-based resets, rough terrain and pushes.
 - Critic grounded on real returns from the replay (not in the paper); worth trying if the critic
   runs away on the GPU too.
+
+## First GPU results (RTX 3060 laptop, 2026-11-19, 1024 robots, flat, `laptop` preset)
+
+`--eval <checkpoint>`: 20 s, no exploration noise, random commands (mean commanded speed ≈ 0.10 m/s), against standing still.
+
+| Run | Iterations | Speed error m/s (standing) | Yaw error rad/s (standing) | Speed m/s | Falls / robot / 20 s (standing) |
+|---|---|---|---|---|---|
+| v1, `chhaya.yaml`, 2 h | 3,400 | 0.117 (0.097) | 0.59 (0.48) | 0.075 | 0.5 (0) |
+| eth, `chhaya.yaml`, 3 h | 2,100 | 0.071 (0.098) | 0.35 (0.48) | 0.089 | 0.1 (0) |
+| eth, `chhaya_lite.yaml`, 3 h | 2,150 | 0.070 (0.102) | 0.40 (0.48) | 0.104 | 0.02 (0.06) |
+
+eth moves and tracks better than standing on both builds; v1 tracks worse than standing. Not yet good walking:
+about 30 % less speed error than standing, turning weaker. eth runs at 0.20 iterations/s (v1 0.48).
+On `chhaya.yaml` the env's own return fell after iteration 600 while the analytic reward kept rising; not explained yet.
