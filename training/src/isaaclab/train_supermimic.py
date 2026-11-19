@@ -38,7 +38,6 @@ ap.add_argument("--min_transitions", type=int, default=None,
 ap.add_argument("--rough", action="store_true", help="keep the rough terrain mix (the paper trains on flat ground)")
 ap.add_argument("--pushes", action="store_true", help="keep random pushes (the paper drops them)")
 ap.add_argument("--save_every", type=int, default=None, help="checkpoint every N iterations")
-ap.add_argument("--no_mirror", action="store_true", help="plain actor (no exact left-right symmetry)")
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--eval", default=None, help="checkpoint: report velocity tracking (policy vs standing still) instead of training")
 ap.add_argument("--record", default=None, help="with --eval: save robot 0's motion (.npz) for src/mujoco/replay_video.py")
@@ -62,14 +61,13 @@ from supermimic.isaac_adapter import ChhayaAdapter  # noqa: E402
 
 
 @torch.no_grad()
-def evaluate(ad, policy, steps=999, mdp=None, record=None):
+def evaluate(ad, policy, steps=999, record=None):
     """Mean velocity-tracking error over all robots, 20 s, no exploration noise."""
     e, m = ad.env, {"lin_err": 0.0, "yaw_err": 0.0, "cmd_speed": 0.0, "speed": 0.0}
     ad.reset()
-    falls, mt, rec = 0, {}, []
+    falls, rec = 0, []
     tq_sq, tq_peak, a_sum = 0.0, 0.0, 0.0      # joint torque: mean square, and the per-step 99th percentile over robots averaged
     for _ in range(steps):
-        s0 = ad.state()
         a = policy(ad.policy_obs())
         _, term, _ = ad.step(a)
         a_sum = a_sum + ad.executed_action()
@@ -82,9 +80,6 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
             rec.append(torch.cat([d.root_pos_w[:args.record_n] - e.scene.env_origins[:args.record_n],   # each from its own spawn
                                   d.root_quat_w[:args.record_n], d.joint_pos[:args.record_n],
                                   e.commands[:args.record_n]], -1).cpu())
-        if mdp is not None:
-            for k, x in mdp.reward(s0, ad.executed_action(), ad.state(), terms=True).items():
-                mt[k] = mt.get(k, 0.0) + float(x.mean()) / steps
         c, v, w = e.commands, e.rd.root_lin_vel_b[:, :2], e.rd.root_ang_vel_b[:, 2]
         m["lin_err"] += float((c[:, :2] - v).norm(dim=1).mean()); m["yaw_err"] += float((c[:, 2] - w).abs().mean())
         m["cmd_speed"] += float(c[:, :2].norm(dim=1).mean()); m["speed"] += float(v.norm(dim=1).mean())
@@ -102,9 +97,6 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
     print("[supermimic] eval motor torque (N m: rms / typical p99 / p99 % of stall)",
           {names[i]: (round(float(tq_sq[i].sqrt()), 2), round(float(tq_peak[i]), 2), f"{100 * float(tq_peak[i]) / stall:.0f}%")
            for i in top})
-    env_terms = {k: round(float(v.mean()) / (steps * e.step_dt), 4) for k, v in e.episode_sums.items()}
-    print("[supermimic] eval model reward terms per step", {k: round(x, 5) for k, x in mt.items()})
-    print("[supermimic] eval env reward terms per second (since last reset)", env_terms)
     return {**{k: round(x / steps, 4) for k, x in m.items()}, "falls_per_robot": round(falls / ad.n, 3),
             "leg_asym": round(asym, 3)}
 
@@ -128,7 +120,7 @@ def main():
         cfg.curriculum_dr_events = [e for e in cfg.curriculum_dr_events if e != "randomize_payload"]
         cfg.events["randomize_payload"].params["mass_distribution_params"] = (args.payload, args.payload)
     smc = {"paper": SuperMimicConfig(), "laptop": laptop(), "tiny": tiny()}[args.preset]
-    mirror = not args.no_mirror
+    mirror = True
     if args.eval or args.export:                              # use a checkpoint with the actor it was trained with
         mirror = bool(torch.load(args.eval or args.export, map_location="cpu")["config"].get("mirror", False))
     smc = replace(smc, seed=args.seed, model=args.model, mirror=mirror, **({"lr": args.lr} if args.lr else {}),
@@ -147,11 +139,6 @@ def main():
         with open(os.path.join(log_dir, "run.json"), "w") as f:
             json.dump({"supermimic": asdict(smc), "config_path": args.config_path, "num_envs": args.num_envs,
                        "flat": not args.rough, "pushes": args.pushes}, f, indent=2)
-        if smc.mirror:
-            from models.equivariant import check_involution
-            op, os_, ap, as_ = (t.cpu() for t in ad.mirror_tables())
-            check_involution(op, os_, "observation mirror"); check_involution(ap, as_, "action mirror")
-            print("[supermimic] mirror-symmetric actor")
         sm = SuperMimic(ad, smc, log_dir=None if (args.eval or args.export) else log_dir)
         if args.export:
             from src.isaaclab.export_onnx import export_whole_body
@@ -182,14 +169,14 @@ def main():
                 env.command_generator.set_manual(tuple(args.command))
             for who, pol in (("policy", sm.actor), ("standing", lambda o: torch.zeros(ad.n, ad.action_dim, device=ad.device))):
                 rec = args.record if who == "policy" else None
-                print("[supermimic] eval", who, evaluate(ad, pol, mdp=getattr(sm.wm, "mdp", None), record=rec), flush=True)
+                print("[supermimic] eval", who, evaluate(ad, pol, record=rec), flush=True)
             env.close()
             return
 
         def show(it, logs):
             keys = ("wm/state", "wm/reward", "wm/term", "policy/J", "policy/imagined_reward",
                     "policy/imagined_survival", "critic/loss", "env/episode_return", "env/episode_length",
-                    "env/model_reward", "perf/s_collect", "perf/s_wm", "perf/s_policy",
+                    "env/model_reward",
                     "perf/iters_per_s", "perf/env_steps")
             print(f"[supermimic] it {it} " + " ".join(f"{k.split('/')[1]}={logs[k]:.4g}" for k in keys if k in logs),
                   flush=True)

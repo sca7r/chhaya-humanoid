@@ -73,7 +73,6 @@ class SuperMimic:
             self.wm = WorldModelEth(S, A, C, lay, cfg.wm_hidden, mdp).to(self.dev)
         else:
             self.wm = WorldModel(S, A, C, lay, cfg.wm_hidden, cfg.head_hidden).to(self.dev)
-        self._t = {}                                    # seconds per phase since the last log
         self._mr = [0.0, 0]                             # model reward on real transitions: sum, count
         self.actor = Actor(F, lay.history, A, cfg.actor_hidden, lay.action_bound).to(self.dev)
         if cfg.mirror:
@@ -219,11 +218,6 @@ class SuperMimic:
             for g in o.param_groups:
                 g["lr"] = cfg.lr * scale
 
-    def _clock(self) -> float:
-        if self.dev.type == "cuda":
-            torch.cuda.synchronize()
-        return time.time()
-
     def train(self, iterations: int = None, minutes: float = None, on_log=None) -> nn.Module:
         cfg = self.cfg
         iterations = cfg.iterations if iterations is None else iterations
@@ -236,16 +230,10 @@ class SuperMimic:
             n = int(self._step_credit)
             self._step_credit -= n
             n = max(n, -(-cfg.min_transitions_per_iter // self.env.n))   # ceil: the data floor
-            tick = self._clock()
             self.collect(n, cfg.action_noise)
             self._set_lr()
-            t1 = self._clock()
             logs = self.fit_world_model()
-            t2 = self._clock()
             logs.update(self.improve_policy())
-            t3 = self._clock()
-            for k, x in (("collect", t1 - tick), ("wm", t2 - t1), ("policy", t3 - t2)):
-                self._t[k] = self._t.get(k, 0.0) + x
             self.it += 1
             if self.it % cfg.log_every == 0:
                 logs = {k: float(v) for k, v in logs.items()}
@@ -257,7 +245,6 @@ class SuperMimic:
                     logs["env/model_reward"] = self._mr[0] / self._mr[1]
                     self._mr = [0.0, 0]
                 now = time.time()
-                logs.update({f"perf/s_{k}": x / cfg.log_every for k, x in self._t.items()}); self._t = {}
                 logs["perf/iters_per_s"] = cfg.log_every / max(now - last, 1e-9)
                 logs["perf/env_steps"] = float(self.env_steps * self.env.n)
                 last = now

@@ -16,7 +16,6 @@ import numpy as np
 from src.mujoco.record_reel import _dressed_xml
 
 XML = os.path.join(os.path.dirname(__file__), "..", "..", "envs", "assets", "robotV2", "chhaya.xml")
-MESHES = os.path.join(os.path.dirname(__file__), "..", "..", "robot_hardware", "robot_description", "meshes")
 # battery and Raspberry Pi 5 stand-ins from the CAD (their mass is in chest_link already; the meshes are not)
 EXTRAS = os.path.join(os.path.dirname(__file__), "..", "..", "robot_hardware", "cad", "parametric", "checks", "extras")
 
@@ -32,70 +31,27 @@ _LIGHT = '<light name="v_key" directional="true" castshadow="true" pos="1 -1 3" 
 _LEG_JOINTS = ("hip_upper", "hip_lower", "ankle")
 
 
-def _stl_parts(path):
-    """Triangles of a binary STL grouped into connected solids, largest first."""
-    import struct
-    b = open(path, "rb").read()
-    n = struct.unpack("<I", b[80:84])[0]
-    v = np.frombuffer(b[84:], dtype=np.dtype([("n", "<f4", 3), ("v", "<f4", (3, 3)), ("c", "<u2")]), count=n)["v"]
-    _, idx = np.unique(np.round(v.reshape(-1, 3), 4), axis=0, return_inverse=True)
-    idx = idx.reshape(-1, 3)
-    par = np.arange(idx.max() + 1)
-
-    def root(x):
-        while par[x] != x:
-            par[x] = par[par[x]]
-            x = par[x]
-        return x
-    for t in idx:
-        r = [root(x) for x in t]
-        par[r[1]] = par[r[2]] = r[0]
-    lab = np.array([root(t[0]) for t in idx])
-    return [v[lab == k] for k in sorted(set(lab), key=lambda k: -(lab == k).sum())]
-
-
 def _styled_xml(src):
-    """_dressed_xml (sky, checker floor) plus the colour scheme; the chest mesh is split into frame, head, rack."""
+    """_dressed_xml (sky, checker floor) plus the colour scheme and the battery / Pi stand-ins on the chest."""
     import re
-    import struct
-    import tempfile
     path = _dressed_xml(src)
     x = open(path).read()
-    d = os.path.dirname(path)
-    # chest_link.stl holds three solids: the chest frame (largest box), the halo head and the electronics rack
-    parts = _stl_parts(os.path.join(MESHES, "chest_link.stl"))
-    names = []
-    for i, tris in enumerate(parts):
-        f = os.path.join(d, f"chest_part{i}.stl")
-        with open(f, "wb") as fh:
-            fh.write(b"\0" * 80 + struct.pack("<I", len(tris)))
-            for t in tris:
-                fh.write(struct.pack("<12fH", 0, 0, 0, *t.reshape(-1), 0))
-        names.append(f)
-    zc = [float(t.reshape(-1, 3)[:, 2].mean()) for t in parts]
-    head, rack = int(np.argmax(zc)), int(np.argmin(zc))           # head on top, rack under the chest
-    mat = {head: "v_print", rack: "v_print"}
-    meshes = "".join(f'<mesh name="v_chest{i}" file="{f}" scale="0.001 0.001 0.001"/>' for i, f in enumerate(names))
-    geoms = "".join(f'<geom type="mesh" mesh="v_chest{i}" contype="0" conaffinity="0" group="1" material="{mat.get(i, "v_print")}"/>'
-                    for i in range(len(names)))
-    # the chest_link frame is the CAD frame (no joint offset), so the stand-ins go in as they are (mm)
-    for name, m in (("battery", "v_batt"), ("computer", "v_pcb")):
+    meshes, extra = "", ""
+    for name, m in (("battery", "v_batt"), ("computer", "v_pcb")):    # chest_link frame = CAD frame (mm)
         meshes += f'<mesh name="v_{name}" file="{os.path.abspath(os.path.join(EXTRAS, name + ".stl"))}" scale="0.001 0.001 0.001"/>'
-        geoms += f'<geom type="mesh" mesh="v_{name}" contype="0" conaffinity="0" group="1" mass="0" material="{m}"/>'
+        extra += f'<geom type="mesh" mesh="v_{name}" contype="0" conaffinity="0" group="1" mass="0" material="{m}"/>'
     x = x.replace("<asset>", "<asset>" + meshes + _MATERIALS, 1)
-    x, n = re.subn(r'<geom type="mesh" mesh="chest_link" [^>]*/>', geoms, x, count=1)
+    x, n = re.subn(r'(<geom type="mesh" mesh="chest_link" [^>]*/>)', rf"\1{extra}", x, count=1)
     assert n == 1, "chest_link geom not found"
     x = re.sub(r'(<geom [^>]*mesh="[^"]*_servos"[^>]*?)rgba="[^"]*"', r'\1material="v_servo"', x)
-    x = re.sub(r'(<geom [^>]*mesh="[lr]_(shoulder|upper_arm|elbow|forearm)_link"[^>]*?)rgba="[^"]*"', r'\1material="v_print"', x)
+    x = re.sub(r'(<geom [^>]*mesh="(chest_link|[lr]_(shoulder|upper_arm|elbow|forearm)_link)"[^>]*?)rgba="[^"]*"',
+               r'\1material="v_print"', x)
 
     def leg(m):
-        g = m.group(0)
-        return g.replace("/>", f' material="{"v_joint" if any(k in m.group(1) for k in _LEG_JOINTS) else "v_print"}"/>')
+        return m.group(0).replace("/>", f' material="{"v_joint" if any(k in m.group(1) for k in _LEG_JOINTS) else "v_print"}"/>')
     x = re.sub(r'<geom [^>]*mesh="((?:[lr]_\w+_link_1)|base_link)"[^>]*/>', leg, x)
-    x = x.replace("<worldbody>", "<worldbody>" + _LIGHT, 1)
-    out = os.path.join(tempfile.mkdtemp(prefix="chhaya_look_"), "chhaya.xml")
-    open(out, "w").write(x)
-    return out
+    open(path, "w").write(x.replace("<worldbody>", "<worldbody>" + _LIGHT, 1))
+    return path
 
 
 def main():
@@ -105,7 +61,6 @@ def main():
     p.add_argument("--gif", default=None, help="also a small GIF (GitHub shows GIFs inline)")
     p.add_argument("--width", type=int, default=1280)
     p.add_argument("--height", type=int, default=720)
-    p.add_argument("--still", default=None, help="write one PNG of frame 0 here and stop (look check)")
     p.add_argument("--spacing", type=float, default=0.8, help="crowd: grid spacing of the spawn points [m]")
     a = p.parse_args()
     rec = np.load(a.npz)
@@ -146,9 +101,6 @@ def main():
             else:                                  # the other robots: their geoms only (floor and lights once)
                 mujoco.mjv_addGeoms(m, d, opt, pert, mujoco.mjtCatBit.mjCAT_DYNAMIC, r.scene)
         frames.append(r.render())
-        if a.still:
-            imageio.imwrite(a.still, frames[0])
-            return
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     imageio.mimwrite(a.out, frames, fps=round(1 / dt), quality=8, macro_block_size=8)
     if a.gif:
