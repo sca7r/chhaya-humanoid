@@ -108,6 +108,15 @@ train:
       # stays down; exp kernel in [0, 1], gated to moving commands. The stepping signal the 10-17..10-29 runs lacked:
       # swing_foot_height / feet_air_time logged 0.03-0.1 per episode vs track_lin_vel 19, and every run shuffled.
       feet_clock_height: 1.0
+      # Gait-table imitation (weights of config_gait_reference.yaml); the reference block is under env_config
+      imitation_joint_pos: 0.6
+      imitation_foot_pos: 0.4
+      imitation_contact: 0.5
+      imitation_orientation: 0.2
+      imitation_lin_vel: 0.3
+      imitation_ang_vel: 0.2
+      imitation_joint_vel: 0.1
+      imitation_foot_height: 1.5
       feet_air_time: 3.0                # touchdown-paid (feet_air_time_mode below); was 0.05 per-step
       # 0.15 -> 1.5, alongside widening the clearance window to 0.09 in biped_env.
       # Break-even analysis: bending the knee to ~0.6 rad for clearance costs ~0.024/step in
@@ -374,6 +383,16 @@ train:
     gait_clock_mode: cadence_law
     gait_clock_period_min_s: 0.6
     gait_clock_period_max_s: 0.9
+    # Gait table (2026-11-19): Chhaya walks the legs-only biped's gait. The legs are unchanged, so the baked table
+    # (robot_motion_reference/processed/gait_table.npz, 12 leg joints) applies as is; the arms are free. With a table the
+    # clock runs at the table's cadence and the gait_clock_* keys above are ignored. The home and scales are NOT `auto`:
+    # they were sized for the baked gaits already (|a| <= 0.9), so existing checkpoints keep their meaning.
+    reference:
+      npz_path: robot_motion_reference/processed/gait_table.npz
+      stand_threshold: 0.05
+      rsi_prob: 0.8
+      rsi_joint_noise: 0.05
+      std: {joint_pos: 0.15, joint_vel: 1.5, foot_pos: 0.02, orientation: 0.08, lin_vel: 0.1, ang_vel: 0.3, foot_height: 0.010}
     gait_clock_period_s: 0.7
     gait_clock_stand_threshold: 0.05
     # Ramps in common_step_counter units (control steps), the same unit as curriculum_dr_*.

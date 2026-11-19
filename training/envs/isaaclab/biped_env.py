@@ -1737,7 +1737,7 @@ class BipedEnv(DirectRLEnv):
         the 4 mm std, so it is used as is).
         ref: the frame _get_rewards already sampled for this step (shared with the tracking term);
         None samples it here."""
-        g, d, std = self.gait_ref, self.robot.data, self._ref_std
+        g, d, std = self.gait_ref, self.rd, self._ref_std
         _agg_min = self.cfg.imitation_foot_agg == "min"
         _soft = self.cfg.contact_height_mode == "soft"
         if ref is None:

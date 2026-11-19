@@ -108,6 +108,9 @@ class RewardCfg:
     w_still: float = -0.5           # standing commands: per foot off the ground
     w_dev_hip: float = -0.5         # hip roll and yaw, L1
     w_dev_arms: float = -0.1
+    w_imit_q: float = 1.0           # with a gait table (env `reference:`): leg joints, sole heights and contacts
+    w_imit_h: float = 1.0           # of the table at (command, phase); the contact term replaces w_gait
+    w_imit_c: float = 0.5
     w_flat_l2: float = -5.0         # the env's foot_flat_l2 / foot_flat_l1: sole roll of feet on the ground
     w_flat_l1: float = -3.0
     cmd_threshold: float = 0.02
@@ -133,7 +136,9 @@ class ChhayaMDP:
         self.m_arm = torch.tensor([1.0 if any(k in n for k in ("shoulder", "arm", "elbow")) else 0.0 for n in names], device=dev)
         self.fk = LegFK(ph["urdf"], names)
         self.sole = ph.get("sole_height", 0.0)
-        self.max_step_reward = self.dt * (cfg.w_lin + cfg.w_ang + cfg.w_upright + cfg.w_pose + cfg.w_gait)
+        self.ref = None                                          # gait table, set by the adapter (attach_reference)
+        self.max_step_reward = self.dt * (cfg.w_lin + cfg.w_ang + cfg.w_upright + cfg.w_pose + cfg.w_gait
+                                          + cfg.w_imit_q + cfg.w_imit_h)
 
     def _sl(self, s, idx):
         return s[:, idx[0]:idx[1]]
@@ -199,8 +204,22 @@ class ChhayaMDP:
         cl, cr = c[:, 0], c[:, 1]
         # Locked to the clock, the mirror-symmetric actor's two half-cycles are mirror images: no one-sided limp.
         sp = self._sl(s2, self.iph)[:, 0]
-        want_r, want_l = (sp + 1) * 0.5, (1 - sp) * 0.5
-        r_gait = walking * (1 - 0.5 * ((want_r - cr).abs() + (want_l - cl).abs()))
+        r_imit_q = r_imit_h = torch.zeros_like(sp)
+        if self.ref is None:
+            want_r, want_l = (sp + 1) * 0.5, (1 - sp) * 0.5
+            r_gait = walking * (1 - 0.5 * ((want_r - cr).abs() + (want_l - cl).abs()))
+        else:                       # the table at the post-step (command, phase), as the env's imitation terms
+            with torch.no_grad():
+                ph = self._sl(s2, self.iph)
+                phase = torch.atan2(ph[:, 0], ph[:, 1]) / (2 * math.pi) % 1.0
+                standing = (cmd[:, :2].norm(dim=-1) < self.ref_stand) & (cmd[:, 2].abs() < self.ref_stand)
+                ref = self.ref.sample(cmd, phase, standing)
+                q_ref, h_ref, c_ref = self.ref.joint_field(ref, "joint_pos"), self.ref.field(ref, "foot_height"), self.ref.field(ref, "contact")
+            sd = self.ref_std
+            r_imit_q = torch.exp(-((q[:, self.ref_legs] - q_ref) ** 2).mean(-1) / sd["joint_pos"] ** 2)
+            r_imit_h = torch.exp(-((z2.clamp(min=0) - h_ref) / sd["foot_height"]) ** 2).mean(-1)   # table and z2: [left, right]
+            r_gait = 1 - (c - c_ref).abs().mean(-1)
+            r_gait = r_gait * cf.w_imit_c / cf.w_gait
         r_still = stand * (1 - c).sum(-1)
         roll = self._roll
         r_flat2, r_flat1 = (roll ** 2 * c).sum(-1), ((roll ** 2 + 1e-6).sqrt() * c).sum(-1)
@@ -208,7 +227,7 @@ class ChhayaMDP:
         t = {"lin": cf.w_lin * r_lin, "ang": cf.w_ang * r_ang, "upright": cf.w_upright * r_up, "pose": cf.w_pose * r_pose,
              "limits": cf.w_limits * r_lim, "action_rate": cf.w_action_rate * r_rate, "lin_z": cf.w_lin_z * r_lin_z,
              "ang_xy": cf.w_ang_xy * r_ang_xy, "clearance": cf.w_clearance * r_clear, "slip": cf.w_slip * r_slip,
-             "gait": cf.w_gait * r_gait, "still": cf.w_still * r_still, "dev": r_dev,
+             "gait": cf.w_gait * r_gait, "imit_q": cf.w_imit_q * r_imit_q, "imit_h": cf.w_imit_h * r_imit_h, "still": cf.w_still * r_still, "dev": r_dev,
              "flat": cf.w_flat_l2 * r_flat2 + cf.w_flat_l1 * r_flat1}
         if terms:
             return {k: v * self.dt for k, v in t.items()}

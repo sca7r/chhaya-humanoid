@@ -68,6 +68,8 @@ class SuperMimic:
             mdp = ChhayaMDP(lay.phys, self.dev)
             if hasattr(env, "calibrate_sole"):
                 print(f"[supermimic] foot rest height {env.calibrate_sole(mdp):.4f} m")
+            if hasattr(env, "attach_reference") and env.attach_reference(mdp):
+                print("[supermimic] gait table: the analytic reward imitates it")
             self.wm = WorldModelEth(S, A, C, lay, cfg.wm_hidden, mdp).to(self.dev)
         else:
             self.wm = WorldModel(S, A, C, lay, cfg.wm_hidden, cfg.head_hidden).to(self.dev)

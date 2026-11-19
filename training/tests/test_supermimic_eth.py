@@ -81,3 +81,29 @@ def test_mirror_actor_is_exactly_equivariant():
     act.mirror = (op, os_, ap, as_)
     h = torch.randn(5, H, F)
     assert torch.allclose(act(h[..., op] * os_), act(h)[:, ap] * as_, atol=1e-6)
+
+
+def test_gait_table_imitation_terms():
+    """With a gait table attached the reward gains imit_q / imit_h, and is highest on the table's own pose."""
+    wm, ph, S, J = _model()
+
+    class Table:                                   # stand-in: every frame = home pose, feet down
+        def sample(self, cmd, phase, standing):
+            return torch.zeros(cmd.shape[0], 1)
+
+        def joint_field(self, ref, name):
+            return torch.zeros(ref.shape[0], 12)
+
+        def field(self, ref, name):
+            return torch.zeros(ref.shape[0], 2) + (1.0 if name == "contact" else 0.0)
+    mdp = wm.mdp
+    mdp.ref, mdp.ref_legs, mdp.ref_stand = Table(), torch.arange(12), 0.05
+    mdp.ref_std = {"joint_pos": 0.15, "foot_height": 0.01}
+    s = torch.zeros(2, S)
+    s[:, ph["g_b"][1] - 1] = -1.0
+    s[:, ph["phase"][1] - 1] = 1.0                 # cos = 1: phase 0
+    s[:, ph["h"][0]] = 0.3
+    s2 = s.clone()
+    s2[1, slice(*ph["q"])] = 0.3                   # robot 1 off the table's pose
+    t = mdp.reward(s, torch.zeros(2, J), s2, terms=True)
+    assert "imit_q" in t and t["imit_q"][0] > t["imit_q"][1]

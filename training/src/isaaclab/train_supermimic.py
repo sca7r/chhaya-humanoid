@@ -65,7 +65,7 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
     e, m = ad.env, {"lin_err": 0.0, "yaw_err": 0.0, "cmd_speed": 0.0, "speed": 0.0}
     ad.reset()
     falls, mt, rec = 0, {}, []
-    tq_sq, tq_peak, a_sum = 0.0, 0.0, 0.0                      # joint torque: mean square and 99th-percentile peak over robots
+    tq_sq, tq_peak, a_sum = 0.0, 0.0, 0.0      # joint torque: mean square, and the per-step 99th percentile over robots averaged
     for _ in range(steps):
         s0 = ad.state()
         a = policy(ad.policy_obs())
@@ -73,7 +73,7 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
         a_sum = a_sum + ad.executed_action()
         t = e.rd.applied_torque.abs()
         tq_sq = tq_sq + (t ** 2).mean(0) / steps
-        tq_peak = torch.maximum(torch.as_tensor(tq_peak, device=t.device), t.quantile(0.99, dim=0))
+        tq_peak = tq_peak + t.quantile(0.99, dim=0) / steps     # (a single worst instant is a reset transient)
         if record:
             d = e.rd
             rec.append(torch.cat([d.root_pos_w[:args.record_n] - e.scene.env_origins[:args.record_n],   # each from its own spawn
@@ -96,7 +96,7 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
     asym = float((am - am[:, ap] * as_)[:, :12].abs().max(1).values.mean())
     names, stall = list(e.robot.joint_names), 2.94           # STS3215 at 12 V
     top = sorted(range(len(names)), key=lambda i: -float(tq_peak[i]))[:5]
-    print("[supermimic] eval torque (N m: rms / p99 peak / peak % of stall)",
+    print("[supermimic] eval torque (N m: rms / typical p99 / p99 % of stall)",
           {names[i]: (round(float(tq_sq[i].sqrt()), 2), round(float(tq_peak[i]), 2), f"{100 * float(tq_peak[i]) / stall:.0f}%")
            for i in top})
     env_terms = {k: round(float(v.mean()) / (steps * e.step_dt), 4) for k, v in e.episode_sums.items()}
@@ -119,6 +119,8 @@ def main():
         cfg.scene.contact_forces.filter_shape_prim_expr = ["/World/ground/.*"]
     if not args.pushes:
         cfg.events.pop("push_robot", None)
+    if args.eval:
+        cfg.reference_rsi_prob = 0.0                   # evaluate from the ordinary reset, not mid-gait table starts
     if args.payload is not None:
         cfg.curriculum_dr_events = [e for e in cfg.curriculum_dr_events if e != "randomize_payload"]
         cfg.events["randomize_payload"].params["mass_distribution_params"] = (args.payload, args.payload)

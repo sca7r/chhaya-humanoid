@@ -67,6 +67,18 @@ class ChhayaAdapter:
                 "urdf": os.path.join(os.path.dirname(__file__), "..", "robot_hardware", "robot_description", "urdf",
                                      "Robot.urdf" if na == 0 else "chhaya.urdf")}
 
+    def attach_reference(self, mdp) -> bool:
+        """Give the analytic reward the env's gait table (None without a `reference:` block)."""
+        e = self.env
+        if getattr(e, "gait_ref", None) is None:
+            return False
+        names = list(e.robot.joint_names)
+        mdp.ref = e.gait_ref
+        mdp.ref_legs = torch.tensor([names.index(n) for n in e.policy_joint_names], device=self.device)
+        mdp.ref_stand = float(e.cfg.reference_stand_threshold)
+        mdp.ref_std = dict(e.cfg.reference_std)
+        return True
+
     def calibrate_sole(self, mdp) -> float:
         """Foot-link height when standing at reset = the rest height the reward's foot terms measure from."""
         mdp.sole = 0.0
