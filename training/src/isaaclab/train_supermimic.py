@@ -46,6 +46,8 @@ ap.add_argument("--record_n", type=int, default=1, help="with --record: how many
 ap.add_argument("--command", type=float, nargs=3, default=None, metavar=("VX", "VY", "WZ"), help="with --eval: fixed command")
 ap.add_argument("--payload", type=float, default=None,
                 help="with --eval: fixed extra torso mass [kg] instead of the random payload (mass tolerance check)")
+ap.add_argument("--export", default=None, help="checkpoint: write a whole-body deployment bundle (ONNX, format 8)")
+ap.add_argument("--out_dir", default=None, help="with --export: bundle directory (default exported/<run>_<checkpoint>)")
 ap.add_argument("--resume", default=None, help="checkpoint to continue training from (fine-tuning)")
 ap.add_argument("--log_dir", default=os.path.join(ROOT, "runs"))
 add_launch_args(ap)
@@ -127,8 +129,8 @@ def main():
         cfg.events["randomize_payload"].params["mass_distribution_params"] = (args.payload, args.payload)
     smc = {"paper": SuperMimicConfig(), "laptop": laptop(), "tiny": tiny()}[args.preset]
     mirror = not args.no_mirror
-    if args.eval:                                             # evaluate a checkpoint with the actor it was trained with
-        mirror = bool(torch.load(args.eval, map_location="cpu")["config"].get("mirror", False))
+    if args.eval or args.export:                              # use a checkpoint with the actor it was trained with
+        mirror = bool(torch.load(args.eval or args.export, map_location="cpu")["config"].get("mirror", False))
     smc = replace(smc, seed=args.seed, model=args.model, mirror=mirror, **({"lr": args.lr} if args.lr else {}),
                   **({"save_every": args.save_every} if args.save_every else {}),
                   **({"min_transitions_per_iter": args.min_transitions} if args.min_transitions is not None else {}))
@@ -150,7 +152,25 @@ def main():
             op, os_, ap, as_ = (t.cpu() for t in ad.mirror_tables())
             check_involution(op, os_, "observation mirror"); check_involution(ap, as_, "action mirror")
             print("[supermimic] mirror-symmetric actor")
-        sm = SuperMimic(ad, smc, log_dir=None if args.eval else log_dir)
+        sm = SuperMimic(ad, smc, log_dir=None if (args.eval or args.export) else log_dir)
+        if args.export:
+            from src.isaaclab.export_onnx import export_whole_body
+            sm.load(args.export)
+            e = ad.env
+            live = {"joint_names": list(e.policy_joint_names) + list(e.cfg.arm_joint_names),
+                    "history": ad.layout.history, "frame": ad.P, "mirror": smc.mirror,
+                    "arm_rest_rad": e.arm_default.tolist(), "arm_scale_rad": e.arm_scale.tolist(),
+                    "arm_limits_min": e.arm_lim_min.tolist(), "arm_limits_max": e.arm_lim_max.tolist(),
+                    "o_mean": sm.actor.o_mean.tolist()}
+            run = os.path.basename(os.path.dirname(os.path.abspath(args.export)))
+            out = args.out_dir or os.path.join(ROOT, "exported", f"{run}_{os.path.basename(args.export)[:-3]}")
+            import copy
+            actor = copy.deepcopy(sm.actor).cpu()
+            if actor.mirror is not None:
+                actor.mirror = tuple(t.cpu() for t in actor.mirror)
+            rc = export_whole_body(actor, live, args.config_path, args.export, out)
+            env.close()
+            sys.exit(rc)
         if args.resume:
             sm.load(args.resume)
             print(f"[supermimic] resumed from {args.resume} at iteration {sm.it}")

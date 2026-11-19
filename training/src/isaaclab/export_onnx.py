@@ -429,10 +429,10 @@ def _scan_block(path: str, block: str) -> dict:
     with open(path, "r", encoding="utf-8") as fh:
         lines = fh.read().splitlines()
     start, indent = None, 0
-    for i, raw in enumerate(lines):
-        if raw.split("#", 1)[0].strip() == f"{block}:":
-            start, indent = i, len(raw) - len(raw.lstrip())
-            break
+    for i, raw in enumerate(lines):      # the shallowest match: chhaya.yaml also has arms.action_scale_rad
+        ind = len(raw) - len(raw.lstrip())
+        if raw.split("#", 1)[0].strip() == f"{block}:" and (start is None or ind < indent):
+            start, indent = i, ind
     if start is None:
         return {}
     body = []
@@ -447,11 +447,16 @@ def _scan_dict(path: str, key: str) -> dict:
     """A dict-valued key of the run's config.yaml, block style (`key:` + indented lines) or
     inline flow style (`key: {a: 1}`)."""
     import yaml
+    best = None                          # the shallowest `key:` line, as _scan_block
     with open(path, "r", encoding="utf-8") as fh:
         for raw in fh:
             s = raw.split("#", 1)[0].strip()
-            if s.startswith(key + ":") and s[len(key) + 1:].strip():
-                return yaml.safe_load(s[len(key) + 1:]) or {}
+            if s.startswith(key + ":"):
+                ind = len(raw) - len(raw.lstrip())
+                if best is None or ind < best[0]:
+                    best = (ind, s[len(key) + 1:].strip())
+    if best and best[1]:
+        return yaml.safe_load(best[1]) or {}
     return _scan_block(path, key)
 
 
@@ -607,6 +612,110 @@ def _load_command_limit(ckpt_dir: str, explicit_cfg: str | None, command_ranges:
     bv = (_scan_block(cfg, "commands").get("base_velocity") or {}) if cfg else {}
     shape = validate_shape(bv.get("limit_shape"))
     return {"shape": shape, **{k: list(command_ranges[k]) for k in ("lin_vel_x", "lin_vel_y", "ang_vel_z")}}
+
+
+# ---------------------------------------------------------------------------
+# Whole-body SuperMimic actor (format 8)
+# ---------------------------------------------------------------------------
+
+ARM_OBS_LAYOUT = {"arm_joint_pos_rel": [50, 58], "arm_joint_vel": [58, 66], "arm_previous_actions": [66, 74]}
+
+
+def export_whole_body(actor: nn.Module, live: dict, cfg_path: str, ckpt_path: str, out_dir: str, opset: int = 17) -> int:
+    """A SuperMimic actor (20 actions: the 12 legs in JOINT_NAMES order, then the 8 arms; 74-dim frame) as a bundle.
+
+    Called by src/isaaclab/train_supermimic.py --export with the live env, which alone knows the arm block and the
+    mirror tables (baked into ``actor``). Format 8 = whole body: a runtime that drives only the 12 legs must refuse it.
+    The actor normalises its own input (in the graph), so stage 1 is the identity. ``live``: joint_names (action
+    order), history, frame, arm_rest_rad, arm_scale_rad, arm_limits_min/max, o_mean (the actor's frame mean)."""
+    os.makedirs(out_dir, exist_ok=True)
+    names, hist, frame = list(live["joint_names"]), int(live["history"]), int(live["frame"])
+    in_dim, act_dim = hist * frame, len(names)
+    failures = []
+    if names[:12] != JOINT_NAMES:
+        failures.append(f"leg action order {names[:12]} != {JOINT_NAMES}")
+    if frame != 50 + 3 * (act_dim - 12):
+        failures.append(f"frame {frame} != 50 + 3 x {act_dim - 12} arm joints")
+    ckpt_dir = os.path.dirname(os.path.abspath(ckpt_path))
+    env = _gather_env_constants(cfg_path)
+    contract = _load_policy_contract(ckpt_dir, cfg_path, None)
+    if contract["action_map"] != "residual":
+        failures.append(f"action_map {contract['action_map']}: the whole-body export supports residual only")
+    gait_clock = _load_gait_clock(ckpt_dir, cfg_path, ckpt_path, env["gait_clock_freq"])
+    command_ranges = _load_command_ranges(ckpt_dir, cfg_path)
+    command_limit = _load_command_limit(ckpt_dir, cfg_path, command_ranges)
+    acc_z = float(live["o_mean"][2])
+    if not (8.0 < acc_z < 11.5):
+        failures.append(f"actor obs mean IMU specific-force Z = {acc_z:.3f}, expected ~+9.81")
+    step_dt = env["sim_dt"] * env["decimation"]
+
+    onnx_path = os.path.join(out_dir, "policy.onnx")
+    actor = actor.cpu().eval()
+    torch.onnx.export(actor, torch.zeros(1, in_dim), onnx_path, input_names=["obs"], output_names=["action"],
+                      opset_version=opset, do_constant_folding=True, dynamic_axes=None)
+    import onnxruntime as ort
+    sess = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+    rng, worst, got = np.random.default_rng(0), 0.0, None
+    for _ in range(100):
+        x = (rng.standard_normal((1, in_dim)) * 3.0).astype(np.float32)
+        with torch.no_grad():
+            ref = actor(torch.from_numpy(x)).numpy()
+        got = sess.run(["action"], {"obs": x})[0]
+        worst = max(worst, float(np.abs(ref - got).max()))
+    if worst > 1e-3:
+        failures.append(f"ONNX vs PyTorch max abs diff {worst:.3e} > 1e-3")
+    if got.shape != (1, act_dim) or not (np.abs(got) <= 1.0 + 1e-6).all():
+        failures.append(f"ONNX output shape {got.shape} or range wrong")
+    if failures:
+        print("\n[export] VALIDATION FAILED:", *(f"  - {f}" for f in failures), sep="\n", file=sys.stderr)
+        return 1
+    print(f"[export] ONNX vs PyTorch over 100 random inputs: max diff {worst:.3e} OK; IMU Z mean {acc_z:.2f} OK")
+
+    res, arm_scale = contract["residual"], [float(v) for v in live["arm_scale_rad"]]
+    sc_pos = res["scale_rad"] + arm_scale
+    sc_neg = (res["scale_neg_rad"] or res["scale_rad"]) + arm_scale
+    deploy = {
+        "format_version": 8,
+        "policy_role": "walk",
+        "whole_body": True,
+        "action_map": "residual",
+        "actuator": contract["actuator"],
+        "obs_dim": in_dim, "action_dim": act_dim, "history_size": hist, "obs_proprio_dim": frame,
+        "obs_layout": {**OBS_LAYOUT, **ARM_OBS_LAYOUT},
+        "history_order": "oldest_first",
+        "joint_names": names,
+        "joint_limits_min": env["joint_limits_min"] + [float(v) for v in live["arm_limits_min"]],
+        "joint_limits_max": env["joint_limits_max"] + [float(v) for v in live["arm_limits_max"]],
+        "default_joint_pos": res["home_rad"] + [float(v) for v in live["arm_rest_rad"]],
+        "action_scale_pos_rad": sc_pos, "action_scale_neg_rad": sc_neg,
+        # the actor normalises its own input inside policy.onnx: stage 1 is the identity
+        "obs_mean": [0.0] * in_dim, "obs_var": [1.0 - 1e-4] * in_dim, "obs_epsilon": 1e-4,
+        "action_filter_alpha": env["action_filter_alpha"],
+        "action_filter_applications_per_step": env["decimation"],
+        "step_dt": step_dt, "control_hz": round(1.0 / step_dt),
+        "gait_clock": gait_clock, "gait_clock_freq": env["gait_clock_freq"],
+        "command_ranges": command_ranges, "command_limit": command_limit,
+        "tilt_fault_rad": 0.784,
+        "notes": {
+            "format_8": "whole body: action = 12 legs (joint_names[:12], as format 6) + 8 arms (joint_names[12:]); "
+                        "every joint target = clip(default_joint_pos + scale * a, min, max) with the pos scale for "
+                        "a >= 0 and the neg scale for a < 0 (equal for the arms); the action filter and the action "
+                        "delay apply to the arms as to the legs. Frame = the 50 leg dims + arm joint_pos_rel, "
+                        "arm joint_vel, previous arm actions (obs_layout).",
+            "normalizer": "inside policy.onnx (SuperMimic actor); obs_mean/obs_var are the identity",
+            "action": "tanh applied in-graph; clip to [-1, 1]",
+        },
+    }
+    with open(os.path.join(out_dir, "deploy_config.json"), "w", encoding="utf-8") as fh:
+        json.dump(deploy, fh, indent=2)
+    import shutil
+    shutil.copy(cfg_path, os.path.join(out_dir, "config.yaml"))     # the training config (the MuJoCo gate reads it)
+    with open(os.path.join(out_dir, "checkpoint_info.json"), "w", encoding="utf-8") as fh:
+        json.dump({"source_checkpoint": os.path.abspath(ckpt_path), "trainer": "supermimic",
+                   "exported_utc": datetime.now(timezone.utc).isoformat(), "git_sha": _git_sha(),
+                   "equivariant_actor": bool(live.get("mirror")), "policy_role": "walk"}, fh, indent=2)
+    print(f"[export] whole-body bundle (format 8) ready: {out_dir}  ({os.path.getsize(onnx_path) / 1e6:.1f} MB)")
+    return 0
 
 
 def main() -> int:

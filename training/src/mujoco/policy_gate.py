@@ -75,6 +75,7 @@ WARMUP_STEPS = 25            # 0.5 s
 PREV_SLOT = slice(36, 48)    # previous_actions inside one 50-dim frame
 GRAV_SLOT = slice(6, 9)      # projected_gravity inside one 50-dim frame (imu_acc 0:3, gyro 3:6)
 FRAME = 50
+NA = 12                      # actions; a whole-body bundle (format 8) sets FRAME = 74, NA = 20 in main()
 
 # Pose-sanity / inter-leg-contact window (control steps of 0.02 s: 2 s .. 6 s)
 POSE_T0, POSE_T1 = 2.0, 6.0
@@ -184,6 +185,8 @@ class Policy:
 def _run_config_path(bundle: str) -> str:
     """<checkpoint root>/<run>/config.yaml: from deploy_config model_info or the bundle's checkpoint_info.json
     (source_checkpoint), else from the bundle name under checkpoints/ or checkpoints_getup/ (get-up bundles)."""
+    if os.path.exists(os.path.join(bundle, "config.yaml")):     # whole-body bundles carry their training config
+        return os.path.join(bundle, "config.yaml")
     cfg = json.load(open(os.path.join(bundle, "deploy_config.json")))
     mi = dict(cfg.get("model_info") or {})
     info = os.path.join(bundle, "checkpoint_info.json")
@@ -211,12 +214,12 @@ def _run_config_path(bundle: str) -> str:
 def spectral_radius(policy: Policy, obs: np.ndarray, h: float = 1e-3) -> float:
     """Spectral radius of d action / d previous_actions (newest frame), central finite difference."""
     base = (policy.hist - 1) * FRAME + PREV_SLOT.start
-    J = np.zeros((12, 12))
+    J = np.zeros((12, 12))                       # the leg block (whole-body: arms excluded)
     for j in range(12):
         up, dn = obs.copy(), obs.copy()
         up[base + j] += h
         dn[base + j] -= h
-        J[:, j] = (policy(up) - policy(dn)) / (2 * h)
+        J[:, j] = (policy(up)[:12] - policy(dn)[:12]) / (2 * h)
     return float(np.max(np.abs(np.linalg.eigvals(J))))
 
 
@@ -503,8 +506,9 @@ def run_case(policy: Policy, config, cmd, delay: int, seed: int, rate: float, st
     cprev = np.ones(2, bool)                     # reset: both feet assumed down
     n_td, clear_max, ss_runs, ss_cur = 0, 0.0, [], 0
 
-    prev = np.zeros(12)
-    fifo = deque([np.zeros(12)] * (1 + delay), maxlen=1 + delay)
+    prev = np.zeros(NA)
+    fifo = deque([np.zeros(NA)] * (1 + delay), maxlen=1 + delay)
+    arm_prev = slice(FRAME - (NA - 12), FRAME)   # whole-body frame: previous arm actions are its last NA - 12 dims
     raws, dA, gyro, vx, lim_n, fell = [], [], [], [], 0, None
     for i in range(steps):
         if collect is not None and i >= WARMUP_STEPS and i % 30 == 0:
@@ -535,9 +539,13 @@ def run_case(policy: Policy, config, cmd, delay: int, seed: int, rate: float, st
         # env.step() writes the DELAYED action into the new frame's previous_actions slot; the
         # Jetson feeds back the APPLIED one (a), so patch the newest frame and the history copy.
         if not legacy_prev_slot:     # --legacy-prev-slot keeps the delayed one (old mj_hw.py)
-            o[-FRAME:][PREV_SLOT] = a
-            env._history[-1][PREV_SLOT] = a
-            env.prev_actions[:] = a
+            o[-FRAME:][PREV_SLOT] = a[:12]
+            env._history[-1][PREV_SLOT] = a[:12]
+            env.prev_actions[:] = a[:12]
+            if NA > 12:
+                o[-FRAME:][arm_prev] = a[12:]
+                env._history[-1][arm_prev] = a[12:]
+                env.arm_prev_actions[:] = a[12:]
         if biased:                   # patched when pushed, so every stored history frame carries it
             o[-FRAME:][GRAV_SLOT] += bias
             env._history[-1][GRAV_SLOT] += bias
@@ -572,7 +580,7 @@ def run_case(policy: Policy, config, cmd, delay: int, seed: int, rate: float, st
                 slip_true_mms=np.nan, drag_mms=np.nan, foot_roll_deg=np.nan, flat_contact_frac=np.nan)
     foot_series = probe.series()
     if sl.stop - sl.start >= 10:          # fell before the window -> stays nan (falls are reported separately)
-        pose["sat"] = (np.abs(raws[sl]) > SAT_RAW).mean(axis=0)
+        pose["sat"] = (np.abs(raws[sl][:, :12]) > SAT_RAW).mean(axis=0)
         pose["jrel_deg"] = np.degrees(np.mean(jrel_t[sl], axis=0))
         tot = np.array([sum(c.values()) for c in leg_t[sl]])
         for k in PAIR_CLASSES:
@@ -771,6 +779,8 @@ def main(argv=None) -> int:
             print("[policy_gate] this is a get-up bundle (format 7); gate it with src/mujoco/getup_gate.py", file=sys.stderr)
             return 1
         config = Config(_run_config_path(bundle))
+        global FRAME, NA
+        FRAME, NA = int(policy.cfg.get("obs_proprio_dim", 50)), int(policy.cfg.get("action_dim", 12))
         assert policy.obs_dim == policy.hist * FRAME,             f"bundle obs_dim {policy.obs_dim} != history_size {policy.hist} * {FRAME}"
         if int(config.train.history_size) != policy.hist:
             print(f"[gate] WARNING: run config history_size {config.train.history_size} != bundle {policy.hist}")

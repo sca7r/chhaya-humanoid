@@ -106,7 +106,7 @@ class RewardCfg:
     w_slip: float = -1.0
     w_gait: float = 0.5             # the env's gait_phase_contact: right foot down when sin(phase) > 0, left when < 0
     w_still: float = -0.5           # standing commands: per foot off the ground
-    w_dev_hip: float = -0.5         # hip roll and yaw, L1
+    w_dev_hip: float = -0.5         # hip roll, hip yaw and ankle roll, L1
     w_dev_arms: float = -0.1
     # arm joint speed^2: the arms twisted at ~1.6 rad/s RMS for nothing, ~1.8 N m RMS through the servos' reflected
     # rotor inertia (above the STS3215's continuous rating). -0.02 makes that waggle cost ~0.2 per step.
@@ -142,7 +142,9 @@ class ChhayaMDP:
         self.q0 = torch.tensor(ph["q0"], device=dev)
         self.lo, self.hi = torch.tensor(ph["soft_lo"], device=dev), torch.tensor(ph["soft_hi"], device=dev)
         names = ph["joint_names"]
-        self.m_hip = torch.tensor([1.0 if ("hip_roll" in n or "hip_yaw" in n) else 0.0 for n in names], device=dev)
+        # hip roll/yaw and ankle roll: the standing A-frame (hips rolled in, ankles out, soles on their edges; the MuJoCo
+        # gate's edge-stance check) is a deviation of exactly these
+        self.m_hip = torch.tensor([1.0 if any(k in n for k in ("hip_roll", "hip_yaw", "ankle_roll")) else 0.0 for n in names], device=dev)
         self.m_arm = torch.tensor([1.0 if any(k in n for k in ("shoulder_roll", "arm_yaw", "elbow")) else 0.0 for n in names], device=dev)
         self.names = list(names)
         self.fk = LegFK(ph["urdf"], names)
