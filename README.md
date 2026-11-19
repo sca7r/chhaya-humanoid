@@ -104,16 +104,10 @@ The policy understands one command: how fast to go forward, how fast to go sidew
 turn. Every way of driving the robot comes down to producing that command, so new input methods do not
 need a new policy.
 
-```bash
-cd training
-python -m src.mujoco.drive --bundle exported/chhaya_final     # then open http://localhost:8000
-```
-
 | Input | How it works | Status |
 |---|---|---|
-| Tap a spot | tap the floor in the live view in your browser: the robot turns, walks there and stops | available in simulation |
-| Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in simulation |
-| Browser demo | the same, running entirely in the visitor's browser (`web/`, published to GitHub Pages) | available |
+| Tap a spot | tap the floor: the robot turns, walks there and stops | available in the browser demo |
+| Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in the browser demo |
 | Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
 
 The browser demo is `web/`: MuJoCo compiled to WebAssembly, the policy in onnxruntime-web and the same servo

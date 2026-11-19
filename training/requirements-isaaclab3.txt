@@ -13,4 +13,3 @@ mujoco>=3.2
 onnx
 onnxruntime
 pytest
-pillow
