@@ -13,7 +13,7 @@ import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from utils.teleop import (DEFAULT_PUSH_RANGE, SpeedLevel, arc_points, axes_to_command,  # noqa: E402
+from utils.teleop import (DEFAULT_PUSH_RANGE, go_to_axes, SpeedLevel, arc_points, axes_to_command,  # noqa: E402
                           deadzone2, push_range, sample_push)
 
 R = {"lin_vel_x": (-0.1, 0.2), "lin_vel_y": (-0.15, 0.15), "ang_vel_z": (-0.8, 0.8)}
@@ -166,3 +166,12 @@ def test_visualize_feeds_one_instancer_per_colour(sampler_mod):
         assert kw["translations"].shape == (m, 3) and kw["orientations"].shape == (m, 4)
         assert kw["scales"].shape == (m, 3) and kw["marker_indices"].shape == (m,)
     assert len(calls) == 2
+
+
+def test_go_to_axes_turns_toward_and_stops_at_the_target():
+    assert go_to_axes(0, 0, 0, 1, 0) == (1.0, 0.0, 0.0)              # straight ahead: walk
+    fwd, _, turn = go_to_axes(0, 0, 0, 0, 1)                         # to the left: turn left on the spot
+    assert turn == 1.0 and fwd < 1e-9
+    assert go_to_axes(0, 0, 0, 0, -1)[2] == -1.0
+    assert go_to_axes(0, 0, math.pi, -1, 0)[0] == 1.0                # already facing it after a half turn
+    assert go_to_axes(0, 0, 0, 0.02, 0) == (0.0, 0.0, 0.0)           # arrived

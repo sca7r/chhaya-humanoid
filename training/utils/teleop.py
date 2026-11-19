@@ -47,6 +47,19 @@ def axes_to_command(fwd: float, lat: float, turn: float, ranges, shape: str = "b
     return limit_command(cmd, r, validate_shape(shape))
 
 
+def go_to_axes(x: float, y: float, yaw: float, tx: float, ty: float, arrive: float = 0.05):
+    """Tap-to-walk: robot pose (x, y, yaw) and a floor target (tx, ty) -> (fwd, lat, turn) in [-1, 1] for
+    axes_to_command(). Turns toward the target, walks while roughly facing it, stops within `arrive` m."""
+    dx, dy = tx - x, ty - y
+    dist = math.hypot(dx, dy)
+    if dist < arrive:
+        return 0.0, 0.0, 0.0
+    head = (math.atan2(dy, dx) - yaw + math.pi) % (2 * math.pi) - math.pi
+    turn = max(-1.0, min(1.0, head / (math.pi / 4)))                 # full turn rate beyond 45 deg off
+    fwd = min(1.0, dist / 0.3) * max(0.0, math.cos(head)) ** 2       # slow near the target, turn first if behind
+    return fwd, 0.0, turn
+
+
 class SpeedLevel:
     """Fraction of the command range a held key / full stick gives, in 10 % steps."""
 

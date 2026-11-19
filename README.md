@@ -101,11 +101,16 @@ The policy understands one command: how fast to go forward, how fast to go sidew
 turn. Every way of driving the robot comes down to producing that command, so new input methods do not
 need a new policy.
 
+```bash
+cd training
+python -m src.mujoco.drive --bundle exported/chhaya_final
+```
+
 | Input | How it works | Status |
 |---|---|---|
-| Keyboard | `W` `S` forward and back, `A` `D` sideways, `Q` `E` turn, `Z` `X` speed, `Space` push | in the MuJoCo viewer for SAC policies (`src/mujoco/sim2real.py --teleop`) |
-| Gamepad | left stick moves, right stick turns, `LB` `RB` change speed | same as the keyboard |
-| Tap a spot | tap a point on the floor in the viewer or the phone UI, and the robot turns and walks to it | planned |
+| Tap a spot | right double-click the floor in the viewer: the robot turns, walks there and stops | available in simulation |
+| Keyboard | `I` `M` forward and back, `J` `L` turn, `U` `O` step sideways, `K` stop | available in simulation |
+| Phone | the same tap-to-walk on a floor map, served by the Raspberry Pi | planned |
 | Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
 
 Commands are limited to the range the policy was trained on (`config/chhaya.yaml`), whatever the input.
