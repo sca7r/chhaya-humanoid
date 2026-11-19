@@ -7,8 +7,6 @@ import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/o
 import { createSim, goToAxes } from './sim.mjs';
 
 const $ = id => document.getElementById(id), say = t => { $('progress').textContent = t; };
-if (location.hostname.endsWith('.github.io'))           // the Source link: <user>.github.io/<repo>/ -> github.com/<user>/<repo>
-  $('repo').href = `https://github.com/${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}`;
 const KEYS = { up: [1, 0, 0], down: [-1, 0, 0], left: [0, 0, 1], right: [0, 0, -1], sleft: [0, 1, 0], sright: [0, -1, 0], stop: [0, 0, 0] };
 
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
