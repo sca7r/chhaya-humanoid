@@ -59,6 +59,7 @@ class ChhayaAdapter:
         lay = self.layout
         return {"v_b": (P, P + 3), "h": (P + 3, P + 4), "q": (b, b + J), "qd": (b + J, b + 2 * J),
                 "w_b": (b + 2 * J, b + 2 * J + 3), "g_b": (b + 2 * J + 3, b + 2 * J + 6), "cmd": (9, 12),
+                "phase": (48, 50),                 # gait clock (sin, cos) in the proprio frame
                 "action_dst": list(lay.action_dst), "action_src": list(lay.action_src),
                 "joint_names": list(e.robot.joint_names), "q0": d.default_joint_pos[0].tolist(),
                 "soft_lo": lim[:, 0].tolist(), "soft_hi": lim[:, 1].tolist(),

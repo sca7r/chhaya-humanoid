@@ -104,7 +104,7 @@ class RewardCfg:
     w_clearance: float = -2.0       # swing feet below the target, times their horizontal speed
     clearance_target: float = 0.025  # the env's clock_swing_height_m
     w_slip: float = -1.0
-    w_gait: float = 0.5             # one foot down, one up while walking
+    w_gait: float = 0.5             # the env's gait_phase_contact: right foot down when sin(phase) > 0, left when < 0
     w_still: float = -0.5           # standing commands: per foot off the ground
     w_dev_hip: float = -0.5         # hip roll and yaw, L1
     w_dev_arms: float = -0.1
@@ -124,7 +124,7 @@ class ChhayaMDP:
         self.cfg, self.dt, dev = cfg, ph["dt"], device
         self.sub = (ph["decimation"] + 1) / (2.0 * ph["decimation"])     # mean weight of the new velocity over the substeps
         self.iv, self.ih, self.iq, self.iqd = ph["v_b"], ph["h"], ph["q"], ph["qd"]
-        self.iw, self.ig, self.icmd = ph["w_b"], ph["g_b"], ph["cmd"]
+        self.iw, self.ig, self.icmd, self.iph = ph["w_b"], ph["g_b"], ph["cmd"], ph["phase"]
         self.adst, self.asrc = ph["action_dst"], ph["action_src"]
         self.q0 = torch.tensor(ph["q0"], device=dev)
         self.lo, self.hi = torch.tensor(ph["soft_lo"], device=dev), torch.tensor(ph["soft_hi"], device=dev)
@@ -197,7 +197,10 @@ class ChhayaMDP:
         r_clear = (torch.relu(cf.clearance_target - z2) * (1 - c) * vh2.clamp(min=1e-8).sqrt()).sum(-1) * active
         r_slip = (vh2 * c).sum(-1) * active
         cl, cr = c[:, 0], c[:, 1]
-        r_gait = walking * (cl * (1 - cr) + cr * (1 - cl) - 2 * (1 - cl) * (1 - cr))
+        # Locked to the clock, the mirror-symmetric actor's two half-cycles are mirror images: no one-sided limp.
+        sp = self._sl(s2, self.iph)[:, 0]
+        want_r, want_l = (sp + 1) * 0.5, (1 - sp) * 0.5
+        r_gait = walking * (1 - 0.5 * ((want_r - cr).abs() + (want_l - cl).abs()))
         r_still = stand * (1 - c).sum(-1)
         roll = self._roll
         r_flat2, r_flat1 = (roll ** 2 * c).sum(-1), ((roll ** 2 + 1e-6).sqrt() * c).sum(-1)

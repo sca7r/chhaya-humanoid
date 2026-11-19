@@ -65,10 +65,15 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
     e, m = ad.env, {"lin_err": 0.0, "yaw_err": 0.0, "cmd_speed": 0.0, "speed": 0.0}
     ad.reset()
     falls, mt, rec = 0, {}, []
+    tq_sq, tq_peak, a_sum = 0.0, 0.0, 0.0                      # joint torque: mean square and 99th-percentile peak over robots
     for _ in range(steps):
         s0 = ad.state()
         a = policy(ad.policy_obs())
         _, term, _ = ad.step(a)
+        a_sum = a_sum + ad.executed_action()
+        t = e.rd.applied_torque.abs()
+        tq_sq = tq_sq + (t ** 2).mean(0) / steps
+        tq_peak = torch.maximum(torch.as_tensor(tq_peak, device=t.device), t.quantile(0.99, dim=0))
         if record:
             d = e.rd
             rec.append(torch.cat([d.root_pos_w[:args.record_n] - e.scene.env_origins[:args.record_n],   # each from its own spawn
@@ -85,10 +90,20 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
         import numpy as np
         np.savez(record, traj=torch.stack(rec).numpy(), joint_names=np.array(e.robot.joint_names), dt=e.step_dt)
         print("[supermimic] recorded", record)
+    # left-right asymmetry: each robot's mean leg action against its mirror image (0 = symmetric gait)
+    op, os_, ap, as_ = ad.mirror_tables()
+    am = a_sum / steps
+    asym = float((am - am[:, ap] * as_)[:, :12].abs().max(1).values.mean())
+    names, stall = list(e.robot.joint_names), 2.94           # STS3215 at 12 V
+    top = sorted(range(len(names)), key=lambda i: -float(tq_peak[i]))[:5]
+    print("[supermimic] eval torque (N m: rms / p99 peak / peak % of stall)",
+          {names[i]: (round(float(tq_sq[i].sqrt()), 2), round(float(tq_peak[i]), 2), f"{100 * float(tq_peak[i]) / stall:.0f}%")
+           for i in top})
     env_terms = {k: round(float(v.mean()) / (steps * e.step_dt), 4) for k, v in e.episode_sums.items()}
     print("[supermimic] eval model reward terms per step", {k: round(x, 5) for k, x in mt.items()})
     print("[supermimic] eval env reward terms per second (since last reset)", env_terms)
-    return {**{k: round(x / steps, 4) for k, x in m.items()}, "falls_per_robot": round(falls / ad.n, 3)}
+    return {**{k: round(x / steps, 4) for k, x in m.items()}, "falls_per_robot": round(falls / ad.n, 3),
+            "leg_asym": round(asym, 3)}
 
 
 def main():

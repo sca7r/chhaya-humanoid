@@ -41,7 +41,7 @@ def _model():
     b = P + 10
     S = b + 2 * J + 6
     ph = {"v_b": (P, P + 3), "h": (P + 3, P + 4), "q": (b, b + J), "qd": (b + J, b + 2 * J),
-          "w_b": (b + 2 * J, b + 2 * J + 3), "g_b": (b + 2 * J + 3, b + 2 * J + 6), "cmd": (0, 3),
+          "w_b": (b + 2 * J, b + 2 * J + 3), "g_b": (b + 2 * J + 3, b + 2 * J + 6), "cmd": (0, 3), "phase": (4, 6),
           "action_dst": [3, 4, 5], "action_src": [0, 1, 2], "joint_names": NAMES, "q0": [0.0] * J,
           "soft_lo": [-1.0] * J, "soft_hi": [1.0] * J, "dt": 0.02, "decimation": 4, "urdf": URDF}
     lay = Layout(obs=list(range(P)), obs_noise_std=[0.0] * P, action_dst=[3, 4, 5], action_src=[0, 1, 2],
