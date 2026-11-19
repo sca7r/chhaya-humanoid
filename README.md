@@ -8,7 +8,7 @@
 two claws and carries sensors in a halo-shaped head. It learned to walk on its own, in simulation, by trial
 and error: one neural network drives all 20 of its joints, 50 times a second.
 
-*Chhaya* is Hindi for shadow. Tap the floor and it follows you around, so the name stuck.
+*Chhaya* is Hindi for shadow. Tap the floor and it follows you around.
 
 <p align="center">
   <img src="docs/media/skills.gif" alt="Chhaya walking forward, stepping sideways, turning and recovering from pushes" width="49%"/>
