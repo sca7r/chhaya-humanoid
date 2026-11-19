@@ -45,7 +45,7 @@ under 2 GB). On a rented machine put everything on the persistent volume.
 ```bash
 git clone --branch v3.0.0 https://github.com/isaac-sim/IsaacLab.git
 cd IsaacLab && uv sync && source .venv/bin/activate      # Python 3.12, Newton backend, no Isaac Sim
-git clone --recurse-submodules https://github.com/<you>/chhaya.git && cd chhaya/training
+git clone --recurse-submodules https://github.com/sca7r/chhaya-humanoid.git && cd chhaya-humanoid/training
 uv pip install -r requirements-isaaclab3.txt
 (cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
 ```

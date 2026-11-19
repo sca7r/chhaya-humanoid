@@ -15,7 +15,7 @@ network, trained in simulation with reinforcement learning, drives all 20 joints
   <img src="docs/media/four_views.png" alt="Chhaya mid-stride from the front, side, back and an isometric view" width="90%"/>
 </p>
 
-**[Try it in your browser](https://<you>.github.io/chhaya-humanoid/)**: tap the floor and the robot walks there. The policy and
+**[Try it in your browser](https://sca7r.github.io/chhaya-humanoid/)**: tap the floor and the robot walks there. The policy and
 the MuJoCo physics run on your device; nothing is installed.
 
 The clips are the trained policy replayed in MuJoCo from Isaac Lab recordings. The robot has not been built yet.
@@ -76,7 +76,7 @@ about $610 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONI
 The simulation stack runs on Linux with Python 3.11. Everything runs from inside `training/`.
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/chhaya-humanoid.git
+git clone --recurse-submodules https://github.com/sca7r/chhaya-humanoid.git
 cd chhaya-humanoid/training
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm
