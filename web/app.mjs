@@ -13,9 +13,9 @@ ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/di
 ort.env.wasm.numThreads = 1;                     // GitHub Pages sends no cross-origin isolation headers
 const load = async p => { const r = await fetch(p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return new Uint8Array(await r.arrayBuffer()); };
 const mujoco = await loadMujoco();
-say('Loading the robot…');
+say('Building Chhaya…');
 const sim = await createSim(mujoco, load);
-say('Loading the policy…');
+say('Loading how Chhaya walks…');
 const session = await ort.InferenceSession.create('assets/policy.onnx', { executionProviders: ['wasm'] });
 const policy = async o => (await session.run({ obs: new ort.Tensor('float32', sim.norm(o), [1, o.length]) })).action.data;
 
@@ -114,7 +114,11 @@ setInterval(async () => {
   busy = false;
 }, 10);
 
-const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
+const resize = () => {
+  renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight;
+  camera.fov = camera.aspect < 1 ? 62 : 40;                              // portrait phones: keep the robot and floor in view
+  camera.updateProjectionMatrix();
+};
 addEventListener('resize', resize); resize();
 const look = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
