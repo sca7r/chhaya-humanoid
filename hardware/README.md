@@ -17,7 +17,7 @@ The picture is a render of the model: Chhaya has not been built yet. Credits and
 | | |
 |---|---|
 | Height | About 54 cm standing |
-| Mass | 2.57 kg in the model (with battery and Raspberry Pi 5) |
+| Mass | 2.71 kg in the model (with battery, Raspberry Pi 5, wiring and electronics) |
 | Degrees of freedom | 20: per leg hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch; per arm shoulder pitch, shoulder roll, arm yaw, elbow |
 | Actuators | 20× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud; 2 micro servos for the claws |
 | Hands | One-servo claws on a standard wrist plate |

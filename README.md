@@ -1,80 +1,191 @@
-# Chhaya
+# Chhaya: an open-source, 3D-printed humanoid that learns to walk in simulation
 
-A small 3D-printed humanoid robot: about 0.52 m tall, 2.4 kg, 20 servo joints, claws for hands
-and a head built to carry sensors. It learns to walk with reinforcement learning in simulation.
+[![Software: MIT](https://img.shields.io/badge/software-MIT-blue.svg)](training/LICENSE.txt)
+[![Hardware: CERN-OHL-P-2.0](https://img.shields.io/badge/hardware-CERN--OHL--P--2.0-green.svg)](hardware/LICENSE)
 
-![Chhaya](hardware/media/chhaya/overview.png)
+Chhaya is a small humanoid robot, about 54 cm tall, with 20 servo joints, claws for hands and a head built
+to carry sensors. Every structural part is 3D printed and the servos themselves form the frame. One neural
+network, trained in simulation with reinforcement learning, drives all 20 joints at 50 Hz.
 
-| | |
+<p align="center">
+  <img src="docs/media/skills.gif" alt="Chhaya walking forward, stepping sideways, turning and recovering from pushes" width="49%"/>
+  <img src="docs/media/crowd.gif" alt="Sixteen Chhaya robots walking with random commands" width="49%"/>
+</p>
+<p align="center">
+  <img src="docs/media/four_views.png" alt="Chhaya mid-stride from the front, side, back and an isometric view" width="90%"/>
+</p>
+
+The clips are the trained policy replayed in MuJoCo from Isaac Lab recordings. The robot has not been built yet.
+
+## Highlights
+
+- **Whole-body control.** One policy commands the 12 leg joints and the 8 arm joints together. The arms
+  swing opposite to the legs, as a person's do, which halved the falls in testing.
+- **Symmetric gait.** The policy is mirror-symmetric by construction and follows a reference gait, so the
+  left and right legs move as mirror images.
+- **Robust to the real build.** Training randomizes mass, friction, servo response and pushes. The policy
+  still walks with the torso 300 g lighter or 150 g heavier than the model.
+- **Checked, not assumed.** Every printed part passes automatic overlap, clearance (1 mm or more) and
+  strength (safety factor 3 or more) checks. Every policy is tested in a second simulator before export.
+- **Plug and play.** The head, claws and face disc each come off with 4 screws, and their hole patterns
+  are documented, so your own parts fit.
+
+## Components overview
+
+| Component | Quantity | Notes |
+|---|---|---|
+| Waveshare ST3215 serial bus servo, 12 V, 30 kg·cm | 20 | 12 in the legs, 8 in the arms, one shared bus |
+| MG90S micro servo | 2 | one per claw |
+| Raspberry Pi 5 | 1 | on the electronics rack under the chest |
+| BNO055 IMU | 1 | I2C |
+| Waveshare Bus Servo Adapter (A) | 1 | UART to the servo bus |
+| Power distribution PCB | 1 | custom, 55 x 50 mm, design files in [`hardware/electronics/`](hardware/electronics/) |
+| 3S LiPo, 11.1 V, 2200 mAh, XT60 | 1 | roughly an hour of walking (estimate) |
+| Printed parts, PLA or PETG | 35 | [`hardware/print/`](hardware/print/) |
+
+The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). The total is
+about $610 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md).
+
+| Specification | Value |
 |---|---|
-| Joints | 20: six per leg (hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch), four per arm (shoulder pitch, shoulder roll, arm yaw, elbow) |
-| Servos | 20x Feetech/Waveshare STS3215 (12 V bus servos), plus 2 micro servos for the claws |
-| Hands | one-servo claws on a standard wrist plate (swap for any tool with 4 screws) |
-| Head | halo: a face disc in a hoop, with a drilled plate behind it for a camera and small boards |
-| Mass | 2.57 kg (with battery and Raspberry Pi 5) |
-| Control | one learned policy drives all 20 joints at 50 Hz; the claws are scripted |
-| Structure | 35 printed parts; the servos themselves are the frame |
-| Compute | Raspberry Pi 5 or Jetson Orin Nano |
+| Height | about 54 cm |
+| Mass | 2.71 kg in the model, with battery and Raspberry Pi 5 |
+| Joints | per leg: hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch. Per arm: shoulder pitch, shoulder roll, arm yaw, elbow |
+| Control | one policy for all 20 joints at 50 Hz. The claws are scripted |
+| Walking speed | up to 0.2 m/s forward and backward, 0.15 m/s sideways, turning in place |
 
-## Status
+## Getting started
 
-| | |
-|---|---|
-| CAD, print files, URDF | done. The chest, head, arms and claws pass the automatic overlap, clearance (≥ 1 mm) and strength (safety factor ≥ 3) checks |
-| MuJoCo model and physics checks | done; all pass ([docs/physics/PHYSICS.md](docs/physics/PHYSICS.md)) |
-| Training setup | Isaac Lab 3.0 on Newton (no Isaac Sim; any recent NVIDIA GPU). Tested on a CPU: the environment, a short training run and playback work. **Not yet run on a GPU** ([docs/ISAACLAB3.md](docs/ISAACLAB3.md)) |
-| Walking policy | not trained yet |
-| Model-based trainer (SuperMimic) | implemented as an option next to SAC; learns a toy task, runs stably on Chhaya on a CPU; walking not yet tried on a GPU ([docs/SUPERMIMIC.md](docs/SUPERMIMIC.md)) |
-| Budget variant (Chhaya Lite) | simulation set up with RDS3225 / MG996R hobby servos from datasheet estimates; frame not redesigned ([docs/CHHAYA_LITE.md](docs/CHHAYA_LITE.md)) |
-| Physical build | not built yet. The legs and electronics are a design that has been built and walks (see Credits); the arms, claws and head are new and unbuilt |
-| On-robot software for the arms | not written yet (the runtime drives the 12 leg servos) |
+1. **Source the hardware.** Order the parts in the [bill of materials](hardware/bom/).
+2. **Print the parts.** STL files are in [`hardware/print/`](hardware/print/). Use your printer's default PLA
+   profile. Print `ankle_and_hip.stl` tilted 45 degrees with at least 6 walls: it takes the hardest knocks
+   in a fall.
+3. **Assemble the robot.** Follow the [build guide](hardware/docs/build/), from servo setup to the
+   electronics.
+4. **Try it in simulation.** No robot or GPU is needed. See [Run in simulation](#run-in-simulation).
+5. **Train or fine-tune a policy.** Any recent NVIDIA GPU works, a laptop RTX 3060 included. See
+   [Train a walking policy](#train-a-walking-policy).
+6. **Deploy to the robot.** Export the policy as an ONNX bundle and run it on the Raspberry Pi. See
+   [Status](#status) for what is ready.
 
-## Layout
+## Run in simulation
 
-```
-hardware/     everything physical: CAD, print files, parts lists, electronics, robot description,
-              design notes, build guide, and the tools that regenerate and check the generated parts
-training/     the reinforcement-learning code: Isaac Lab training, MuJoCo evaluation, servo model
-docs/         how training works, the GPU runbook, handoff notes, physics results, budget electronics
-```
-
-## Quick start
+The simulation stack runs on Linux with Python 3.11. Everything runs from inside `training/`.
 
 ```bash
 git clone --recurse-submodules https://github.com/<you>/chhaya.git
 cd chhaya/training
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm
+
+# bake the reference gait the policy imitates (one time)
 (cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
-pytest tests/test_arm_motion.py tests/test_chhaya_mujoco.py    # 11 pass, no GPU needed
-python -m chhaya.physics_check --out /tmp/phys                 # stands, holds poses, survives a fall
+
+# check the robot model: stands, holds poses, survives a fall
+python -m chhaya.physics_check --out /tmp/phys
+
+# run the test suite
+pytest tests --ignore=tests/test_env.py --ignore=tests/test_transformer.py
 ```
 
-| I want to... | Go to |
+To watch a trained policy, run the MuJoCo check on an exported bundle. It walks the robot through standing,
+walking and control-delay tests and prints a pass or fail report:
+
+```bash
+python -m src.mujoco.policy_gate --bundle exported/chhaya_final
+```
+
+## Controlling Chhaya
+
+The policy understands one command: how fast to go forward, how fast to go sideways and how fast to
+turn. Every way of driving the robot comes down to producing that command, so new input methods do not
+need a new policy.
+
+| Input | How it works | Status |
+|---|---|---|
+| Keyboard | `W` `S` forward and back, `A` `D` sideways, `Q` `E` turn, `Z` `X` speed, `Space` push | in the MuJoCo viewer for SAC policies (`src/mujoco/sim2real.py --teleop`) |
+| Gamepad | left stick moves, right stick turns, `LB` `RB` change speed | same as the keyboard |
+| Tap a spot | tap a point on the floor in the viewer or the phone UI, and the robot turns and walks to it | planned |
+| Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
+
+Commands are limited to the range the policy was trained on (`config/chhaya.yaml`), whatever the input.
+
+## Train a walking policy
+
+Training uses [Isaac Lab 3.0](docs/ISAACLAB3.md) on the Newton physics backend, without Isaac Sim. Install
+it as described there, then:
+
+```bash
+cd training
+# train (the laptop preset fits a 6 GB GPU; --minutes is a wall-clock budget)
+python src/isaaclab/train_supermimic.py --model eth --config_path config/chhaya.yaml \
+    --num_envs 1024 --preset laptop --minutes 300 --save_every 500
+
+# evaluate a checkpoint on a fixed command (vx m/s, vy m/s, wz rad/s) and record it
+python src/isaaclab/train_supermimic.py --model eth --config_path config/chhaya.yaml --num_envs 64 \
+    --eval runs/<run>/supermimic_last.pt --command 0.15 0 0 --record videos/walk.npz
+
+# render the recording as a video
+MUJOCO_GL=egl python -m src.mujoco.replay_video videos/walk.npz --iso --out videos/walk.mp4
+
+# export the deployment bundle (ONNX) and check it in MuJoCo
+python src/isaaclab/train_supermimic.py --model eth --config_path config/chhaya.yaml --num_envs 4 \
+    --export runs/<run>/supermimic_last.pt --out_dir exported/chhaya
+python -m src.mujoco.policy_gate --bundle exported/chhaya
+```
+
+The trainer is [SuperMimic](docs/SUPERMIMIC.md): it learns a model of the robot's dynamics and improves the
+policy through imagined rollouts. A standard SAC trainer is also included ([`docs/TRAINING.md`](docs/TRAINING.md)).
+To train on a rented GPU, see [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md).
+
+## Project structure
+
+```
+chhaya/
+├── hardware/                  everything physical
+│   ├── cad/                   parametric CAD (chhaya_cad.py) and the checks it must pass
+│   ├── print/                 STL files to print
+│   ├── bom/                   bill of materials
+│   ├── electronics/           power PCB
+│   ├── robot_description/     URDF and meshes
+│   ├── docs/build/            step-by-step build guide
+│   └── regenerate.sh          rebuilds every generated part and reruns the checks
+├── training/                  reinforcement learning, run everything from here
+│   ├── config/                robot and training configs (chhaya.yaml)
+│   ├── envs/                  Isaac Lab and MuJoCo environments, robot models
+│   ├── supermimic/            model-based trainer
+│   ├── actuator/              servo model fitted to the STS3215
+│   ├── src/isaaclab/          training, evaluation, ONNX export
+│   ├── src/mujoco/            MuJoCo checks, playback and video rendering
+│   └── tests/                 test suite
+└── docs/                      training guides, design decisions, results
+```
+
+## Status
+
+| Area | State |
 |---|---|
-| See what to buy and what it costs | [`hardware/bom/`](hardware/bom/), cheaper options in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md) |
-| Print the parts | [`hardware/print/`](hardware/print/) |
-| Build it | [`hardware/docs/build/`](hardware/docs/build/) |
-| Understand or change the mechanical design | [`hardware/docs/design.md`](hardware/docs/design.md) |
-| Simulate it | [`hardware/robot_description/urdf/chhaya.urdf`](hardware/robot_description/), `training/envs/assets/robotV2/chhaya.xml` (MuJoCo), `chhaya.usd` (Isaac Lab) |
-| Train the walking policy | [`docs/TRAINING.md`](docs/TRAINING.md), [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) |
-| Pick up the project where it stands | [`docs/HANDOFF.md`](docs/HANDOFF.md), [`docs/READINESS.md`](docs/READINESS.md) |
+| CAD, print files, URDF | done, all automatic checks pass |
+| Simulation model | done, physics checks pass ([`docs/physics/`](docs/physics/)) |
+| Walking policy | trained in simulation: walks forward, backward and sideways, turns both ways and recovers from pushes. Tested in MuJoCo before export |
+| Turning speed | reaches about 60% of the commanded rate in place. Being improved |
+| Hip servo load | about 1.15 N·m RMS while walking, above the servo's continuous rating. Being reduced |
+| Physical build | not built yet. The leg and electronics design has been built and walks (see [NOTICE.md](NOTICE.md)) |
+| On-robot software | the current runtime drives the 12 leg servos. The 20-joint runtime for the Raspberry Pi 5 is next |
 
-## Design in brief
+The story of how the walk was trained, with videos of each stage, is in [`docs/JOURNEY.md`](docs/JOURNEY.md).
 
-- **The servos are the structure.** Printed parts are thin plates and forks screwed to the servos'
-  own mounting holes. No cosmetic covers.
-- **Plug and play.** The head (4 screws on the neck flange), the claws (4 screws on the wrist
-  plate), the face disc and every bracket come off without disturbing their neighbours. The hole
-  patterns are documented, so your own parts fit.
-- **Checked, not assumed.** Clearance is measured through every arm joint's full range. Strength
-  is calculated on real cross-sections cut from the CAD, against a fall onto a hand, the head and
-  the chest. Changing a dimension reruns all of it (`hardware/regenerate.sh`).
-- **What it can do:** walk, gesture, hold light objects (the claws grip with about 5 N). It is not
-  strong enough for housework.
+## Contributing
 
-## Credits and licence
+Issues and pull requests are welcome. Before opening a pull request:
 
-`training/` is MIT and `hardware/` is CERN-OHL-P-2.0; new work follows the licence of the directory
-it is in. Parts of Chhaya are derived from open-source work; the credits, source commits and the list
-of changes that those licences require are in [NOTICE.md](NOTICE.md).
+- run the test suite and `python -m chhaya.physics_check` from `training/`;
+- change the CAD in `hardware/cad/parametric/chhaya_cad.py` and run `hardware/regenerate.sh`, rather than
+  editing the generated URDF, MuJoCo, USD or STL files;
+- keep the leg geometry and servo mounting as they are: the trained policies depend on them.
+
+## License
+
+The software in `training/` is released under the [MIT License](training/LICENSE.txt). The hardware in
+`hardware/` is released under the [CERN Open Hardware Licence Version 2, Permissive](hardware/LICENSE). Chhaya
+builds on open-source work; the credits and notices those licences require are in [NOTICE.md](NOTICE.md).
