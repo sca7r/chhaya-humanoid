@@ -4,7 +4,7 @@ The runtime is [BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJets
 details. This page is the order to do things in on a new robot.
 
 These steps are for the Jetson the reference robot uses. For a Raspberry Pi 5, see
-[Raspberry Pi instead of the Jetson](../../bom/README.md#raspberry-pi-instead-of-the-jetson).
+[Setting up the Raspberry Pi](../../bom/README.md#setting-up-the-raspberry-pi).
 
 ## 1. Set up the Jetson
 

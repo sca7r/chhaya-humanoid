@@ -4,7 +4,7 @@ Do this after the legs and torso are assembled ([03](03_legs.md)). If you'd rath
 The robot can be tested legs-only first: the chest bolts on afterwards without taking anything
 apart.
 
-Parts: the 21 printed parts in [`print/README.md`](../../print/README.md), 8 servos, 2 micro
+Parts: the 20 printed parts in [`print/README.md`](../../print/README.md), 8 servos, 2 micro
 servos and the screws listed under "fasteners" in [`bom/bom.csv`](../../bom/bom.csv).
 
 ## Servo IDs

@@ -45,15 +45,15 @@ The clips are the trained policy replayed in MuJoCo from Isaac Lab recordings. T
 | Waveshare Bus Servo Adapter (A) | 1 | UART to the servo bus |
 | Power distribution PCB | 1 | custom, 55 x 50 mm, design files in [`hardware/electronics/`](hardware/electronics/) |
 | 3S LiPo, 11.1 V, 2200 mAh, XT60 | 1 | roughly an hour of walking (estimate) |
-| Printed parts, PLA or PETG | 35 | [`hardware/print/`](hardware/print/) |
+| Printed parts, PLA or PETG | 34 | [`hardware/print/`](hardware/print/) |
 
 The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). The total is
-about $610 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md).
+about $620 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md).
 
 | Specification | Value |
 |---|---|
 | Height | about 54 cm |
-| Mass | 2.71 kg in the model, with battery and Raspberry Pi 5 |
+| Mass | 2.42 kg in the model, with battery and Raspberry Pi 5 |
 | Joints | per leg: hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch. Per arm: shoulder pitch, shoulder roll, arm yaw, elbow |
 | Control | one policy for all 20 joints at 50 Hz. The claws are scripted |
 | Walking speed | up to 0.2 m/s forward and backward, 0.15 m/s sideways, turning in place |
