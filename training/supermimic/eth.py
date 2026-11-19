@@ -108,6 +108,9 @@ class RewardCfg:
     w_still: float = -0.5           # standing commands: per foot off the ground
     w_dev_hip: float = -0.5         # hip roll and yaw, L1
     w_dev_arms: float = -0.1
+    # arm joint speed^2: the arms twisted at ~1.6 rad/s RMS for nothing, ~1.8 N m RMS through the servos' reflected
+    # rotor inertia (above the STS3215's continuous rating). -0.02 makes that waggle cost ~0.2 per step.
+    w_arm_vel: float = -0.02
     w_imit_q: float = 1.0           # with a gait table (env `reference:`): leg joints, sole heights and contacts
     w_imit_h: float = 1.0           # of the table at (command, phase); the contact term replaces w_gait
     w_imit_c: float = 0.5
@@ -192,6 +195,7 @@ class ChhayaMDP:
         r_ang_xy = (w ** 2).sum(-1) - (g * w).sum(-1) ** 2      # angular speed about horizontal axes
         dev = (q - self.q0).abs()
         r_dev = cf.w_dev_hip * (dev * self.m_hip).sum(-1) + cf.w_dev_arms * (dev * self.m_arm).sum(-1)
+        r_arm_vel = (self._sl(s2, self.iqd) ** 2 * self.m_arm).sum(-1)
 
         f1, z1 = self.feet(s)
         f2, z2 = self.feet(s2)
@@ -227,7 +231,7 @@ class ChhayaMDP:
         t = {"lin": cf.w_lin * r_lin, "ang": cf.w_ang * r_ang, "upright": cf.w_upright * r_up, "pose": cf.w_pose * r_pose,
              "limits": cf.w_limits * r_lim, "action_rate": cf.w_action_rate * r_rate, "lin_z": cf.w_lin_z * r_lin_z,
              "ang_xy": cf.w_ang_xy * r_ang_xy, "clearance": cf.w_clearance * r_clear, "slip": cf.w_slip * r_slip,
-             "gait": cf.w_gait * r_gait, "imit_q": cf.w_imit_q * r_imit_q, "imit_h": cf.w_imit_h * r_imit_h, "still": cf.w_still * r_still, "dev": r_dev,
+             "gait": cf.w_gait * r_gait, "imit_q": cf.w_imit_q * r_imit_q, "imit_h": cf.w_imit_h * r_imit_h, "still": cf.w_still * r_still, "dev": r_dev, "arm_vel": cf.w_arm_vel * r_arm_vel,
              "flat": cf.w_flat_l2 * r_flat2 + cf.w_flat_l1 * r_flat1}
         if terms:
             return {k: v * self.dt for k, v in t.items()}
