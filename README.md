@@ -1,5 +1,6 @@
 # Chhaya: an open-source, 3D-printed humanoid that learns to walk in simulation
 
+[![Live demo](https://img.shields.io/badge/live%20demo-try%20it%20in%20your%20browser-0071e3.svg)](https://sca7r.github.io/chhaya-humanoid/)
 [![Software: MIT](https://img.shields.io/badge/software-MIT-blue.svg)](training/LICENSE.txt)
 [![Hardware: CERN-OHL-P-2.0](https://img.shields.io/badge/hardware-CERN--OHL--P--2.0-green.svg)](hardware/LICENSE)
 
