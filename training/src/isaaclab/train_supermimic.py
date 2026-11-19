@@ -44,6 +44,8 @@ ap.add_argument("--eval", default=None, help="checkpoint: report velocity tracki
 ap.add_argument("--record", default=None, help="with --eval: save robot 0's motion (.npz) for src/mujoco/replay_video.py")
 ap.add_argument("--record_n", type=int, default=1, help="with --record: how many robots (a crowd shot when > 1)")
 ap.add_argument("--command", type=float, nargs=3, default=None, metavar=("VX", "VY", "WZ"), help="with --eval: fixed command")
+ap.add_argument("--payload", type=float, default=None,
+                help="with --eval: fixed extra torso mass [kg] instead of the random payload (mass tolerance check)")
 ap.add_argument("--resume", default=None, help="checkpoint to continue training from (fine-tuning)")
 ap.add_argument("--log_dir", default=os.path.join(ROOT, "runs"))
 add_launch_args(ap)
@@ -102,6 +104,9 @@ def main():
         cfg.scene.contact_forces.filter_shape_prim_expr = ["/World/ground/.*"]
     if not args.pushes:
         cfg.events.pop("push_robot", None)
+    if args.payload is not None:
+        cfg.curriculum_dr_events = [e for e in cfg.curriculum_dr_events if e != "randomize_payload"]
+        cfg.events["randomize_payload"].params["mass_distribution_params"] = (args.payload, args.payload)
     smc = {"paper": SuperMimicConfig(), "laptop": laptop(), "tiny": tiny()}[args.preset]
     mirror = not args.no_mirror
     if args.eval:                                             # evaluate a checkpoint with the actor it was trained with

@@ -44,7 +44,12 @@ feet screw into heat-set inserts in the rack, and the rack is held by the 4 orig
 ## Mass model
 
 The rack (25 g), battery (180 g) and Pi (65 g) are modelled explicitly. The original torso model already
-contained ~97 g of stand-in blocks for its electronics in the tray; that share is subtracted. The robot is
-2.567 kg in the model. **Weigh your finished torso before training** and correct the model if it differs:
+contained ~97 g of stand-in blocks for its electronics in the tray; that share is subtracted. Since
+2026-11-19 the parts no CAD file holds are in too, as one 142 g block in the torso cavity
+(`TORSO_ELECTRONICS_KG` in `hardware/tools/build_description.py`, upper-end estimates): power PCB and servo
+bus adapter 35 g, IMU 4 g, main power wiring, XT60 and switch 30 g, screws and inserts outside the servos
+25 g, and the 12 leg servo leads 48 g (the arm leads were already 4 g per arm link). The robot is
+2.709 kg in the model. Training adds a random −50 to +150 g to the torso (`curriculum_dr_payload_min/max`
+in `chhaya.yaml`), so a real robot within that band of the model is covered. **Weigh your finished torso before training** and correct the model if it differs:
 battery and computer sizes and masses are constants in `hardware/cad/parametric/chhaya_cad.py`
 (`BATT`, `BATT_KG`, `PI`, `PI_KG`).

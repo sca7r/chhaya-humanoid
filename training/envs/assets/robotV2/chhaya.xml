@@ -130,7 +130,7 @@
         </body>
       </body>
       <body name="chest_link" pos="0 0 0">
-        <inertial pos="-0.00733656 -3.65945e-05 0.128618" mass="0.362067" fullinertia="0.00065115 0.00052668 0.00061099 2.0442e-07 -0.00010118 -6.3946e-07" />
+        <inertial pos="-0.00459369 -0.00050519 0.103146" mass="0.504067" fullinertia="0.0015067 0.0014591 0.00071263 1.8564e-06 -1.1381e-05 -1.598e-05" />
         <geom type="mesh" mesh="chest_link" contype="0" conaffinity="0" group="1" rgba="0.93 0.93 0.95 1" />
         <geom type="mesh" mesh="chest_link_servos" contype="0" conaffinity="0" group="1" rgba="0.12 0.12 0.14 1" />
         <geom type="mesh" mesh="chest_link_col0" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />

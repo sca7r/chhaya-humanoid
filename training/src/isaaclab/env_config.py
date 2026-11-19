@@ -62,6 +62,7 @@ _ARM_MOTION_KEYS = {"mode_probs", "rest_offset_rad", "swing_amp_range", "random_
 _SCALAR_FIELDS = (
     "curriculum_enabled", "curriculum_dr_start_steps", "curriculum_dr_full_steps",
     "curriculum_cmd_ramp_steps", "curriculum_init_ramp_steps", "curriculum_dr_events",
+    "curriculum_dr_payload_min", "curriculum_dr_payload_max",
     "action_delay_steps_range", "servo_obs_delay_steps", "imu_obs_delay_steps_range",
     "imu_accel_bias", "imu_gyro_bias", "mount_offset_rad", "imu_misalignment_deg",
     "quantize_joint_obs", "action_map", "observation_vibration_hz", "observation_vibration_amp_range",

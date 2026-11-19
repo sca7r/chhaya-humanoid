@@ -445,6 +445,7 @@ class BipedEnvCfg(DirectRLEnvCfg):
     # (The reverse holds for mass/gains/friction/push: those are not in the list, so their
     # EventTerm params are live and these values are only documentation of the intended target.)
     curriculum_dr_com_range: float = 0.025  
+    curriculum_dr_payload_min: float = 0.0    # < 0: the real robot may also be lighter than the model
     curriculum_dr_payload_max: float = 0.1    # 2026-10-24 from 0.1: the robot carries no payload; 3% of the 1.661 kg body
     # Command range limits
     curriculum_cmd_start_lin_vel_x: tuple = (0.0, 0.2)   # slow forward-only at start

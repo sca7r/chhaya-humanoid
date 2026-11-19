@@ -2316,7 +2316,7 @@ class BipedEnv(DirectRLEnv):
 
             if "randomize_payload" in self.cfg.events and _dr_applies("randomize_payload"):
                 self.cfg.events["randomize_payload"].params["mass_distribution_params"] = (
-                    0.0, self.cfg.curriculum_dr_payload_max * dr
+                    self.cfg.curriculum_dr_payload_min * dr, self.cfg.curriculum_dr_payload_max * dr
                 )
 
             # The EventManager runs on its OWN deep copy of cfg.events (ManagerBase deep-copies its cfg), so the

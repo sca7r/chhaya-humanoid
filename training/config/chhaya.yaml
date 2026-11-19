@@ -475,6 +475,10 @@ train:
     # width from step 0 made walking too hard to discover (the 2026-10-12 run learned to stand).
     # They start at 0 delay / P = 32 and reach action_delay_steps_range / kp_fw_range at curriculum_dr_full_steps.
     curriculum_dr_events: ["randomize_com", "randomize_payload", "action_delay", "servo_stiffness"]
+    # Mass tolerance (2026-11-19): the torso electronics and wiring are estimated (build_description.py,
+    # TORSO_ELECTRONICS_KG); train for a torso from 50 g lighter to 150 g heavier than the model.
+    curriculum_dr_payload_min: -0.05
+    curriculum_dr_payload_max: 0.15
 
 model:
   actor_config:

@@ -35,6 +35,13 @@ import chhaya_cad as ub  # noqa: E402
 PLA_EFFECTIVE_DENSITY = 1.24e3 * 0.75   # kg/m^3: PLA 1.24 g/cm^3, ~75% fill for thin-walled parts
 HEAD_PAYLOAD_KG = 0.0                   # whatever you mount on the head ring (e.g. 0.004 for a Pi camera)
 CABLE_KG_PER_LINK = 0.004               # servo lead share per moving link
+# Torso electronics and wiring not in any CAD part (2026-11-19, estimates at the upper end; weigh to replace):
+# power PCB + servo bus adapter 35 g, IMU board 4 g, main power wiring + XT60 + switch 30 g, screws and heat-set
+# inserts outside the servos 25 g, the 12 leg servo leads (they bundle into the torso) 48 g. In the torso cavity
+# (82 x 32 x 28 mm), centred on the torso's centre of mass. Training adds -50..+150 g on top (payload DR).
+TORSO_ELECTRONICS_KG = 0.035 + 0.004 + 0.030 + 0.025 + 0.048
+TORSO_ELECTRONICS_COM_MM = (2.4, -1.7, 38.2)
+TORSO_ELECTRONICS_SIZE_MM = (82.0, 32.0, 28.0)
 
 # The original torso inertial (Robot.urdf base_link, kept as is) was computed by Fusion over the torso model,
 # which includes stand-in blocks for the original electronics inside the rim tray (above z = 70.2 mm). Chhaya
@@ -141,6 +148,9 @@ def mass_props(variant, cad_dir):
             c = np.array(TORSO_STANDIN_COM_MM) / 1000
             items.append((-TORSO_STANDIN_KG, c - o, box_inertia(-TORSO_STANDIN_KG, np.array(TORSO_STANDIN_SIZE_MM) / 1000)))
             budget["original_torso_standins_removed"] = round(-TORSO_STANDIN_KG * 1000, 1)
+            c = np.array(TORSO_ELECTRONICS_COM_MM) / 1000
+            items.append((TORSO_ELECTRONICS_KG, c - o, box_inertia(TORSO_ELECTRONICS_KG, np.array(TORSO_ELECTRONICS_SIZE_MM) / 1000)))
+            budget["torso_electronics_wiring"] = round(TORSO_ELECTRONICS_KG * 1000, 1)
             # head payload (camera etc.) at the ring centre; 0 by default -- set HEAD_PAYLOAD_KG
             if HEAD_PAYLOAD_KG > 0:
                 cam = np.array(ub.head_center()) / 1000

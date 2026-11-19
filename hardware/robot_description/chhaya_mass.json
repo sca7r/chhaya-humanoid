@@ -1,8 +1,8 @@
 {
   "variant": "sts3215",
-  "generated_links_kg": 0.9061,
+  "generated_links_kg": 1.0481,
   "per_link_kg": {
-    "chest_link": 0.3621,
+    "chest_link": 0.5041,
     "l_shoulder_link": 0.0741,
     "l_upper_arm_link": 0.0792,
     "l_elbow_link": 0.0726,
@@ -22,6 +22,7 @@
     "battery": 180.0,
     "computer": 65.0,
     "original_torso_standins_removed": -97.1,
+    "torso_electronics_wiring": 142.0,
     "l_shoulder_bracket": 7.8,
     "l_roll_idler_cap": 2.3,
     "servo_l_shoulder_roll": 60.0,
