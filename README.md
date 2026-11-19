@@ -1,53 +1,61 @@
-# Chhaya: an open-source, 3D-printed humanoid that learns to walk in simulation
+# Chhaya
 
 [![Live demo](https://img.shields.io/badge/live%20demo-try%20it%20in%20your%20browser-0071e3.svg)](https://sca7r.github.io/chhaya-humanoid/)
 [![Software: MIT](https://img.shields.io/badge/software-MIT-blue.svg)](training/LICENSE.txt)
 [![Hardware: CERN-OHL-P-2.0](https://img.shields.io/badge/hardware-CERN--OHL--P--2.0-green.svg)](hardware/LICENSE)
 
-Chhaya is a small humanoid robot, about 54 cm tall, with 20 servo joints, claws for hands and a head built
-to carry sensors. Every structural part is 3D printed and the servos themselves form the frame. One neural
-network, trained in simulation with reinforcement learning, drives all 20 joints at 50 Hz.
+**Chhaya is a small humanoid you can print at home.** It stands 54 cm tall, moves on 20 servos, grips with
+two claws and carries sensors in a halo-shaped head. It learned to walk on its own, in simulation, by trial
+and error: one neural network drives all 20 of its joints, 50 times a second.
 
 <p align="center">
   <img src="docs/media/skills.gif" alt="Chhaya walking forward, stepping sideways, turning and recovering from pushes" width="49%"/>
-  <img src="docs/media/crowd.gif" alt="Sixteen Chhaya robots walking with random commands" width="49%"/>
+  <img src="docs/media/crowd.gif" alt="Sixteen copies of Chhaya walking with random commands" width="49%"/>
 </p>
 <p align="center">
   <img src="docs/media/four_views.png" alt="Chhaya mid-stride from the front, side, back and an isometric view" width="90%"/>
 </p>
 
-**[Try it in your browser](https://sca7r.github.io/chhaya-humanoid/)**: tap the floor and the robot walks there. The policy and
-the MuJoCo physics run on your device; nothing is installed.
+**[Walk Chhaya in your browser](https://sca7r.github.io/chhaya-humanoid/)**: tap the floor and it walks there.
+The same brain that learned to walk drives it on your device, with nothing to install.
 
-The clips are the trained policy replayed in MuJoCo from Isaac Lab recordings. The robot has not been built yet.
+## What Chhaya can do
 
-## Highlights
+- **Walk anywhere you point.** Forward, backward and sideways, turning on the spot or while walking. Tap a
+  spot and it turns, walks there and stops.
+- **Keep its balance.** Shove it and it steps to catch itself. Its arms swing opposite to its legs, the way
+  yours do, which halved its falls in testing.
+- **Walk evenly.** Its brain is mirror-symmetric, so its left and right legs move as mirror images: no limp.
+- **Cope with the real world.** It trained with random changes to its weight, its servos and the floor, so it
+  still walks 300 g lighter or 150 g heavier than designed.
+- **Grip light things.** Each claw is one micro servo, with about 5 N of grip.
+- **Change hands and heads.** The claws, the head and the face disc each come off with 4 screws, and their
+  hole patterns are documented, so your own parts fit.
 
-- **Whole-body control.** One policy commands the 12 leg joints and the 8 arm joints together. The arms
-  swing opposite to the legs, as a person's do, which halved the falls in testing.
-- **Symmetric gait.** The policy is mirror-symmetric by construction and follows a reference gait, so the
-  left and right legs move as mirror images.
-- **Robust to the real build.** Training randomizes mass, friction, servo response and pushes. The policy
-  still walks with the torso 300 g lighter or 150 g heavier than the model.
-- **Checked, not assumed.** Every printed part passes automatic overlap, clearance (1 mm or more) and
-  strength (safety factor 3 or more) checks. Every policy is tested in a second simulator before export.
-- **Plug and play.** The head, claws and face disc each come off with 4 screws, and their hole patterns
-  are documented, so your own parts fit.
+## How Chhaya learned to walk
 
-## Components overview
+Chhaya practised in [Isaac Lab](docs/ISAACLAB3.md), a GPU physics simulator, as a thousand copies at once.
+The trainer, [SuperMimic](docs/SUPERMIMIC.md), learns how Chhaya's body moves and then improves the walk
+by imagining the outcome of each step. A night on a laptop RTX 3060 was enough to go from falling to walking.
 
-| Component | Quantity | Notes |
+Along the way it learned to stop limping (a mirror-symmetric brain and a reference gait), to swing its arms for
+balance, and to recover from pushes. Every version is checked in a second simulator, MuJoCo, before it is
+trusted. The full story, with videos of each stage, is in [`docs/JOURNEY.md`](docs/JOURNEY.md).
+
+## What Chhaya is made of
+
+| Part | Quantity | Notes |
 |---|---|---|
 | Waveshare ST3215 serial bus servo, 12 V, 30 kg·cm | 20 | 12 in the legs, 8 in the arms, one shared bus |
 | MG90S micro servo | 2 | one per claw |
-| Raspberry Pi 5 | 1 | on the electronics rack under the chest |
-| BNO055 IMU | 1 | I2C |
-| Waveshare Bus Servo Adapter (A) | 1 | UART to the servo bus |
+| Raspberry Pi 5 | 1 | its computer, on a rack under the chest |
+| BNO055 IMU | 1 | its sense of balance |
+| Waveshare Bus Servo Adapter (A) | 1 | connects the Pi to the servo bus |
 | Power distribution PCB | 1 | custom, 55 x 50 mm, design files in [`hardware/electronics/`](hardware/electronics/) |
 | 3S LiPo, 11.1 V, 2200 mAh, XT60 | 1 | roughly an hour of walking (estimate) |
-| Printed parts, PLA or PETG | 34 | [`hardware/print/`](hardware/print/) |
+| Printed parts, PLA or PETG | 34 | [`hardware/print/`](hardware/print/); the servos themselves are the frame |
 
-The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). The total is
+The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). Chhaya costs
 about $620 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md).
 
 | Specification | Value |
@@ -55,8 +63,11 @@ about $620 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONI
 | Height | about 54 cm |
 | Mass | 2.42 kg in the model, with battery and Raspberry Pi 5 |
 | Joints | per leg: hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch. Per arm: shoulder pitch, shoulder roll, arm yaw, elbow |
-| Control | one policy for all 20 joints at 50 Hz. The claws are scripted |
+| Control | one neural network for all 20 joints at 50 Hz. The claws are scripted |
 | Walking speed | up to 0.2 m/s forward and backward, 0.15 m/s sideways, turning in place |
+
+Every printed part passes automatic overlap, clearance (1 mm or more) and strength (safety factor 3 or more)
+checks, rerun whenever a dimension changes.
 
 ## Getting started
 
@@ -68,9 +79,9 @@ about $620 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONI
    electronics.
 4. **Try it in simulation.** No robot or GPU is needed. See [Run in simulation](#run-in-simulation).
 5. **Train or fine-tune a policy.** Any recent NVIDIA GPU works, a laptop RTX 3060 included. See
-   [Train a walking policy](#train-a-walking-policy).
+   [Teach Chhaya yourself](#teach-chhaya-yourself).
 6. **Deploy to the robot.** Export the policy as an ONNX bundle and run it on the Raspberry Pi. See
-   [Status](#status) for what is ready.
+   [Where Chhaya is today](#where-chhaya-is-today) for what is ready.
 
 ## Run in simulation
 
@@ -99,15 +110,15 @@ walking and control-delay tests and prints a pass or fail report:
 python -m src.mujoco.policy_gate --bundle exported/chhaya_final
 ```
 
-## Controlling Chhaya
+## Talking to Chhaya
 
-The policy understands one command: how fast to go forward, how fast to go sideways and how fast to
-turn. Every way of driving the robot comes down to producing that command, so new input methods do not
-need a new policy.
+Chhaya understands one command: how fast to go forward, how fast to go sideways and how fast to turn.
+Every way of driving it comes down to producing that command, so a new way of talking to it needs no
+retraining.
 
 | Input | How it works | Status |
 |---|---|---|
-| Tap a spot | tap the floor: the robot turns, walks there and stops | available in the browser demo |
+| Tap a spot | tap the floor: Chhaya turns, walks there and stops | available in the browser demo |
 | Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in the browser demo |
 | Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
 
@@ -126,7 +137,7 @@ reach four tapped spots. Pushing to `main` publishes `web/` (`.github/workflows/
 
 Commands are limited to the range the policy was trained on (`config/chhaya.yaml`), whatever the input.
 
-## Train a walking policy
+## Teach Chhaya yourself
 
 Training uses [Isaac Lab 3.0](docs/ISAACLAB3.md) on the Newton physics backend, without Isaac Sim. Install
 it as described there, then:
@@ -178,19 +189,17 @@ chhaya/
 └── docs/                      training guides, design decisions, results
 ```
 
-## Status
+## Where Chhaya is today
 
 | Area | State |
 |---|---|
 | CAD, print files, URDF | done, all automatic checks pass |
 | Simulation model | done, physics checks pass ([`docs/physics/`](docs/physics/)) |
-| Walking policy | trained in simulation: walks forward, backward and sideways, turns both ways and recovers from pushes. Tested in MuJoCo before export |
-| Turning speed | reaches about 60% of the commanded rate in place. Being improved |
-| Hip servo load | about 1.15 N·m RMS while walking, above the servo's continuous rating. Being reduced |
-| Physical build | not built yet. The leg and electronics design has been built and walks (see [NOTICE.md](NOTICE.md)) |
+| Walking | learned in simulation: forward, backward and sideways, turning both ways, recovering from pushes. Checked in MuJoCo |
+| Turning | turns at about 60% of the asked-for rate on the spot. Being improved |
+| Hip servos | work hard while walking (about 1.15 N·m RMS, above the continuous rating). Being reduced |
+| Physical build | Chhaya has not been built yet. Its legs and electronics come from a design that has been built and walks (see [NOTICE.md](NOTICE.md)) |
 | On-robot software | the current runtime drives the 12 leg servos. The 20-joint runtime for the Raspberry Pi 5 is next |
-
-The story of how the walk was trained, with videos of each stage, is in [`docs/JOURNEY.md`](docs/JOURNEY.md).
 
 ## Contributing
 
