@@ -2,7 +2,7 @@
 
 ## 1. Can the STS3215 servos carry the robot? Yes, for walking
 
-`python -m chhaya.servo_load` (from `training/`), results in `physics/SERVO_LOAD.md`. Chhaya is 2.57 kg;
+`python -m chhaya.servo_load` (from `training/`), results in `physics/SERVO_LOAD.md`. Chhaya is 2.42 kg;
 the STS3215 at 12 V stalls at 2.94 N·m.
 
 | Load case | Hardest joint | Torque | Share of stall | Legs-only rig, same case |

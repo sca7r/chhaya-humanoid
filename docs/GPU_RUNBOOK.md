@@ -59,7 +59,7 @@ python src/isaaclab/env_check.py --num_envs 1024 --steps 200     # prints robot-
 python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --num_envs 1024
 ```
 
-`env_check.py` should print 20 joints, 21 bodies, 2.567 kg, action size **20**, observation **370**
+`env_check.py` should print 20 joints, 21 bodies, 2.423 kg, action size **20**, observation **370**
 (5 × 74), foot forces that sum to about 25 N when standing, and no falls at zero action. In training,
 rewards should be finite and changing after a few hundred iterations (`tensorboard --logdir runs`).
 

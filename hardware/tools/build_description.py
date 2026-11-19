@@ -43,15 +43,26 @@ TORSO_ELECTRONICS_KG = 0.035 + 0.004 + 0.030 + 0.025 + 0.048
 TORSO_ELECTRONICS_COM_MM = (2.4, -1.7, 38.2)
 TORSO_ELECTRONICS_SIZE_MM = (82.0, 32.0, 28.0)
 
-# The original torso inertial (Robot.urdf base_link, kept as is) was computed by Fusion over the torso model,
-# which includes stand-in blocks for the original electronics inside the rim tray (above z = 70.2 mm). Chhaya
-# puts the electronics rack, battery and computer there instead, modelled explicitly, so the stand-ins' share
-# is removed (negative item on chest_link). Measured on base_link.stl: 68.9 cm3 above the shelf, centroid
-# (10.5, 0.1, 81.3) mm, at the base_link's average density (0.633 kg / 449.6 cm3). Weigh the real torso to
-# replace this estimate.
-TORSO_STANDIN_KG = 0.633299 * 68.9 / 449.6
-TORSO_STANDIN_COM_MM = (10.5, 0.1, 81.3)
-TORSO_STANDIN_SIZE_MM = (40.0, 59.0, 24.0)
+# The original torso inertial (Robot.urdf base_link) is "torso, electronics": Fusion's mass of the torso with
+# the original robot's Jetson, battery and power board inside (0.633 kg, centre of mass 38 mm up). Chhaya models
+# its own electronics explicitly (rack, battery, computer, TORSO_ELECTRONICS on chest_link), so its torso is the
+# structure alone, computed here: the printed torso (body.step) and IMU tray as solid PLA, which is how Fusion
+# weighed the legs (foot link 96.8 g = one 60 g servo + left_foot as solid PLA), plus the 2 hip-yaw servos,
+# case centred 21 mm above each hip-yaw joint. 0.25 kg; the 0.38 kg difference is the original electronics, which
+# the earlier model counted a second time (2026-11-20). Weigh the real torso to replace this estimate.
+PLA_SOLID_DENSITY = 1.24e3
+HIP_YAW_SERVO_KG = 0.060
+HIP_YAW_SERVO_CENTRES_M = [(-0.00159, 0.021672, 0.021), (-0.00159, -0.021672, 0.021)]
+STS3215_CASE_M = (0.0452, 0.0247, 0.035)
+
+
+def torso_structure():
+    """(mass, com, inertia) of base_link without electronics, in the base_link frame (= the STEP frame)."""
+    items = [cad_mass(ub.STEP_DIR / f"{p}.step", PLA_SOLID_DENSITY) for p in ("body", "IMU_tray")]
+    items += [(HIP_YAW_SERVO_KG, np.array(c), box_inertia(HIP_YAW_SERVO_KG, np.array(STS3215_CASE_M)))
+              for c in HIP_YAW_SERVO_CENTRES_M]
+    return combine(items)
+
 
 # Joint limits (rad). Sign conventions: shoulder_roll/arm_yaw axes are mirrored on the right,
 # so for both arms: +roll = abduct (arm out), +pitch = arm backward, -pitch = arm forward/up,
@@ -145,9 +156,6 @@ def mass_props(variant, cad_dir):
             items.append((m, (lo + hi) / 2000 - o, box_inertia(m, (hi - lo) / 1000)))
             budget[n] = m * 1000
         if link == "chest_link":
-            c = np.array(TORSO_STANDIN_COM_MM) / 1000
-            items.append((-TORSO_STANDIN_KG, c - o, box_inertia(-TORSO_STANDIN_KG, np.array(TORSO_STANDIN_SIZE_MM) / 1000)))
-            budget["original_torso_standins_removed"] = round(-TORSO_STANDIN_KG * 1000, 1)
             c = np.array(TORSO_ELECTRONICS_COM_MM) / 1000
             items.append((TORSO_ELECTRONICS_KG, c - o, box_inertia(TORSO_ELECTRONICS_KG, np.array(TORSO_ELECTRONICS_SIZE_MM) / 1000)))
             budget["torso_electronics_wiring"] = round(TORSO_ELECTRONICS_KG * 1000, 1)
@@ -160,6 +168,8 @@ def mass_props(variant, cad_dir):
             items.append((CABLE_KG_PER_LINK, items[0][1], np.eye(3) * 1e-8))
             budget[f"cables_{link}"] = CABLE_KG_PER_LINK * 1000
         out[link] = combine(items)
+    out["base_link"] = torso_structure()
+    budget["torso_structure (base_link)"] = round(out["base_link"][0] * 1000, 1)
     return out, budget
 
 
@@ -279,7 +289,12 @@ def urdf_block(variant, props, meshes):
 
 def write_urdf(variant, props, meshes, hw_root, out_urdf):
     src = (hw_root / "robot_description/urdf/Robot.urdf").read_text()
-    txt = src.replace("</robot>", urdf_block(variant, props, meshes) + "\n</robot>")
+    M, com, I = props["base_link"]
+    txt = re.sub(r'(<link name="base_link">\s*<inertial>).*?(</inertial>)', lambda m: (
+        f'{m.group(1)}\n    <origin xyz="{fmt(com)}" rpy="0 0 0"/>\n    <mass value="{M:.6f}"/>\n'
+        f'    <inertia ixx="{I[0,0]:.4e}" iyy="{I[1,1]:.4e}" izz="{I[2,2]:.4e}" ixy="{I[0,1]:.4e}" iyz="{I[1,2]:.4e}" '
+        f'ixz="{I[0,2]:.4e}"/>\n  {m.group(2)}'), src, count=1, flags=re.S)
+    txt = txt.replace("</robot>", urdf_block(variant, props, meshes) + "\n</robot>")
     txt = txt.replace('name="Robot"', 'name="Chhaya"', 1)
     out_urdf.parent.mkdir(parents=True, exist_ok=True)
     out_urdf.write_text(txt)
@@ -301,6 +316,9 @@ def write_mjcf(variant, props, meshes, train_root, out_xml, mesh_rel):
             ET.SubElement(asset, "mesh", name=n, content_type="model/stl",
                           file=f"{mesh_rel}/{n}.stl", scale="0.001 0.001 0.001")
     base = root.find(".//body[@name='base_link']")
+    M, com, I = props["base_link"]                     # torso structure; robot_v2.xml keeps the original
+    base.find("inertial").attrib.update(pos=fmt(com), mass=f"{M:.6f}",
+                                        fullinertia=fmt([I[0, 0], I[1, 1], I[2, 2], I[0, 1], I[0, 2], I[1, 2]], 5))
     bodies = {"base_link": base}
     sv = ub.SERVOS[variant]
     for link, (parent, joint, _, _) in links_for().items():
@@ -378,12 +396,13 @@ def main():
         write_mjcf(variant, props, meshes, args.train,
                    args.train / "envs/assets/robotV2" / "chhaya.xml",
                    "../../../robot_hardware/robot_description/meshes")
-        upper = sum(p[0] for p in props.values())
+        upper = sum(props[k][0] for k in links_for())
         summary = {"variant": variant, "generated_links_kg": round(upper, 4),
                    "per_link_kg": {k: round(v[0], 4) for k, v in props.items()},
                    "items_g": budget}
         (rd / "chhaya_mass.json").write_text(json.dumps(summary, indent=2))
-        print(f"chest + head + arms: {upper*1000:.0f} g", {k: round(v[0] * 1000) for k, v in props.items()})
+        print(f"chest + head + arms: {upper*1000:.0f} g, torso structure: {props['base_link'][0]*1000:.0f} g",
+              {k: round(v[0] * 1000) for k, v in props.items()})
 
 
 if __name__ == "__main__":

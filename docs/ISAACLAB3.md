@@ -19,7 +19,7 @@ Tested here on a 2-core CPU (no GPU was available):
 
 | Check (`config/chhaya.yaml`, whole-body policy, 20 joints) | Result |
 |---|---|
-| Real environment (`BipedEnv`) builds | 20 joints, 21 bodies, 2.567 kg; obs 370 (5 × 74), critic 84, 20 actions |
+| Real environment (`BipedEnv`) builds | 20 joints, 21 bodies, 2.423 kg; obs 370 (5 × 74), critic 84, 20 actions |
 | Stands at zero action, rough terrain, randomisation on | base 0.27–0.28 m, foot forces sum to 25.1 N (weight 25.2 N), peak servo torque 0.5 N·m |
 | IMU | 9.81 m/s² up at rest, gravity vector (0, 0, −1) |
 | BAM servo model | effective inertia 0.021–0.026 kg·m² (armature 0.023 + link inertia) |

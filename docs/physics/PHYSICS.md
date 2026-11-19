@@ -26,4 +26,5 @@ model, not a controller. Reproduce with `python -m chhaya.physics_check` from th
 implemented: see `docs/TRAINING.md`.
 
 Run on the current design (rounded arms, claws with micro servos as fixed mass, halo head;
-2.392 kg) with numpy 1.26.3 / MuJoCo 3.2.7, the repo's pins.
+2.423 kg after the 2026-11-20 torso mass correction) in the Isaac Lab 3.0 environment (Python 3.12, numpy 2,
+MuJoCo 3.12): nothing falls or goes unstable in any test.

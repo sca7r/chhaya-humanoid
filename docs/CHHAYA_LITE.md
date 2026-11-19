@@ -46,7 +46,7 @@ STS3215 files do not use them, so the Chhaya track is numerically unchanged.
 
 **Not changed yet: the body.** Lite still uses the STS3215 frame's geometry and masses. The servos weigh
 nearly the same (RDS3225 about 60 g, MG996R 55 g, STS3215 55 g), so the mass error is about 60 g in
-2.57 kg. The frame redesign comes after this check says the servos are worth it.
+2.42 kg. The frame redesign comes after this check says the servos are worth it.
 
 ## How it behaves (CPU, no policy yet)
 

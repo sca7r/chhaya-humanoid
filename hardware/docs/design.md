@@ -12,8 +12,8 @@ to the servos' own holes.
 |---|---|
 | New joints | 8: `{l,r}_shoulder_pitch`, `{l,r}_shoulder_roll`, `{l,r}_arm_yaw`, `{l,r}_elbow` |
 | Servos | 8x STS3215 12 V (same as the legs, same bus, same BAM model) |
-| Mass of chest, head, arms and electronics | 906 g: 480 g of it the 8 STS3215s, 27 g the claw micro servos, 245 g the battery and computer, minus 97 g of the original torso model's electronics stand-ins (see Electronics) |
-| Robot mass | 2.567 kg with battery and Raspberry Pi 5 (legs-only robot: 1.661 kg) |
+| Mass of chest, head, arms and electronics | 1145 g: 480 g of it the 8 STS3215s, 27 g the claw micro servos, 245 g the battery and computer, 142 g the rest of the electronics and wiring (see Electronics) |
+| Robot mass | 2.423 kg with battery and Raspberry Pi 5; the torso structure is 250 g (legs-only robot as originally modelled, with its electronics: 1.661 kg) |
 | Height | the head hoop top is ~0.54 m above the floor when standing |
 | Printed parts | 20 (9 left/right pairs + chest + head), plus the face disc; ~190 g PLA/PETG |
 | Physics | passes every check in `../../docs/physics/PHYSICS.md`: stands, holds worst arm poses at under 7 % of stall, arms moving never tip it, no arm/leg contact within gait ranges, stable at half timestep and with backlash |

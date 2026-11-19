@@ -66,7 +66,7 @@
            giving 0.7214 kg against the URDF's 0.633299 - total robot 1.749 kg vs Isaac's
            1.661 (+5.3%), carried entirely by the torso where it most affects balance.
            fullinertia order is (ixx iyy izz ixy ixz iyz). -->
-      <inertial pos="0.002427 -0.001742 0.038179" mass="0.633299" fullinertia="0.001313 0.001431 0.000566 -0.000041 -0.000066 0.00001" />
+      <inertial pos="0.00174168 -0.000343583 0.0240021" mass="0.249905" fullinertia="0.00027397 0.00031416 0.00024208 -1.3699e-06 -9.032e-06 4.0878e-06" />
       <site name="imu_site" pos="-0.023673 0.0 0.025133" size="0.005" />
       <geom type="mesh" mesh="base_link" />
       <body name="r_hip_upper_link_1" pos="-0.00159 -0.021672 -0.00015">
@@ -130,7 +130,7 @@
         </body>
       </body>
       <body name="chest_link" pos="0 0 0">
-        <inertial pos="-0.00459369 -0.00050519 0.103146" mass="0.504067" fullinertia="0.0015067 0.0014591 0.00071263 1.8564e-06 -1.1381e-05 -1.598e-05" />
+        <inertial pos="-0.00215679 -0.000407481 0.0996192" mass="0.601119" fullinertia="0.0015784 0.001534 0.00077229 1.113e-06 1.5454e-05 -1.4904e-05" />
         <geom type="mesh" mesh="chest_link" contype="0" conaffinity="0" group="1" rgba="0.93 0.93 0.95 1" />
         <geom type="mesh" mesh="chest_link_servos" contype="0" conaffinity="0" group="1" rgba="0.12 0.12 0.14 1" />
         <geom type="mesh" mesh="chest_link_col0" group="3" rgba="0.5 0.5 0.9 0.3" mass="0" />
