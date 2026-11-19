@@ -13,6 +13,8 @@ from typing import Tuple
 class SuperMimicConfig:
     # "eth": dynamics-only world model, analytic reward and termination (eth.py); "v1": learned reward/termination heads
     model: str = "v1"                               # train_supermimic.py defaults to "eth"
+    # exactly left-right symmetric actor: a(s) = 1/2 (f(s) + M_a f(M_s s)); needs env.mirror_tables()
+    mirror: bool = False                            # train_supermimic.py turns it on (the eth runs limped)
     # --- world model (paper: MLP 2048x3, k=8, Adam 2e-4, 10 batches of 2048 windows per update) ---
     wm_hidden: Tuple[int, ...] = (1024, 1024, 1024)
     head_hidden: Tuple[int, ...] = (512, 512)       # reward and termination heads

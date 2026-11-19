@@ -38,9 +38,11 @@ ap.add_argument("--min_transitions", type=int, default=None,
 ap.add_argument("--rough", action="store_true", help="keep the rough terrain mix (the paper trains on flat ground)")
 ap.add_argument("--pushes", action="store_true", help="keep random pushes (the paper drops them)")
 ap.add_argument("--save_every", type=int, default=None, help="checkpoint every N iterations")
+ap.add_argument("--no_mirror", action="store_true", help="plain actor (no exact left-right symmetry)")
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--eval", default=None, help="checkpoint: report velocity tracking (policy vs standing still) instead of training")
 ap.add_argument("--record", default=None, help="with --eval: save robot 0's motion (.npz) for src/mujoco/replay_video.py")
+ap.add_argument("--record_n", type=int, default=1, help="with --record: how many robots (a crowd shot when > 1)")
 ap.add_argument("--command", type=float, nargs=3, default=None, metavar=("VX", "VY", "WZ"), help="with --eval: fixed command")
 ap.add_argument("--resume", default=None, help="checkpoint to continue training from (fine-tuning)")
 ap.add_argument("--log_dir", default=os.path.join(ROOT, "runs"))
@@ -67,8 +69,9 @@ def evaluate(ad, policy, steps=999, mdp=None, record=None):
         _, term, _ = ad.step(a)
         if record:
             d = e.rd
-            rec.append(torch.cat([d.root_pos_w[0] - e.scene.env_origins[0], d.root_quat_w[0], d.joint_pos[0],
-                                  e.commands[0]]).cpu())
+            rec.append(torch.cat([d.root_pos_w[:args.record_n] - e.scene.env_origins[:args.record_n],   # each from its own spawn
+                                  d.root_quat_w[:args.record_n], d.joint_pos[:args.record_n],
+                                  e.commands[:args.record_n]], -1).cpu())
         if mdp is not None:
             for k, x in mdp.reward(s0, ad.executed_action(), ad.state(), terms=True).items():
                 mt[k] = mt.get(k, 0.0) + float(x.mean()) / steps
@@ -100,7 +103,10 @@ def main():
     if not args.pushes:
         cfg.events.pop("push_robot", None)
     smc = {"paper": SuperMimicConfig(), "laptop": laptop(), "tiny": tiny()}[args.preset]
-    smc = replace(smc, seed=args.seed, model=args.model, **({"lr": args.lr} if args.lr else {}),
+    mirror = not args.no_mirror
+    if args.eval:                                             # evaluate a checkpoint with the actor it was trained with
+        mirror = bool(torch.load(args.eval, map_location="cpu")["config"].get("mirror", False))
+    smc = replace(smc, seed=args.seed, model=args.model, mirror=mirror, **({"lr": args.lr} if args.lr else {}),
                   **({"save_every": args.save_every} if args.save_every else {}),
                   **({"min_transitions_per_iter": args.min_transitions} if args.min_transitions is not None else {}))
     name = f"{config.train.model_name.replace('_SAC', '')}_SuperMimic_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
@@ -116,6 +122,11 @@ def main():
         with open(os.path.join(log_dir, "run.json"), "w") as f:
             json.dump({"supermimic": asdict(smc), "config_path": args.config_path, "num_envs": args.num_envs,
                        "flat": not args.rough, "pushes": args.pushes}, f, indent=2)
+        if smc.mirror:
+            from models.equivariant import check_involution
+            op, os_, ap, as_ = (t.cpu() for t in ad.mirror_tables())
+            check_involution(op, os_, "observation mirror"); check_involution(ap, as_, "action mirror")
+            print("[supermimic] mirror-symmetric actor")
         sm = SuperMimic(ad, smc, log_dir=None if args.eval else log_dir)
         if args.resume:
             sm.load(args.resume)

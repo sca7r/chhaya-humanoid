@@ -68,3 +68,16 @@ def test_eth_step_integrates_and_differentiates():
     zero = torch.zeros(1, S); zero[:, ph["g_b"][1] - 1] = -1.0
     wm.mdp.feet(zero)
     assert wm.mdp._roll.abs().max() < 1e-5                                 # home pose, upright: soles flat
+
+
+def test_mirror_actor_is_exactly_equivariant():
+    from supermimic.learner import Actor
+    F, H, A = 6, 3, 4
+    act = Actor(F, H, A, (16,), 1.0)
+    torch.nn.init.normal_(act.net[-1].weight)                      # not ~0, so the check means something
+    act.o_mean.normal_(); act.o_std.uniform_(0.5, 2.0)               # asymmetric statistics on purpose
+    op, os_ = torch.tensor([1, 0, 2, 4, 3, 5]), torch.tensor([1.0, 1.0, -1.0, 1.0, 1.0, 1.0])
+    ap, as_ = torch.tensor([1, 0, 3, 2]), torch.tensor([1.0, 1.0, -1.0, -1.0])
+    act.mirror = (op, os_, ap, as_)
+    h = torch.randn(5, H, F)
+    assert torch.allclose(act(h[..., op] * os_), act(h)[:, ap] * as_, atol=1e-6)

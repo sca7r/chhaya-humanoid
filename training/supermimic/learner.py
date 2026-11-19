@@ -37,12 +37,22 @@ class Actor(nn.Module):
         self.bound, self.frame, self.history = bound, frame, history
         self.register_buffer("o_mean", torch.zeros(frame))
         self.register_buffer("o_std", torch.ones(frame))
+        self.mirror = None                         # (obs_perm, obs_sign, act_perm, act_sign) per frame, from the env
 
     def forward(self, hist: torch.Tensor) -> torch.Tensor:
         """hist (B, history, F) or (B, history * F)."""
         h = hist.reshape(hist.shape[0], self.history, self.frame)
-        x = ((h - self.o_mean) / self.o_std).reshape(h.shape[0], -1)
-        return torch.tanh(self.net(x)) * self.bound
+        if self.mirror is None:
+            return torch.tanh(self.net(self._norm(h))) * self.bound
+        # exactly equivariant (as torch_rl_algorithms/models/equivariant.py): tanh is odd, so tanh(pre) is too
+        op, os_, ap, as_ = self.mirror
+        n = h.shape[0]
+        y = self.net(self._norm(torch.cat([h, h[..., op] * os_], 0)))
+        pre = 0.5 * (y[:n] + y[n:][:, ap] * as_)
+        return torch.tanh(pre) * self.bound
+
+    def _norm(self, h):
+        return ((h - self.o_mean) / self.o_std).reshape(h.shape[0], -1)
 
 
 class SuperMimic:
@@ -64,6 +74,8 @@ class SuperMimic:
         self._t = {}                                    # seconds per phase since the last log
         self._mr = [0.0, 0]                             # model reward on real transitions: sum, count
         self.actor = Actor(F, lay.history, A, cfg.actor_hidden, lay.action_bound).to(self.dev)
+        if cfg.mirror:
+            self.actor.mirror = tuple(t.to(self.dev) for t in env.mirror_tables())
         self.critic = mlp(S + C, cfg.critic_hidden, 1).to(self.dev)
         opt = lambda m: torch.optim.Adam(m.parameters(), lr=cfg.lr, betas=cfg.adam_betas)
         self.opt_wm, self.opt_actor, self.opt_critic = opt(self.wm), opt(self.actor), opt(self.critic)

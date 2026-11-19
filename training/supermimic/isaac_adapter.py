@@ -73,6 +73,12 @@ class ChhayaAdapter:
         mdp.sole = float(z.median())
         return mdp.sole
 
+    def mirror_tables(self):
+        """Left-right mirror of one proprio frame and of the action: (obs_perm, obs_sign, act_perm, act_sign)."""
+        e = self.env
+        return (e._mirror_obs_perm.long(), e._mirror_obs_signs.float(),
+                e._mirror_action_perm.long(), e._mirror_action_signs.float())
+
     # ---------------------------------------------------------------- learner interface
     def reset(self) -> None:
         obs, _ = self.env.reset()
