@@ -17,13 +17,16 @@ from src.mujoco.record_reel import _dressed_xml
 
 XML = os.path.join(os.path.dirname(__file__), "..", "..", "envs", "assets", "robotV2", "chhaya.xml")
 MESHES = os.path.join(os.path.dirname(__file__), "..", "..", "robot_hardware", "robot_description", "meshes")
+# battery and Raspberry Pi 5 stand-ins from the CAD (their mass is in chest_link already; the meshes are not)
+EXTRAS = os.path.join(os.path.dirname(__file__), "..", "..", "robot_hardware", "cad", "parametric", "checks", "extras")
 
 # Render-only look (the generated chhaya.xml is not touched): printed parts white, servos black, electronics blue.
 _MATERIALS = """
     <material name="v_print" rgba="0.92 0.92 0.90 1" specular="0.25" shininess="0.35"/>
     <material name="v_joint" rgba="0.20 0.21 0.23 1" specular="0.4" shininess="0.5"/>
     <material name="v_servo" rgba="0.06 0.06 0.07 1" specular="0.5" shininess="0.7"/>
-    <material name="v_pcb" rgba="0.10 0.35 0.85 1" specular="0.4" shininess="0.6"/>"""
+    <material name="v_pcb" rgba="0.10 0.35 0.85 1" specular="0.4" shininess="0.6"/>
+    <material name="v_batt" rgba="0.16 0.17 0.19 1" specular="0.6" shininess="0.8"/>"""
 _LIGHT = '<light name="v_key" directional="true" castshadow="true" pos="1 -1 3" dir="-0.4 0.4 -1" diffuse="0.55 0.55 0.55"/>'
 # leg links are one solid each (servo + bracket merged): joint blocks dark, limb segments white
 _LEG_JOINTS = ("hip_upper", "hip_lower", "ankle")
@@ -71,10 +74,14 @@ def _styled_xml(src):
         names.append(f)
     zc = [float(t.reshape(-1, 3)[:, 2].mean()) for t in parts]
     head, rack = int(np.argmax(zc)), int(np.argmin(zc))           # head on top, rack under the chest
-    mat = {head: "v_print", rack: "v_pcb"}
+    mat = {head: "v_print", rack: "v_print"}
     meshes = "".join(f'<mesh name="v_chest{i}" file="{f}" scale="0.001 0.001 0.001"/>' for i, f in enumerate(names))
     geoms = "".join(f'<geom type="mesh" mesh="v_chest{i}" contype="0" conaffinity="0" group="1" material="{mat.get(i, "v_print")}"/>'
                     for i in range(len(names)))
+    # the chest_link frame is the CAD frame (no joint offset), so the stand-ins go in as they are (mm)
+    for name, m in (("battery", "v_batt"), ("computer", "v_pcb")):
+        meshes += f'<mesh name="v_{name}" file="{os.path.abspath(os.path.join(EXTRAS, name + ".stl"))}" scale="0.001 0.001 0.001"/>'
+        geoms += f'<geom type="mesh" mesh="v_{name}" contype="0" conaffinity="0" group="1" mass="0" material="{m}"/>'
     x = x.replace("<asset>", "<asset>" + meshes + _MATERIALS, 1)
     x, n = re.subn(r'<geom type="mesh" mesh="chest_link" [^>]*/>', geoms, x, count=1)
     assert n == 1, "chest_link geom not found"
