@@ -29,7 +29,7 @@ all tests. A plain Python 3.11 venv with the repo's pins runs the tests and the 
 ```bash
 cd chhaya/training
 (cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)
-pytest tests --ignore=tests/test_env.py --ignore=tests/test_transformer.py
+pytest tests
 python -m chhaya.physics_check --out /tmp/phys                   # all checks pass
 ```
 

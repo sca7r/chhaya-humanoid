@@ -9,8 +9,7 @@ Every runnable script under `src/`, grouped by what you are doing:
 | [Export and deploy](#export-and-deploy) | [`isaaclab/export_onnx.py`](#isaaclabexport_onnxpy), [`isaaclab/verify_onnx_bundle.py`](#isaaclabverify_onnx_bundlepy), [`mujoco/policy_gate.py`](#mujocopolicy_gatepy) |
 | [Get-up policy](#get-up-policy) | [`isaaclab/make_fall_bank.py`](#get-up-policy), `train.py` / `play.py` / `export_onnx.py` with `--task BipedRobotV2GetUp`, [`mujoco/getup_gate.py`](#get-up-policy) |
 | [Diagnose](#diagnose) | [`isaaclab/check_actuator.py`](#isaaclabcheck_actuatorpy), [`isaaclab/jitter_probe.py`](#isaaclabjitter_probepy), [`isaaclab/profile_train.py`](#isaaclabprofile_trainpy) |
-| [Interactive tools](#interactive-tools) | [`tools/isaaclab/`](#interactive-tools) and [`tools/`](#interactive-tools) |
-| [Legacy](#legacy) | `mujoco/train.py`, `mujoco/train_lstm.py`, `mujoco/test_model.py`, `isaaclab/export.py` |
+| [Legacy](#legacy) | `isaaclab/export.py` |
 
 The typical loop is **train → play → export → verify → gate**, with the diagnostics when something
 looks wrong. See [`config/README.md`](../config/README.md) for the config file these scripts read.
@@ -365,39 +364,10 @@ python -m src.isaaclab.profile_train --task BipedRobotV2 --config_path config/co
 
 ---
 
-## Interactive tools
-
-Small Tkinter and Isaac Lab utilities for poking at the robot. They need Isaac Lab and a display.
-
-| Script | What it does | Run |
-|---|---|---|
-| `tools/isaaclab/debug_env.py` | One robot with a slider per joint (degrees), to check joint limits and directions | `python src/tools/isaaclab/debug_env.py --task BipedRobotV2` |
-| `tools/isaaclab/test_ik.py` | Drag foot targets with sliders and see the inverse-kinematics solution | `python src/tools/isaaclab/test_ik.py --task BipedRobotV2` |
-| `tools/isaaclab/try_symmetry.py` | Two robots, the second driven with the mirrored action; compares its observation with the mirror of the first's, per dimension. Logs to `logs/symmetry_test/<time>_session/` | `python -m src.tools.isaaclab.try_symmetry --task BipedRobotV2` |
-| `tools/plot_symmetry_logs.py` | Plots a symmetry CSV by observation group and saves a PNG next to it. Written for an earlier column layout: with the current `try_symmetry` CSV (`symmetry_data.csv`, columns `<name>_real`, `_mirror`, `_diff`) the base-state groups come out empty and the joint groups mix all three columns | `python src/tools/plot_symmetry_logs.py <file.csv>` |
-| `tools/try_symmetry.py` | Older V1-only copy of `try_symmetry`; use the one in `tools/isaaclab/` | |
-
-| Argument | Scripts | Default | Description |
-|---|---|---|---|
-| `--task` | `debug_env`, `test_ik`, `try_symmetry` | `BipedRobot` (`test_ik`: `BipedRobotV2`) | `BipedRobot` or `BipedRobotV2` |
-| `--num_envs` | `debug_env`, `test_ik` | `1` | Robots |
-| `--right-base-frame`, `--left-base-frame` | `test_ik` | `r_hip_motor`, `l_hip_motor` | Base frame of each leg's IK chain |
-| `--debug-ik` | `test_ik` | off | Print IK Jacobian debug info |
-| `--debug-ik-delta` | `test_ik` | off | Print the IK delta for the hip yaw joints |
-| `--direct-set` | `test_ik` | off | Write joint state directly, bypassing the actuator (to debug it) |
-
-`try_symmetry` also accepts `--num_envs`, but it always runs exactly two robots. The Isaac Lab launcher flags
-(`--headless`, `--device`, ...) work on all of them.
-
----
-
 ## Legacy
 
-These predate the Isaac Lab pipeline. They are kept for reference and are **not maintained**.
+Predates the Isaac Lab pipeline; kept because tests import its helpers. **Not maintained**.
 
 | Script | Status |
 |---|---|
-| `mujoco/train.py` | The MuJoCo trainer. Its default config is `config/final/train_config_d4pg.yaml`, which no longer exists, and it imports environment modules (`envs.mujoco_env`, `envs.distributed`) that now live under `envs/mujoco/`. It reads a `randomization:` config section that the current schema does not define. Train with `isaaclab/train.py` instead |
-| `mujoco/train_lstm.py` | The same MuJoCo trainer forcing an LSTM backbone with MPO. Same stale imports and config default (`config/final/train_config_mpo.yaml`); it also passes `hidden_size=256`, which the schema's `NetworkConfig` drops |
-| `mujoco/test_model.py` | Renders a checkpoint in the old MuJoCo environment. Defaults point at `config/final/train_config_sac.yaml` and a `checkpoints_final/` checkpoint, and it imports the same stale `envs.mujoco_env`. Use `sim2real.py` |
 | `isaaclab/export.py` | Old TorchScript export. It hard-codes a 52-dim observation frame (the real one is 50), so it fails against current checkpoints. Use `export_onnx.py` |

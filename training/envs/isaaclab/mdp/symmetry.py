@@ -50,7 +50,7 @@ def compute_symmetric_states(
 
 # ---------------------------------------------------------------------------
 # Low-level helpers — accept explicit perm/sign tensors so callers outside
-# the env (e.g. try_symmetry.py) can still use them after fetching the
+# the env can still use them after fetching the
 # tensors from the env.
 # ---------------------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+# ponytail: only the V1 config the base BipedEnvCfg defaults to; its USD is gone (the V1 task was not ported to Isaac Lab 3).
 """
 Isaac Sim Configuration for Biped Robot.
 

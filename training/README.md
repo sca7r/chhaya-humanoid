@@ -328,7 +328,7 @@ BipedRobot/
 | [`robot_motion_reference/gait_studio/README.md`](robot_motion_reference/gait_studio/README.md) | Gait Studio |
 
 ```bash
-python -m pytest tests -q --ignore=tests/test_env.py --ignore=tests/test_transformer.py   # two legacy test files are stale
+python -m pytest tests -q   # two legacy test files are stale
 ```
 
 ---

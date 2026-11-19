@@ -24,13 +24,10 @@ Both expose the same observation and action, run the same servo model
 
 - `isaaclab/`: `biped_env.py` (`BipedEnv`), `biped_env_cfg.py` (defaults, event table, terrain), `mdp/`
   (`commands.py`, `events.py`, `symmetry.py`), `rewards/rewards.py` (all reward functions), `compat.py` and `quat.py` (the Isaac Lab 3.0 boundary: tensors and w,x,y,z quaternions inside, converted at the simulator).
-- `mujoco/`: `biped_env_v2.py` (`BipedEnvV2`), `mujoco_env.py` (`MujocoEnv`, the older V1 robot),
-  `base_env.py` (model loading, viewer), `distributed.py` (V1 wrappers).
-- `assets/robotV2/` (current robot: MJCF, USD, URDF, `ArticulationCfg`, `BamActuator`), `assets/robot/`
-  (V1), and V1 helpers in `utils/` and `rewards/`.
+- `mujoco/`: `biped_env_v2.py` (`BipedEnvV2`), `base_env.py` (model loading, viewer).
+- `assets/robotV2/` (current robot: MJCF, USD, URDF, `ArticulationCfg`, `BamActuator`).
 
-`BipedRobotV2` is the maintained robot and task. The V1 assets and `BipedRobot` task are kept for
-reference and are not expected to run unchanged (the code now looks joints up by V2 names).
+`BipedRobotV2` is the robot and task.
 
 ---
 
@@ -336,11 +333,6 @@ must be kept equal to the Isaac side by hand:
 | Speed-proportional clock | `gait_clock_base_freq` | `GAIT_CLOCK_FREQ` |
 | IMU and joint lag | `imu_obs_delay_steps_range`, `servo_obs_delay_steps` | `IMU_OBS_DELAY`, `SERVO_OBS_DELAY` |
 
-`MujocoEnv` is the older V1 environment (V1 robot, 48-dim observation without a gait clock, its own
-critic layout), used by the CPU training scripts in `src/mujoco/`, not by the sim-to-sim checks.
-`mujoco/__init__.py` registers it as `Mujoco-v0` with a stale entry point
-(`envs.mujoco_env:MujocoEnv`), so import the class directly instead of using `gym.make`.
-
 ---
 
 ## Robot assets
@@ -441,7 +433,7 @@ action, the mirror tables, the exporter and the Jetson runtime (see the observat
    DOF *i* by position), the initial base height and the actuator (`BamActuatorCfg`, `params_file`).
 2. **Env cfg.** In `biped_env_cfg.py` subclass `BipedEnvCfg` like `BipedRobotV2EnvCfg`: scene with your
    `ArticulationCfg` (and IMU prim and offset), `joint_limits`, foot, base and joint name regexes,
-   `mirror_joint_perm` / `mirror_joint_signs`. Validate the mirror with `src/tools/`; wrong signs
+   `mirror_joint_perm` / `mirror_joint_signs`. Validate the mirror with `tests/test_whole_body_isaac_logic.py`; wrong signs
    collapse training.
 3. **Register the task** by hand in `src/isaaclab/train.py`, `play.py`, `jitter_probe.py` and
    `profile_train.py`, then run with `--task <name>` (the default task is the V1 `BipedRobot`; pass
@@ -486,9 +478,8 @@ and Jetson are unaffected (the critic is never exported), but old checkpoints st
 ## Tests
 
 ```bash
-python -m pytest tests -q --ignore=tests/test_env.py --ignore=tests/test_transformer.py
+python -m pytest tests -q
 ```
 
-`test_env.py` and `test_transformer.py` import modules that no longer exist and fail at collection.
 The rest covers the reward sign guard and reward functions, command limit, action maps (Isaac and
 MuJoCo), gait clock modes and export, the previous-action slot, and mirror tables and statistics.

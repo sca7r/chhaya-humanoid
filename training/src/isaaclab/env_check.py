@@ -1,7 +1,7 @@
 """Run the real training environment (BipedEnv + config/chhaya.yaml) on Isaac Lab 3.0 / Newton.
 
-    python experimental/isaaclab3/env_check.py --num_envs 2 --steps 200            # CPU works (slow)
-    python experimental/isaaclab3/env_check.py --num_envs 1024 --device cuda:0
+    python src/isaaclab/env_check.py --num_envs 2 --steps 200            # CPU works (slow)
+    python src/isaaclab/env_check.py --num_envs 1024 --device cuda:0
 
 Holds the home pose (zero action) for the first half, then random actions; prints what the env sees.
 """

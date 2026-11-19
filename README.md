@@ -85,7 +85,7 @@ pip install -r requirements.txt pytest tqdm
 python -m chhaya.physics_check --out /tmp/phys
 
 # run the test suite
-pytest tests --ignore=tests/test_env.py --ignore=tests/test_transformer.py
+pytest tests
 ```
 
 To watch a trained policy, run the MuJoCo check on an exported bundle. It walks the robot through standing,

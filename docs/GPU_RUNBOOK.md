@@ -55,7 +55,7 @@ uv pip install -r requirements-isaaclab3.txt
 The environment has run on a CPU only. Check it on the GPU at small scale first:
 
 ```bash
-python experimental/isaaclab3/env_check.py --num_envs 1024 --steps 200     # prints robot-steps/s
+python src/isaaclab/env_check.py --num_envs 1024 --steps 200     # prints robot-steps/s
 python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --num_envs 1024
 ```
 
