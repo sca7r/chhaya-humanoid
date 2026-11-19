@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chhaya</title>
+<meta name="description" content="Tap the floor and a 3D-printed humanoid walks there. The robot's learned policy and physics run in your browser.">
+<style>
+  :root { --bg: #f5f5f7; --ink: #1d1d1f; --mute: #6e6e73; --card: rgba(255,255,255,.82); --line: rgba(0,0,0,.08); --acc: #0071e3; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { display: block; touch-action: none; }
+  .card { position: fixed; background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.06); }
+  #title { top: 16px; left: 16px; padding: 14px 18px; max-width: min(360px, calc(100vw - 32px)); }
+  #title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+  #title p { margin: 4px 0 0; color: var(--mute); font-size: 13px; }
+  #title a { color: var(--acc); text-decoration: none; }
+  #hint { left: 50%; transform: translateX(-50%); top: 16px; padding: 8px 14px; border-radius: 999px; font-size: 13px; color: var(--mute); white-space: nowrap; }
+  #panel { right: 16px; bottom: 16px; padding: 12px; display: grid; gap: 10px; justify-items: center; }
+  .pad { display: grid; grid-template-columns: repeat(3, 48px); gap: 6px; }
+  button { height: 44px; min-width: 48px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+    font: inherit; font-size: 18px; cursor: pointer; transition: background .15s; }
+  button:hover { background: #f0f0f3; } button:active { background: #e6e6eb; }
+  button.text { font-size: 15px; padding: 0 14px; }
+  .row { display: flex; gap: 6px; }
+  #status { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--mute); text-align: center; min-height: 16px; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 2; transition: opacity .4s; }
+  #loading div { text-align: center; color: var(--mute); }
+  #loading b { display: block; color: var(--ink); font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  @media (max-width: 640px) { #hint { top: auto; bottom: 214px; } #panel { left: 16px; right: 16px; justify-items: stretch; } .pad { justify-content: center; } .row { justify-content: center; } }
+</style>
+</head>
+<body>
+<div id="loading"><div><b>Chhaya</b><span id="progress">Loading the physics engine…</span></div></div>
+<div id="title" class="card">
+  <h1>Chhaya</h1>
+  <p>A 3D-printed humanoid. Its learned walking policy and the MuJoCo physics run live in your browser.
+     <a href="https://github.com/" id="repo">Source</a></p>
+</div>
+<div id="hint" class="card">Tap the floor to walk there · drag to look around</div>
+<div id="panel" class="card">
+  <div class="pad">
+    <button data-k="left" title="Turn left">&#8634;</button><button data-k="up" title="Forward">&#9650;</button><button data-k="right" title="Turn right">&#8635;</button>
+    <button data-k="sleft" title="Step left">&#8676;</button><button data-k="stop" title="Stop">&#9632;</button><button data-k="sright" title="Step right">&#8677;</button>
+    <span></span><button data-k="down" title="Backward">&#9660;</button><span></span>
+  </div>
+  <div class="row"><button class="text" id="push">Push</button><button class="text" id="reset">Reset</button></div>
+  <div id="status"></div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module" src="app.mjs"></script>
+</body>
+</html>

@@ -15,6 +15,9 @@ network, trained in simulation with reinforcement learning, drives all 20 joints
   <img src="docs/media/four_views.png" alt="Chhaya mid-stride from the front, side, back and an isometric view" width="90%"/>
 </p>
 
+**[Try it in your browser](https://<you>.github.io/chhaya-humanoid/)**: tap the floor and the robot walks there. The policy and
+the MuJoCo physics run on your device; nothing is installed.
+
 The clips are the trained policy replayed in MuJoCo from Isaac Lab recordings. The robot has not been built yet.
 
 ## Highlights
@@ -73,8 +76,8 @@ about $610 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONI
 The simulation stack runs on Linux with Python 3.11. Everything runs from inside `training/`.
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/chhaya.git
-cd chhaya/training
+git clone --recurse-submodules https://github.com/<you>/chhaya-humanoid.git
+cd chhaya-humanoid/training
 python3.11 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt pytest tqdm
 
@@ -110,8 +113,21 @@ python -m src.mujoco.drive --bundle exported/chhaya_final     # then open http:/
 |---|---|---|
 | Tap a spot | tap the floor in the live view in your browser: the robot turns, walks there and stops | available in simulation |
 | Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in simulation |
-| Public web demo | the same page running entirely in the visitor's browser, hosted on GitHub Pages | planned |
+| Browser demo | the same, running entirely in the visitor's browser (`web/`, published to GitHub Pages) | available |
 | Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
+
+The browser demo is `web/`: MuJoCo compiled to WebAssembly, the policy in onnxruntime-web and the same servo
+model, observation and action map as the MuJoCo check (`web/sim.mjs`). To refresh it with a new policy:
+
+```bash
+cd training
+python -m src.mujoco.export_web --bundle exported/chhaya_final --trace 300   # writes web/assets/
+cd ../web && npm install --no-save @mujoco/mujoco@3.17.0 onnxruntime-web@1.20.1 && node test_sim.mjs .
+python3 -m http.server 8000                                                 # open http://localhost:8000
+```
+
+The test checks the observations against the Python environment step for step, then lets the policy walk and
+reach four tapped spots. Pushing to `main` publishes `web/` (`.github/workflows/pages.yml`).
 
 Commands are limited to the range the policy was trained on (`config/chhaya.yaml`), whatever the input.
 
@@ -163,6 +179,7 @@ chhaya/
 │   ├── src/isaaclab/          training, evaluation, ONNX export
 │   ├── src/mujoco/            MuJoCo checks, playback and video rendering
 │   └── tests/                 test suite
+├── web/                       browser demo (GitHub Pages): tap-to-walk, physics and policy in the browser
 └── docs/                      training guides, design decisions, results
 ```
 

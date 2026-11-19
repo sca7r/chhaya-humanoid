@@ -1,0 +1,20 @@
+# Publishes web/ (the browser demo) to GitHub Pages. Repository settings: Pages, Source: GitHub Actions.
+name: Browser demo
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "hardware/robot_description/meshes/**", "hardware/cad/parametric/checks/extras/**"]
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+concurrency: { group: pages, cancel-in-progress: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.deploy.outputs.page_url }}" }
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp -rL web _site        # -L: web/meshes and web/extras are links into hardware/
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
