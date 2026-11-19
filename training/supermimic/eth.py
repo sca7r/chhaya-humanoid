@@ -69,9 +69,10 @@ class LegFK:
                 link = j.find("parent").get("link")
             self.chains.append(chain[::-1])
 
-    def __call__(self, q: torch.Tensor) -> torch.Tensor:
-        """q (B, J) absolute joint angles in ``joint_names`` order -> (B, n_feet, 3)."""
-        B, out = q.shape[0], []
+    def __call__(self, q: torch.Tensor, normals: bool = False):
+        """q (B, J) absolute joint angles in ``joint_names`` order -> (B, n_feet, 3); with ``normals`` also the
+        foot-link z axes (B, n_feet, 3) = sole normals (the URDF's foot frames are level at q = 0)."""
+        B, out, nz = q.shape[0], [], []
         for chain in self.chains:
             R = torch.eye(3, device=q.device).expand(B, 3, 3)
             p = torch.zeros(B, 3, device=q.device)
@@ -81,7 +82,8 @@ class LegFK:
                 if idx >= 0:
                     R = R @ _axis_angle(axis, q[:, idx])
             out.append(p)
-        return torch.stack(out, 1)
+            nz.append(R[:, :, 2])
+        return (torch.stack(out, 1), torch.stack(nz, 1)) if normals else torch.stack(out, 1)
 
 
 @dataclass
@@ -106,6 +108,8 @@ class RewardCfg:
     w_still: float = -0.5           # standing commands: per foot off the ground
     w_dev_hip: float = -0.5         # hip roll and yaw, L1
     w_dev_arms: float = -0.1
+    w_flat_l2: float = -5.0         # the env's foot_flat_l2 / foot_flat_l1: sole roll of feet on the ground
+    w_flat_l1: float = -3.0
     cmd_threshold: float = 0.02
     walking_threshold: float = 0.05
     contact_band: float = 0.004     # sigmoid width [m] of the soft foot contact
@@ -152,11 +156,17 @@ class ChhayaMDP:
 
     def feet(self, s: torch.Tensor):
         """Foot positions in the base frame (B, 2, 3) and their heights above the sole's rest height (B, 2)."""
-        f = self.fk(self._sl(s, self.iq) + self.q0)
-        z = self._sl(s, self.ih) - (f * self._sl(s, self.ig).unsqueeze(1)).sum(-1)
+        f, n = self.fk(self._sl(s, self.iq) + self.q0, normals=True)
+        g = self._sl(s, self.ig)
+        z = self._sl(s, self.ih) - (f * g.unsqueeze(1)).sum(-1)
+        # sole roll as the env measures it: normal along the robot's horizontal lateral direction
+        lat = torch.zeros_like(g); lat[:, 1] = 1.0
+        lat = lat - (lat * g).sum(-1, keepdim=True) * g
+        lat = lat / lat.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+        self._roll = (n * lat.unsqueeze(1)).sum(-1)              # (B, feet) sin(roll), read by reward()
         return f, z - self.sole
 
-    def reward(self, s: torch.Tensor, a: torch.Tensor, s2: torch.Tensor) -> torch.Tensor:
+    def reward(self, s: torch.Tensor, a: torch.Tensor, s2: torch.Tensor, terms: bool = False):
         cf = self.cfg
         v, w, g = self._sl(s2, self.iv), self._sl(s2, self.iw), self._sl(s2, self.ig)
         q, cmd = self._sl(s2, self.iq) + self.q0, self._sl(s2, self.icmd)
@@ -189,11 +199,17 @@ class ChhayaMDP:
         cl, cr = c[:, 0], c[:, 1]
         r_gait = walking * (cl * (1 - cr) + cr * (1 - cl) - 2 * (1 - cl) * (1 - cr))
         r_still = stand * (1 - c).sum(-1)
+        roll = self._roll
+        r_flat2, r_flat1 = (roll ** 2 * c).sum(-1), ((roll ** 2 + 1e-6).sqrt() * c).sum(-1)
 
-        r = (cf.w_lin * r_lin + cf.w_ang * r_ang + cf.w_upright * r_up + cf.w_pose * r_pose + cf.w_limits * r_lim
-             + cf.w_action_rate * r_rate + cf.w_lin_z * r_lin_z + cf.w_ang_xy * r_ang_xy + cf.w_clearance * r_clear
-             + cf.w_slip * r_slip + cf.w_gait * r_gait + cf.w_still * r_still + r_dev)
-        return r * self.dt
+        t = {"lin": cf.w_lin * r_lin, "ang": cf.w_ang * r_ang, "upright": cf.w_upright * r_up, "pose": cf.w_pose * r_pose,
+             "limits": cf.w_limits * r_lim, "action_rate": cf.w_action_rate * r_rate, "lin_z": cf.w_lin_z * r_lin_z,
+             "ang_xy": cf.w_ang_xy * r_ang_xy, "clearance": cf.w_clearance * r_clear, "slip": cf.w_slip * r_slip,
+             "gait": cf.w_gait * r_gait, "still": cf.w_still * r_still, "dev": r_dev,
+             "flat": cf.w_flat_l2 * r_flat2 + cf.w_flat_l1 * r_flat1}
+        if terms:
+            return {k: v * self.dt for k, v in t.items()}
+        return sum(t.values()) * self.dt
 
     def term_logit(self, s2: torch.Tensor) -> torch.Tensor:
         """Logit of the tilt termination: tilt beyond the limit <=> -g_z < cos(limit)."""
@@ -223,11 +239,14 @@ class WorldModelEth(WorldModel):
         hi = self.mdp.max_step_reward / (1.0 - gamma)
         return -hi, hi                                            # ponytail: penalties assumed no larger than the bonuses
 
-    def forward(self, s: torch.Tensor, a: torch.Tensor, c: torch.Tensor):
+    def next_state(self, s: torch.Tensor, a: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         ns, nc = self.norm_s(s), self.norm_c(c)
         s2 = s + self.dyn(torch.cat([ns, a, nc], -1)) * self.d_std
         s2 = torch.where(self.analytic, self._analytic(s, a), s2)
-        s2 = self.mdp.integrate(s, s2)
+        return self.mdp.integrate(s, s2)
+
+    def forward(self, s: torch.Tensor, a: torch.Tensor, c: torch.Tensor):
+        s2 = self.next_state(s, a, c)
         return s2, self.mdp.reward(s, a, s2), self.mdp.term_logit(s2)
 
     def window_loss(self, s, a, r, term, done, c):
@@ -237,7 +256,7 @@ class WorldModelEth(WorldModel):
         alive = torch.ones(B, device=s.device)
         x, ls, n = s[:, 0], torch.zeros((), device=s.device), torch.zeros((), device=s.device)
         for j in range(k):
-            x, _, _ = self(x, a[:, j], c)
+            x = self.next_state(x, a[:, j], c)          # the fit needs no reward (no FK)
             m = alive * (1.0 - done[:, j])
             ls = ls + (((x - s[:, j + 1]) / scale).square().mean(-1) * m).sum()
             n = n + m.sum()

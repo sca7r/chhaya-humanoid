@@ -30,8 +30,10 @@ def test_fk_matches_mujoco():
         base = m.body("base_link").id
         R0, p0 = d.xmat[base].reshape(3, 3), d.xpos[base]
         want = torch.tensor([R0.T @ (d.xpos[m.body(f).id] - p0) for f in FEET])
-        got = fk(q.float())[0].double()
-        assert torch.allclose(got, want, atol=1e-4), (got, want)
+        got, n = fk(q.float(), normals=True)
+        assert torch.allclose(got[0].double(), want, atol=1e-4), (got, want)
+        want_n = torch.tensor([R0.T @ d.xmat[m.body(f).id].reshape(3, 3)[:, 2] for f in FEET])
+        assert torch.allclose(n[0].double(), want_n, atol=1e-4), (n, want_n)
 
 
 def _model():
@@ -63,3 +65,6 @@ def test_eth_step_integrates_and_differentiates():
     tilted = s2.detach().clone()
     tilted[:, slice(*ph["g_b"])] = torch.tensor([0.9, 0.0, -0.436])         # ~64 deg tilt
     assert (wm.mdp.term_logit(tilted) > 0).all()
+    zero = torch.zeros(1, S); zero[:, ph["g_b"][1] - 1] = -1.0
+    wm.mdp.feet(zero)
+    assert wm.mdp._roll.abs().max() < 1e-5                                 # home pose, upright: soles flat
