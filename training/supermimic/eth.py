@@ -111,6 +111,13 @@ class RewardCfg:
     # arm joint speed^2: the arms twisted at ~1.6 rad/s RMS for nothing, ~1.8 N m RMS through the servos' reflected
     # rotor inertia (above the STS3215's continuous rating). -0.02 makes that waggle cost ~0.2 per step.
     w_arm_vel: float = -0.02
+    # Human arm swing (with a gait table): each shoulder pitch follows the OPPOSITE hip's table pitch, scaled
+    # (left arm forward with the right leg). Cancels the legs' yaw twist. Hip and shoulder pitch share the sign
+    # convention (negative = forward, checked by forward kinematics). Shoulder pitch is left out of the arm
+    # speed / deviation penalties, which keep arm yaw, roll and elbow quiet.
+    w_arm_swing: float = 0.5
+    arm_swing_gain: float = 0.6
+    std_arm_swing: float = 0.15
     w_imit_q: float = 1.0           # with a gait table (env `reference:`): leg joints, sole heights and contacts
     w_imit_h: float = 1.0           # of the table at (command, phase); the contact term replaces w_gait
     w_imit_c: float = 0.5
@@ -136,12 +143,13 @@ class ChhayaMDP:
         self.lo, self.hi = torch.tensor(ph["soft_lo"], device=dev), torch.tensor(ph["soft_hi"], device=dev)
         names = ph["joint_names"]
         self.m_hip = torch.tensor([1.0 if ("hip_roll" in n or "hip_yaw" in n) else 0.0 for n in names], device=dev)
-        self.m_arm = torch.tensor([1.0 if any(k in n for k in ("shoulder", "arm", "elbow")) else 0.0 for n in names], device=dev)
+        self.m_arm = torch.tensor([1.0 if any(k in n for k in ("shoulder_roll", "arm_yaw", "elbow")) else 0.0 for n in names], device=dev)
+        self.names = list(names)
         self.fk = LegFK(ph["urdf"], names)
         self.sole = ph.get("sole_height", 0.0)
         self.ref = None                                          # gait table, set by the adapter (attach_reference)
         self.max_step_reward = self.dt * (cfg.w_lin + cfg.w_ang + cfg.w_upright + cfg.w_pose + cfg.w_gait
-                                          + cfg.w_imit_q + cfg.w_imit_h)
+                                          + cfg.w_imit_q + cfg.w_imit_h + cfg.w_arm_swing)
 
     def _sl(self, s, idx):
         return s[:, idx[0]:idx[1]]
@@ -208,7 +216,7 @@ class ChhayaMDP:
         cl, cr = c[:, 0], c[:, 1]
         # Locked to the clock, the mirror-symmetric actor's two half-cycles are mirror images: no one-sided limp.
         sp = self._sl(s2, self.iph)[:, 0]
-        r_imit_q = r_imit_h = torch.zeros_like(sp)
+        r_imit_q = r_imit_h = r_swing = torch.zeros_like(sp)
         if self.ref is None:
             want_r, want_l = (sp + 1) * 0.5, (1 - sp) * 0.5
             r_gait = walking * (1 - 0.5 * ((want_r - cr).abs() + (want_l - cl).abs()))
@@ -224,6 +232,14 @@ class ChhayaMDP:
             r_imit_h = torch.exp(-((z2.clamp(min=0) - h_ref) / sd["foot_height"]) ** 2).mean(-1)   # table and z2: [left, right]
             r_gait = 1 - (c - c_ref).abs().mean(-1)
             r_gait = r_gait * cf.w_imit_c / cf.w_gait
+            # contralateral arm swing from the table's hip pitch
+            pol = [self.names[int(i)] for i in self.ref_legs]
+            n_ = self.names
+            sh = [n_.index("l_shoulder_pitch"), n_.index("r_shoulder_pitch")]
+            hips = [n_.index("r_hip_pitch_joint"), n_.index("l_hip_pitch_joint")]             # opposite legs
+            hip_ref = q_ref[:, [pol.index("r_hip_pitch_joint"), pol.index("l_hip_pitch_joint")]]
+            sw_ref = self.q0[sh] + cf.arm_swing_gain * (hip_ref - self.q0[hips])
+            r_swing = walking * torch.exp(-((q[:, sh] - sw_ref) ** 2).mean(-1) / cf.std_arm_swing ** 2)
         r_still = stand * (1 - c).sum(-1)
         roll = self._roll
         r_flat2, r_flat1 = (roll ** 2 * c).sum(-1), ((roll ** 2 + 1e-6).sqrt() * c).sum(-1)
@@ -231,7 +247,7 @@ class ChhayaMDP:
         t = {"lin": cf.w_lin * r_lin, "ang": cf.w_ang * r_ang, "upright": cf.w_upright * r_up, "pose": cf.w_pose * r_pose,
              "limits": cf.w_limits * r_lim, "action_rate": cf.w_action_rate * r_rate, "lin_z": cf.w_lin_z * r_lin_z,
              "ang_xy": cf.w_ang_xy * r_ang_xy, "clearance": cf.w_clearance * r_clear, "slip": cf.w_slip * r_slip,
-             "gait": cf.w_gait * r_gait, "imit_q": cf.w_imit_q * r_imit_q, "imit_h": cf.w_imit_h * r_imit_h, "still": cf.w_still * r_still, "dev": r_dev, "arm_vel": cf.w_arm_vel * r_arm_vel,
+             "gait": cf.w_gait * r_gait, "imit_q": cf.w_imit_q * r_imit_q, "imit_h": cf.w_imit_h * r_imit_h, "still": cf.w_still * r_still, "dev": r_dev, "arm_vel": cf.w_arm_vel * r_arm_vel, "arm_swing": cf.w_arm_swing * r_swing,
              "flat": cf.w_flat_l2 * r_flat2 + cf.w_flat_l1 * r_flat1}
         if terms:
             return {k: v * self.dt for k, v in t.items()}

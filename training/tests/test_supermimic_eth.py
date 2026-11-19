@@ -97,7 +97,8 @@ def test_gait_table_imitation_terms():
         def field(self, ref, name):
             return torch.zeros(ref.shape[0], 2) + (1.0 if name == "contact" else 0.0)
     mdp = wm.mdp
-    mdp.ref, mdp.ref_legs, mdp.ref_stand = Table(), torch.arange(12), 0.05
+    legs = [i for i, n in enumerate(NAMES) if not any(k in n for k in ("shoulder", "arm", "elbow"))]
+    mdp.ref, mdp.ref_legs, mdp.ref_stand = Table(), torch.tensor(legs), 0.05
     mdp.ref_std = {"joint_pos": 0.15, "foot_height": 0.01}
     s = torch.zeros(2, S)
     s[:, ph["g_b"][1] - 1] = -1.0
@@ -107,3 +108,9 @@ def test_gait_table_imitation_terms():
     s2[1, slice(*ph["q"])] = 0.3                   # robot 1 off the table's pose
     t = mdp.reward(s, torch.zeros(2, J), s2, terms=True)
     assert "imit_q" in t and t["imit_q"][0] > t["imit_q"][1]
+    # arm swing: walking command, table hips at home -> shoulders should sit at home; robot 1's arms forward
+    s[:, 0] = 0.15                                  # cmd vx (walking)
+    s2 = s.clone()
+    s2[1, ph["q"][0] + NAMES.index("l_shoulder_pitch")] = -0.4
+    t = mdp.reward(s, torch.zeros(2, J), s2, terms=True)
+    assert t["arm_swing"][0] > t["arm_swing"][1] > 0
