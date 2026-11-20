@@ -188,7 +188,7 @@ train:
       start_mix:
         bank: 0.85
         standing: 0.15
-      start_category: null
+      start_category: prone      # face-down first (HoST: one policy per start side); supine later
       spawn_clearance_m: 0.002
       stand_height_frac: 0.9
       stand_tilt_deg: 15.0

@@ -284,6 +284,37 @@ class GetUpCfg:
     std_pose: float = 0.3
     std_roll: float = 0.05
     contact_band: float = 0.004
+    # Keyframe guide (face-down): reward the best-matched keyframe, later ones worth more. Time-free, so it works
+    # from any start. Keys 1-6 were checked open-loop in MuJoCo with the BAM servo; 7-8 need feedback.
+    w_key: float = 2.0
+    std_key_q: float = 0.35         # rad, rms over the 20 joints
+    std_key_up: float = 0.25
+    std_key_h: float = 0.04         # m
+
+
+# (base up = -g_z, base height m, legs [hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch] deg,
+#  arms [shoulder pitch, shoulder roll, arm yaw, elbow] deg), both sides the same.
+GETUP_KEYS = (
+    (-0.15, 0.064, (0, 0, 0, 0, 0, 0), (0, 12, 0, -20)),                  # face down
+    (0.0, 0.053, (0, 0, 0, 0, 0, 0), (0, 90, 0, 0)),                      # arms out sideways
+    (0.0, 0.052, (0, 0, 0, 0, 0, 0), (-170, 90, 0, 0)),                   # arms turned overhead
+    (0.0, 0.052, (0, 0, 0, 0, 0, 0), (-170, 12, 0, -20)),                 # arms in, hands past the head
+    (0.33, 0.13, (0, 0, 0, 0, 0, 30), (-100, 12, 0, -10)),                # push the chest up
+    (0.40, 0.155, (0, 0, -80, -95, 0, 30), (-90, 12, 0, -10)),            # hands and knees
+    (0.82, 0.22, (0, 0, -78, -105, 0, -30), (-60, 12, 0, -30)),           # squat
+    (1.0, 0.279, (0, 0, -10, -26, 0, -16), (0, 12, 0, -20)),              # stand
+)
+_LEG = ("hip_yaw", "hip_roll_joint", "hip_pitch_joint", "knee_joint", "ankle_roll_joint", "ankle_pitch_joint")
+_ARM = ("shoulder_pitch", "shoulder_roll", "arm_yaw", "elbow")
+
+
+def getup_keys(names) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """GETUP_KEYS as (K, J) joint angles in ``names`` order (rad), (K,) up, (K,) base height."""
+    q = []
+    for _, _, leg, arm in GETUP_KEYS:
+        d = {f"{sd}_{n}": math.radians(v) for sd in "lr" for n, v in (*zip(_LEG, leg), *zip(_ARM, arm))}
+        q.append([d[n] for n in names])                                    # KeyError = a renamed joint
+    return (torch.tensor(q), torch.tensor([k[0] for k in GETUP_KEYS]), torch.tensor([k[1] for k in GETUP_KEYS]))
 
 
 class GetUpMDP(ChhayaMDP):
@@ -292,7 +323,10 @@ class GetUpMDP(ChhayaMDP):
     def __init__(self, ph: dict, device, h_floor: float, h_stand: float, cfg: GetUpCfg = GetUpCfg()):
         super().__init__(ph, device)
         self.gcfg, self.h_floor, self.h_stand = cfg, float(h_floor), float(h_stand)
-        self.max_step_reward = self.dt * (cfg.w_upright + cfg.w_height + cfg.w_feet + cfg.w_stand + cfg.w_feet_flat)
+        self.max_step_reward = self.dt * (cfg.w_upright + cfg.w_height + cfg.w_feet + cfg.w_stand + cfg.w_feet_flat
+                                          + cfg.w_key)
+        self.key_q, self.key_up, self.key_h = (x.to(device) for x in getup_keys(self.names))
+        self.key_w = torch.arange(1, len(GETUP_KEYS) + 1, device=device) / len(GETUP_KEYS)
 
     def reward(self, s: torch.Tensor, a: torch.Tensor, s2: torch.Tensor, terms: bool = False):
         cf = self.gcfg
@@ -316,10 +350,18 @@ class GetUpMDP(ChhayaMDP):
              "action_rate": cf.w_action_rate * ((a.clamp(-1, 1) - a_prev) ** 2).sum(-1),
              "joint_vel": cf.w_joint_vel * (self._sl(s2, self.iqd) ** 2).sum(-1),
              "joint_vel_cap": cf.w_joint_vel_cap * (torch.relu(self._sl(s2, self.iqd).abs() - cf.joint_vel_cap) ** 2).sum(-1),
-             "limits": cf.w_limits * (torch.relu(q - self.hi) + torch.relu(self.lo - q)).sum(-1)}
+             "limits": cf.w_limits * (torch.relu(q - self.hi) + torch.relu(self.lo - q)).sum(-1),
+             "key": cf.w_key * self.key_match(q, up, h)}
         if terms:
             return {k: x * self.dt for k, x in t.items()}
         return sum(t.values()) * self.dt
+
+    def key_match(self, q: torch.Tensor, up: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+        """max over keyframes of (k / K) * pose, tilt and height similarity, in [0, 1]."""
+        cf = self.gcfg
+        e = (((q[:, None] - self.key_q) ** 2).mean(-1) / cf.std_key_q ** 2
+             + ((up[:, None] - self.key_up) / cf.std_key_up) ** 2 + ((h[:, None] - self.key_h) / cf.std_key_h) ** 2)
+        return (self.key_w * torch.exp(-e)).amax(-1)
 
     def term_logit(self, s2: torch.Tensor) -> torch.Tensor:
         return torch.full((s2.shape[0],), -20.0, device=s2.device)     # never terminates (time-outs only)
