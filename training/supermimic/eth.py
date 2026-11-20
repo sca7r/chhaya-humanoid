@@ -261,6 +261,63 @@ class ChhayaMDP:
         return (math.cos(self.cfg.tilt_limit) - cos_tilt) / self.cfg.tilt_softness
 
 
+@dataclass
+class GetUpCfg:
+    """Get-up terms, the analytic counterparts of envs/isaaclab/rewards/getup_rewards.py (config/chhaya_getup.yaml
+    weights). No tilt termination: lying down is where every episode starts."""
+    w_upright: float = 1.0          # ((up + 1) / 2)^2
+    w_height: float = 2.0           # h_hat * (up + 1) / 2
+    w_feet: float = 0.5             # [mostly upright] * mean(feet on the ground)
+    w_stand: float = 3.0            # stand score * pose quality
+    w_feet_flat: float = 1.5        # stand score * flat soles on the ground
+    w_still: float = -1.0           # stand score * base speed^2
+    w_action_rate: float = -0.05
+    w_limits: float = -1.0
+    stand_height_frac: float = 0.9
+    stand_tilt_deg: float = 15.0
+    feet_min_up: float = 0.7
+    std_pose: float = 0.3
+    std_roll: float = 0.05
+    contact_band: float = 0.004
+
+
+class GetUpMDP(ChhayaMDP):
+    """ChhayaMDP's state, integration and foot kinematics with the get-up reward and no termination."""
+
+    def __init__(self, ph: dict, device, h_floor: float, h_stand: float, cfg: GetUpCfg = GetUpCfg()):
+        super().__init__(ph, device)
+        self.gcfg, self.h_floor, self.h_stand = cfg, float(h_floor), float(h_stand)
+        self.max_step_reward = self.dt * (cfg.w_upright + cfg.w_height + cfg.w_feet + cfg.w_stand + cfg.w_feet_flat)
+
+    def reward(self, s: torch.Tensor, a: torch.Tensor, s2: torch.Tensor, terms: bool = False):
+        cf = self.gcfg
+        v, w, g = self._sl(s2, self.iv), self._sl(s2, self.iw), self._sl(s2, self.ig)
+        q, h = self._sl(s2, self.iq) + self.q0, self._sl(s2, self.ih)[:, 0]
+        a_prev = torch.zeros_like(a)
+        a_prev[:, self.asrc] = s[:, self.adst]
+        up = -g[:, 2]
+        h_hat = ((h - self.h_floor) / (self.h_stand - self.h_floor)).clamp(-0.5, 1.2)
+        _, z2 = self.feet(s2)
+        c = torch.sigmoid(-z2 / cf.contact_band)                       # 1 = foot on the ground
+        score = (torch.sigmoid((h_hat - cf.stand_height_frac) / 0.03)
+                 * torch.sigmoid((up - math.cos(math.radians(cf.stand_tilt_deg))) / 0.01))
+        pose = torch.exp(-(((q - self.q0) / cf.std_pose) ** 2).mean(-1))
+        t = {"upright": cf.w_upright * ((up + 1) / 2) ** 2,
+             "height": cf.w_height * h_hat.clamp(0.0, 1.0) * (up + 1) / 2,
+             "feet": cf.w_feet * torch.sigmoid((up - cf.feet_min_up) / 0.05) * c.mean(-1),
+             "stand": cf.w_stand * score * pose,
+             "feet_flat": cf.w_feet_flat * score * (c * torch.exp(-self._roll ** 2 / cf.std_roll ** 2)).mean(-1),
+             "still": cf.w_still * score * ((v ** 2).sum(-1) + (w ** 2).sum(-1)),
+             "action_rate": cf.w_action_rate * ((a.clamp(-1, 1) - a_prev) ** 2).sum(-1),
+             "limits": cf.w_limits * (torch.relu(q - self.hi) + torch.relu(self.lo - q)).sum(-1)}
+        if terms:
+            return {k: x * self.dt for k, x in t.items()}
+        return sum(t.values()) * self.dt
+
+    def term_logit(self, s2: torch.Tensor) -> torch.Tensor:
+        return torch.full((s2.shape[0],), -20.0, device=s2.device)     # never terminates (time-outs only)
+
+
 # Nominal errors (Bryson's rule) for Chhaya's physical state; everything else is scaled by its std.
 NOMINAL = {"v_b": 0.02, "w_b": 0.2, "q": 0.02, "qd": 0.5, "h": 0.005, "g_b": 0.02}
 

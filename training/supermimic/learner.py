@@ -64,8 +64,10 @@ class SuperMimic:
         self.obs_idx = torch.tensor(lay.obs, dtype=torch.long, device=self.dev)
         self.noise_std = torch.tensor(lay.obs_noise_std, dtype=torch.float32, device=self.dev)
         if cfg.model == "eth":
-            from .eth import ChhayaMDP, WorldModelEth
-            mdp = ChhayaMDP(lay.phys, self.dev)
+            from .eth import ChhayaMDP, GetUpMDP, WorldModelEth
+            e = getattr(env, "env", None)
+            mdp = (GetUpMDP(lay.phys, self.dev, e.h_floor, e.h_stand) if hasattr(e, "h_floor")    # --task ChhayaGetUp
+                   else ChhayaMDP(lay.phys, self.dev))
             if hasattr(env, "calibrate_sole"):
                 print(f"[supermimic] foot rest height {env.calibrate_sole(mdp):.4f} m")
             if hasattr(env, "attach_reference") and env.attach_reference(mdp):
