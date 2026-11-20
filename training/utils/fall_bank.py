@@ -95,9 +95,19 @@ def remove_yaw(quat_wxyz: np.ndarray) -> np.ndarray:
     return np.where(out[:, :1] < 0.0, -out, out)
 
 
-def mirror_states(states: dict) -> dict:
-    """Exact sagittal mirror of every row (see the module docstring). Arrays are copied, not aliased."""
-    perm, signs = np.asarray(MIRROR_JOINT_PERM), np.asarray(MIRROR_JOINT_SIGNS)
+def name_mirror_perm(names) -> list:
+    """Articulation-order mirror: each l_* joint swaps with its r_* twin (all of Chhaya's mirror signs are +1)."""
+    swap = lambda n: ("r_" + n[2:]) if n.startswith("l_") else ("l_" + n[2:]) if n.startswith("r_") else n
+    names = list(names)
+    return [names.index(swap(n)) for n in names]
+
+
+def mirror_states(states: dict, joint_names=None) -> dict:
+    """Exact sagittal mirror of every row (see the module docstring). Arrays are copied, not aliased. With
+    joint_names (the bank's meta, articulation order, legs and arms) the mirror swaps l_* and r_* by name;
+    without, the columns are the 12 policy joints."""
+    perm = np.asarray(name_mirror_perm(joint_names) if joint_names is not None else MIRROR_JOINT_PERM)
+    signs = np.ones(len(perm))
     q = np.asarray(states["root_quat"], dtype=np.float64)
     cat = np.asarray(states["category"]).astype(np.int8).copy()
     swap = {CATEGORIES.index(a): CATEGORIES.index(b) for a, b in _MIRROR_CATEGORY.items()}
@@ -168,7 +178,8 @@ def build_bank(states: dict, meta: dict, *, gate_frac: float = 0.1, seed: int = 
     base = {k: np.asarray(states[k]) for k in ("root_z", "root_quat", "joint_pos", "joint_vel",
                                                  "root_lin_vel_b", "root_ang_vel_b", "category", "source")}
     base["split"], base["mirrored"] = split, np.zeros(n, dtype=bool)
-    mir = mirror_states(base)
+    names = meta.get("joint_names")
+    mir = mirror_states(base, names if names and any(str(n)[:2] in ("l_", "r_") for n in names) else None)
     mir["mirrored"] = np.ones(n, dtype=bool)
     arrays = {k: np.concatenate([np.asarray(base[k]), np.asarray(mir[k])]) for k in ARRAY_KEYS}
     _cast(arrays)
@@ -192,7 +203,8 @@ def _cast(arrays: dict) -> None:
 def validate(bank: FallBank) -> None:
     """Raise on a malformed bank: shapes, finiteness, unit quaternions, known categories, positive heights."""
     a, n = bank.arrays, len(bank)
-    want = {"root_z": (n,), "root_quat": (n, 4), "joint_pos": (n, 12), "joint_vel": (n, 12),
+    nj = len(bank.meta.get("joint_names") or ()) or 12       # 12 policy joints, or every joint (legs + arms) by name
+    want = {"root_z": (n,), "root_quat": (n, 4), "joint_pos": (n, nj), "joint_vel": (n, nj),
             "root_lin_vel_b": (n, 3), "root_ang_vel_b": (n, 3), "category": (n,), "source": (n,),
             "split": (n,), "mirrored": (n,)}
     for k, shape in want.items():
@@ -210,8 +222,8 @@ def validate(bank: FallBank) -> None:
     if np.any((a["category"] < 0) | (a["category"] >= len(CATEGORIES))):
         raise ValueError("fall bank: unknown category index")
     names = bank.meta.get("joint_names")
-    if names is not None and len(names) != 12:
-        raise ValueError("fall bank: meta.joint_names must list the 12 policy joints")
+    if names is not None and len(names) not in (12, 20):
+        raise ValueError("fall bank: meta.joint_names must list the 12 leg joints or all 20 joints")
 
 
 def save_bank(bank: FallBank, path: str) -> None:

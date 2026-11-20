@@ -22,7 +22,6 @@ import argparse
 import os
 import sys
 
-from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Generate the get-up fall bank")
 parser.add_argument("--config_path", type=str, default="config/chhaya_getup.yaml")
@@ -32,14 +31,12 @@ parser.add_argument("--out", type=str, default=None, help="Default: the config's
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--gate_frac", type=float, default=0.1, help="Held-out fraction for the MuJoCo gate")
 parser.add_argument("--mix", type=float, nargs=3, default=(0.5, 0.35, 0.15), metavar=("DROP", "PUSH", "HOLD"))
-AppLauncher.add_app_launcher_args(parser)
-args_cli = parser.parse_args()
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
+parser.add_argument("--headless", action="store_true", help="accepted for old command lines; always headless")
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+sys.path.insert(0, _project_root)
+from src.isaaclab.launch import add_launch_args  # noqa: E402
+add_launch_args(parser)
+args_cli = parser.parse_args()
 
 import math  # noqa: E402
 import subprocess  # noqa: E402
@@ -51,6 +48,7 @@ import torch  # noqa: E402
 import isaaclab.utils.math as math_utils  # noqa: E402
 
 from src.isaaclab.env_config import build_env_cfg  # noqa: E402
+from src.isaaclab.launch import launch  # noqa: E402
 from src.isaaclab.tasks import resolve_task  # noqa: E402
 from utils import Config  # noqa: E402
 from utils.fall_bank import CATEGORIES, SOURCES, build_bank, categorize, projected_gravity, remove_yaw, save_bank  # noqa: E402
@@ -85,6 +83,8 @@ def main() -> int:
     env_cfg.curriculum_enabled = False
     env_cfg.action_noise_model = None
     env_cfg.seed = args_cli.seed
+    # ponytail: entered by hand (not a with-block) to keep the long body unindented; os._exit ends the process anyway
+    launch(env_cfg, args_cli).__enter__()
     env = env_cls(cfg=env_cfg)
     dev, n, dt = env.device, env.num_envs, env.step_dt
     acts = env.bam_actuators
@@ -138,6 +138,8 @@ def main() -> int:
         kern.friction_scale[limp] = fs0[limp] * (1.0 + 2.0 * torch.rand(int(limp.sum()), 1, device=dev))
         a_hold = env.targets_to_actions(env.filtered_targets.clone())     # hold envs: target = the initial pose
         actions = torch.where(hold.unsqueeze(-1), a_hold, torch.zeros_like(a_hold))
+        if env._n_arm_act:      # whole-body env: arm action 0 = arm rest pose (servos off in limp falls anyway)
+            actions = torch.cat([actions, torch.zeros(n, env._n_arm_act, device=dev)], dim=-1)
 
         cut = src != 1                                 # push envs are "cut" once they pass the fault tilt
         still = torch.zeros(n, dtype=torch.long, device=dev)
@@ -212,6 +214,9 @@ if __name__ == "__main__":
     rc = 1
     try:
         rc = main()
+    except Exception:
+        import traceback
+        traceback.print_exc()
     finally:
         sys.stdout.flush()
         os._exit(rc)          # Isaac's app.close() hangs

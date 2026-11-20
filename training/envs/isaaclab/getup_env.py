@@ -218,7 +218,7 @@ class BipedGetUpEnv(BipedEnv):
                                math.cos(math.radians(float(g["stand_soft_tilt_deg"]))), up_hi)
         # the Jetson's hand-off test (tilt is already in `standing`: stand_tilt_deg)
         ho = g["handoff"]
-        err_max = (d.joint_pos - self._home).abs().max(dim=-1)[0]
+        err_max = (self._pjsel(d.joint_pos) - self._home).abs().max(dim=-1)[0]
         handoff_ok = (standing & (up > math.cos(math.radians(float(ho["tilt_max_deg"]))))
                       & (torch.norm(d.root_ang_vel_b, dim=-1) < float(ho["gyro_max_rads"]))
                       & (err_max < float(ho["joint_err_max_rad"])))
@@ -234,7 +234,8 @@ class BipedGetUpEnv(BipedEnv):
     def _get_rewards(self) -> torch.Tensor:
         d, g = self.rd, self._g
         s = self._s                           # computed by _get_dones this step (DirectRLEnv.step runs it first)
-        q, qd, tau = d.joint_pos, d.joint_vel, d.applied_torque
+        # ponytail: leg joints only (12); the arms' own penalties stay off so they are free to push the robot up
+        q, qd, tau = self._pjsel(d.joint_pos), self._pjsel(d.joint_vel), self._pjsel(d.applied_torque)
         feet_quat = d.body_quat_w[:, self._feet_idx_t]
         self.overload_state = GR.overload_step(self.overload_state, tau, float(g["stall_torque_nm"]),
                                                float(g["overload_threshold_frac"]), float(g["overload_leak_s"]),
@@ -328,7 +329,7 @@ class BipedGetUpEnv(BipedEnv):
         # Standing starts follow the same re-arm convention as the bank starts (previous action = the action of the
         # pose, not the walking reset's 0): the Jetson starts this policy that way whatever pose it re-arms in.
         d = self.rd
-        self._reseed_after_joint_write(env_ids, d.joint_pos[env_ids].clone(), d.joint_vel[env_ids].clone())
+        self._reseed_after_joint_write(env_ids, self._pjsel(d.joint_pos[env_ids]).clone(), self._pjsel(d.joint_vel[env_ids]).clone())
         if self.bank_t is not None:
             pick = env_ids[torch.rand(len(env_ids), device=self.device) < self._p_bank]
             if len(pick) > 0:
@@ -365,13 +366,17 @@ class BipedGetUpEnv(BipedEnv):
         zeros = torch.zeros_like(yaw)
         quat = math_utils.quat_mul(math_utils.quat_from_euler_xyz(zeros, zeros, yaw), quat_noyaw)
         quat = quat / torch.norm(quat, dim=-1, keepdim=True)
+        if self._pj is not None and q.shape[-1] != len(self.robot.joint_names):    # policy-shaped: arms keep their pose
+            full_q, full_qd = d.joint_pos[ids].clone(), d.joint_vel[ids].clone()
+            full_q[:, self._pj], full_qd[:, self._pj] = q, qd
+            q, qd = full_q, full_qd
         write_joint_state(self.robot, q, qd, env_ids=ids)
         pos = d.root_pos_w[ids].clone()
         pos[:, 2] = self.scene.env_origins[ids, 2] + root_z + float(self._g["spawn_clearance_m"])
         write_root_pose(self.robot, torch.cat([pos, quat], dim=-1), env_ids=ids)
         vel = torch.cat([math_utils.quat_apply(quat, lin_vel_b), math_utils.quat_apply(quat, ang_vel_b)], dim=-1)
         write_root_velocity(self.robot, vel, env_ids=ids)
-        self._reseed_after_joint_write(ids, q, qd)
+        self._reseed_after_joint_write(ids, self._pjsel(q), self._pjsel(qd))
 
     def _seed_imu_buffer(self, env_ids: torch.Tensor) -> None:
         """Every slot of the IMU lag buffer = the reading at the start pose: specific force -g * grav_b (at rest),
