@@ -1,4 +1,4 @@
-"""foot_proximity (E21): terrain-independent geometric foot-to-foot gap (CPU, no Isaac). Run from BipedRobot/:
+"""foot_proximity (E21): terrain-independent geometric foot-to-foot gap (CPU, no Isaac). Run from training/:
     python -m pytest tests/test_foot_proximity.py -q
 
 Why: with use_rough_terrain the contact sensor has no filter prims, so undesired_contacts / leg_contact_l2 leave the
@@ -311,7 +311,7 @@ def test_gait_table_reference_gap_is_not_penalised():
 
 
 # ----------------------------------------------------------------------------- config + wiring (source level)
-def _load_env_conf(name="config_gait_reference.yaml"):
+def _load_env_conf(name="chhaya.yaml"):
     from utils import Config
     return Config(os.path.join(ROOT, "config", name)).train.env_config
 

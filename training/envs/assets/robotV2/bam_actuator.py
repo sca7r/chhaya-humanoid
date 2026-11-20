@@ -230,7 +230,7 @@ class BamActuatorCfg(ActuatorBaseCfg):
     damping: float = 0.0
 
     params_file: str = MISSING
-    """BAM params JSON, as written by ``bam.fit --output``. Relative to the BipedRobot repo root."""
+    """BAM params JSON, as written by ``bam.fit --output``. Relative to training/."""
 
     kp_fw: float = 32.0
     """Firmware P register value. Must match config/robot.yaml on the Jetson."""

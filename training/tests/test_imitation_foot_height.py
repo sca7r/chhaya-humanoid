@@ -1,6 +1,6 @@
 """imitation_foot_height + the height-aware reward contact flag (CPU, no Isaac). Pure functions in
 envs/isaaclab/rewards/rewards.py, config plumbing, and that the defaults reproduce the old
-behaviour. Run from BipedRobot/:
+behaviour. Run from training/:
     python -m pytest tests/test_imitation_foot_height.py -q
 """
 import ast
@@ -23,7 +23,7 @@ STD = 0.004
 def _config_foot_height_std():
     """reference.std.foot_height the gait-reference config trains with [m]."""
     import yaml
-    with open(os.path.join(ROOT, "config", "config_gait_reference.yaml"), encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "config", "chhaya.yaml"), encoding="utf-8") as fh:
         return float(yaml.safe_load(fh)["train"]["env_config"]["reference"]["std"]["foot_height"])
 
 
@@ -257,7 +257,7 @@ def test_gait_reference_yaml_loads_and_validates():
     pytest.importorskip("yaml")
     from utils import Config
     from src.isaaclab import env_config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     w = ec.reward_weights
     assert (w["imitation_joint_pos"], w["imitation_foot_pos"], w["imitation_orientation"]) == (0.6, 0.4, 0.2)
     assert (w["imitation_contact"], w["imitation_lin_vel"], w["imitation_ang_vel"], w["imitation_joint_vel"]) == (0.5, 0.3, 0.2, 0.1)

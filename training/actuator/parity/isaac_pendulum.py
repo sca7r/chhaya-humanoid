@@ -15,7 +15,7 @@ So this measures that integration error against ground truth. The pendulum (250 
 point mass at 100 mm, hanging down at q = 0) is identical to the MuJoCo test's, so all
 three numbers are comparable.
 
-Run with the Isaac Lab python, from the BipedRobot root, with bam importable:
+Run with the Isaac Lab python, from training/, with bam importable:
     python actuator/parity/isaac_pendulum.py --headless [--model m6] [--tau-ext gravity]
 """
 import argparse

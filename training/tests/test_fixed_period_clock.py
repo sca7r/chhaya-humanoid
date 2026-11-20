@@ -1,7 +1,7 @@
 """gait_clock_mode: fixed_period (no gait table) in the MuJoCo env. CPU only, no Isaac.
 
 Phase advances by 2*pi*dt/period per step while moving, is held while the command is below the
-stand threshold, and speed_proportional is unchanged. Run from BipedRobot/:
+stand threshold, and speed_proportional is unchanged. Run from training/:
     python -m pytest tests/test_fixed_period_clock.py -q
 """
 import math
@@ -22,12 +22,13 @@ ZERO = np.zeros(12, dtype=np.float32)
 
 
 def _env(mode, period=0.7):
-    cfg = Config(os.path.join(ROOT, "config", "config.yaml"))
+    cfg = Config(os.path.join(ROOT, "config", "chhaya.yaml"))
     ec = cfg.train.env_config
     ec.reference = None
     ec.gait_clock_mode = mode
     ec.gait_clock_period_s = period
     ec.gait_clock_stand_threshold = 0.05
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     env = BipedEnvV2(history_size=1, use_history=False, env_config=ec)
     env.reset(seed=0)
     return env
@@ -85,9 +86,10 @@ def test_cadence_grid_table_clock(tmp_path):
     path = tmp_path / "table.npz"
     np.savez(path, version=np.int32(2), grid_vx=gvx, grid_vy=gvy, grid_wz=gwz,
              freq=freq.astype(np.float32), period=np.float32(2.0))
-    cfg = Config(os.path.join(ROOT, "config", "config.yaml"))
+    cfg = Config(os.path.join(ROOT, "config", "chhaya.yaml"))
     ec = cfg.train.env_config
     ec.reference = {"npz_path": str(path), "stand_threshold": 0.05}
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     env = BipedEnvV2(history_size=1, use_history=False, env_config=ec)
     env.reset(seed=0)
     grid = CadenceGrid(gvx, gvy, gwz, freq.astype(np.float32))

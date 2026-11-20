@@ -8,7 +8,7 @@
 # =====================================================================================================
 # chhaya.yaml -- the training config for Chhaya: one whole-body policy for all 20 joints (12 legs + 8 arms).
 # It is config.yaml (the legs-only rig) plus the env_config.arms block and model_name.
-# Train:   python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --headless
+# Train:   python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml --headless
 # A legs-only checkpoint can NOT be resumed here (74-dim frame / 20 actions); set arms.control: scripted for that.
 train:
   seed: 42
@@ -337,7 +337,7 @@ train:
       tau_ext_source: observer      # or "gravity" to debug the external-torque estimate
       # 2026-10-25: STS3215 firmware dead zone (CW/CCW_DEADBAND, 0x1A/0x1B) in encoder counts (0.088 deg): no drive
       # while |goal - encoder| <= it. Hardware: the servos ignored the policy's 0.1-0.3 deg standing corrections.
-      # Read the real value with BipedRobotJetson/tools/servo_registers.py. Nominal (MuJoCo) / per-servo draw (Isaac).
+      # Read the real value with the servo register tool. Nominal (MuJoCo) / per-servo draw (Isaac).
       deadband_counts: 3                    # LITE: +-0.26 deg (3-5 us dead band of the PWM input)
       deadband_counts_range: [2, 4]   # LITE: +-0.18 to +-0.35 deg
 

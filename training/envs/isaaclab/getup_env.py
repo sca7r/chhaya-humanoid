@@ -1,4 +1,4 @@
-"""BipedGetUpEnv: the get-up / fall-recovery task for BipedRobotV2 (--task BipedRobotV2GetUp).
+"""BipedGetUpEnv: the get-up / fall-recovery task for Chhaya (--task ChhayaGetUp).
 
 A subclass of the walking BipedEnv that keeps everything sim2real about it (BAM servo model, backlash, the full sensor
 model, DR and its curriculum, the 50-dim observation frame, the residual action map, mirror symmetry) and replaces
@@ -47,7 +47,7 @@ from .compat import write_joint_state, write_root_pose, write_root_velocity
 
 from . import rewards
 from .biped_env import BipedEnv
-from .getup_env_cfg import BipedRobotV2GetUpEnvCfg
+from .getup_env_cfg import ChhayaGetUpEnvCfg
 from .rewards import getup_rewards as GR
 
 # Joint types in policy order pairs (l, r), for the per-type joint-at-limit diagnostics.
@@ -63,12 +63,12 @@ GETUP_REWARD_TERMS = ("getup_upright", "getup_height", "getup_feet_support", "ge
 
 
 class BipedGetUpEnv(BipedEnv):
-    cfg: BipedRobotV2GetUpEnvCfg
+    cfg: ChhayaGetUpEnvCfg
 
     EXTRA_CRITIC_DIM = 2
     LOG_WALKING_DIAGNOSTICS = False
 
-    def __init__(self, cfg: BipedRobotV2GetUpEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: ChhayaGetUpEnvCfg, render_mode: str | None = None, **kwargs):
         g = cfg.getup
         if cfg.reference_npz_path:
             raise ValueError("the get-up task takes no gait table (remove env_config.reference)")

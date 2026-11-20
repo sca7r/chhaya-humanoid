@@ -6,7 +6,7 @@ saturates on every step, so the closed loop no longer behaves like the one that 
 limiter is a safety net; it must RARELY fire. This gate catches such policies before they ship.
 
 It runs the bundle's policy.onnx with the bundle's own normalisation (deploy_config.json) in the
-MuJoCo env, using the Jetson limiter semantics (BipedRobotJetson/policy/safety.py limit_action):
+MuJoCo env, using the Jetson limiter semantics (the runtime action limiter):
     a = clip(raw, -1, 1);  a = prev + clip(a - prev, -rate, rate);  prev = APPLIED action
 and the previous_actions obs slot carries the APPLIED action (not the delayed one).
 
@@ -24,7 +24,7 @@ Checks:
      +-0.10 lateral projected-gravity bias run (cmd 0, 6 s, 1 seed).
   4. PASS/FAIL thresholds (see _verdict). Exit code 0 = PASS, 1 = FAIL.
 
-Usage (from BipedRobot/):
+Usage (from training/):
     python -m src.mujoco.policy_gate --bundle exported/<name> [--trace t.npz] [--seeds 3]
                                      [--seconds 8] [--rate 0.5]
     python src/mujoco/policy_gate.py --bundle exported/<name> ...      (also works)
@@ -52,7 +52,7 @@ from collections import deque
 import numpy as np
 
 # Project root first (its `config` package must win); torch_rl_algorithms only APPENDED, because it
-# has a top-level `config` module that would shadow BipedRobot's.
+# has a top-level `config` module that would shadow the repo.s.
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if not os.path.isdir(os.path.join(_ROOT, "envs")):          # file copied elsewhere: use cwd
     _ROOT = os.getcwd()
@@ -146,7 +146,7 @@ class CkptPolicy:
 
 
 def load_checkpoint_policy(ckpt: str):
-    """(CkptPolicy, Config) for checkpoints/<run>/step_N.pt (path relative to cwd or BipedRobot/)."""
+    """(CkptPolicy, Config) for checkpoints/<run>/step_N.pt (path relative to cwd or training/)."""
     if not os.path.exists(ckpt):
         ckpt = os.path.join(_ROOT, ckpt)
     cfg_path = os.path.join(os.path.dirname(os.path.abspath(ckpt)), "config.yaml")

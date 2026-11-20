@@ -151,7 +151,7 @@ class CadenceGrid:
 
 
 def resolve_table_path(npz_path: str, root_dir: str | None = None) -> str:
-    """Path of a baked gait table: a relative path is taken from root_dir (the BipedRobot root)."""
+    """Path of a baked gait table: a relative path is taken from root_dir (training/)."""
     path = npz_path
     if not os.path.isabs(path) and root_dir:
         path = os.path.abspath(os.path.join(root_dir, path))

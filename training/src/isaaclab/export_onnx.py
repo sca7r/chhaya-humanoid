@@ -38,7 +38,7 @@ walks straight into the floor.
 
 GET-UP POLICIES (format 7)
 --------------------------
-A checkpoint trained with --task BipedRobotV2GetUp (its run config has an env_config.getup block) is exported as
+A checkpoint trained with --task Chhaya (its run config has an env_config.getup block) is exported as
 policy_role "getup", format_version 7, to exported_getup/<run>_<step>/: same 50-dim frame and ONNX contract, but the
 command is always 0 and the gait phase slots are (0, 0) (gait_clock mode "none"), there is no tilt fault, and the
 bundle carries start_protocol (re-arm at the current pose), settle (when to re-arm after a torque-off fall) and
@@ -323,7 +323,7 @@ def _load_history_size(ckpt_dir: str, explicit: str | None) -> int:
     if explicit:
         candidates.append(explicit)
     candidates.append(os.path.join(ckpt_dir, "config.yaml"))
-    candidates.append(os.path.join(_PROJECT_ROOT, "config/config.yaml"))
+    candidates.append(os.path.join(_PROJECT_ROOT, "config/chhaya.yaml"))
 
     for path in candidates:
         if not path or not os.path.exists(path):
@@ -959,7 +959,7 @@ def main() -> int:
 
     size_mb = os.path.getsize(onnx_path) / 1e6
     print(f"\n[export] bundle ready: {out_dir}  ({size_mb:.1f} MB)")
-    print(f"[export] copy to the Jetson under BipedRobotJetson/models/<name>/")
+    print(f"[export] copy to the robot runtime models/<name>/")
     return 0
 
 

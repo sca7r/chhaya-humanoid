@@ -1,6 +1,6 @@
 """Foot/leg reward shaping pure functions (CPU, no Isaac): foot_flat_roll_l2, the sole-centre
 foot separation and its two-sided band, undesired_contacts saturation parameters, leg_contact_l2,
-and that the switchable defaults reproduce the old behaviour. Run from BipedRobot/:
+and that the switchable defaults reproduce the old behaviour. Run from training/:
     python -m pytest tests/test_foot_reward_shaping.py -q
 """
 import ast
@@ -278,7 +278,7 @@ def test_schema_and_env_config_carry_the_keys():
 
 def test_shipped_config_yaml_values():
     yaml = pytest.importorskip("yaml")
-    d = yaml.safe_load(open(os.path.join(ROOT, "config", "config.yaml"), encoding="utf-8"))
+    d = yaml.safe_load(open(os.path.join(ROOT, "config", "chhaya.yaml"), encoding="utf-8"))
     t = d["train"]
     ec, w = t["env_config"], t["env_config"]["reward_weights"]
     assert ec["foot_separation_mode"] == "sole_band" and ec["undesired_contacts_sat_n"] == 5.0

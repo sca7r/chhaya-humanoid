@@ -14,7 +14,7 @@ every env stand still under a zero command, and reports a PASS/FAIL line for eac
   7. the sampled servo population (vin, friction scale, lash) and duty saturation
   8. it stays upright and finite
 
-Usage (Isaac Lab python, from the BipedRobot root):
+Usage (Isaac Lab python, from training/):
     python src/isaaclab/check_actuator.py --headless
     python src/isaaclab/check_actuator.py --headless --num_envs 64 --seconds 4
 """
@@ -27,7 +27,7 @@ from isaaclab.app import AppLauncher
 parser = argparse.ArgumentParser(description="Check the BAM actuator and sim2real env pieces")
 parser.add_argument("--num_envs", type=int, default=16)
 parser.add_argument("--seconds", type=float, default=3.0)
-parser.add_argument("--config_path", type=str, default="config/config.yaml")
+parser.add_argument("--config_path", type=str, default="config/chhaya.yaml")
 parser.add_argument("--no-backlash", action="store_true", help="disable lost-motion backlash (A/B)")
 parser.add_argument("--tau-ext", choices=["observer", "gravity"], default=None,
                     help="override the external-torque source (A/B the observer)")
@@ -43,7 +43,7 @@ simulation_app = AppLauncher(args_cli).app
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Kit puts two directories named `config` on sys.path (omni.isaac.kit and
 # isaacsim.simulation_app), and together they form a NAMESPACE package that shadows
-# BipedRobot/config. The repo root must sit at the FRONT of sys.path even if it is already
+# training/config. The repo root must sit at the FRONT of sys.path even if it is already
 # on it further down, which is why this is a remove-then-insert and not "if not in".
 for p in (os.path.join(_ROOT, "torch_rl_algorithms"), _ROOT):
     while p in sys.path:
@@ -56,7 +56,7 @@ import math     # noqa: E402
 import torch    # noqa: E402
 
 from envs.isaaclab.biped_env import BipedEnv                      # noqa: E402
-from envs.isaaclab.biped_env_cfg import BipedRobotV2EnvCfg         # noqa: E402
+from envs.isaaclab.biped_env_cfg import ChhayaEnvCfg         # noqa: E402
 from src.isaaclab.env_config import build_env_cfg, describe       # noqa: E402
 from utils import Config                                           # noqa: E402
 from utils.residual_home import freeze_residual_map  # noqa: E402
@@ -87,7 +87,7 @@ def main() -> None:
                                             "friction_scale_range": [fs, fs]}
     if args_cli.no_backlash and config.train.env_config.backlash:
         config.train.env_config.backlash = {**config.train.env_config.backlash, "enabled": False}
-    cfg = build_env_cfg(config, BipedRobotV2EnvCfg, training=True, num_envs=args_cli.num_envs)
+    cfg = build_env_cfg(config, ChhayaEnvCfg, training=True, num_envs=args_cli.num_envs)
     cfg.events.pop("push_robot", None)
     cfg.curriculum_init_range_min = cfg.curriculum_init_range_max = 0.0
     cfg.events["reset_robot_joints"].params["position_range"] = (0.0, 0.0)

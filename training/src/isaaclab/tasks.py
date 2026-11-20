@@ -8,11 +8,10 @@ import importlib
 
 # name: (cfg "module:Class", env "module:Class", default checkpoints root for play's auto-select)
 TASKS: dict[str, tuple[str, str, str]] = {
-    # (The old V1 robot task "BipedRobot" was not carried over to Isaac Lab 3.0: its USD is PhysX-only.)
-    "BipedRobotV2": ("envs.isaaclab.biped_env_cfg:BipedRobotV2EnvCfg", "envs.isaaclab.biped_env:BipedEnv",
+    "Chhaya": ("envs.isaaclab.biped_env_cfg:ChhayaEnvCfg", "envs.isaaclab.biped_env:BipedEnv",
                      "checkpoints"),
     # Get-up / fall recovery (config/config_getup.yaml). Its outputs live in runs_getup/ and checkpoints_getup/.
-    "BipedRobotV2GetUp": ("envs.isaaclab.getup_env_cfg:BipedRobotV2GetUpEnvCfg",
+    "ChhayaGetUp": ("envs.isaaclab.getup_env_cfg:ChhayaGetUpEnvCfg",
                           "envs.isaaclab.getup_env:BipedGetUpEnv", "checkpoints_getup"),
 }
 
@@ -31,5 +30,5 @@ def resolve_task(name: str):
 
 
 def checkpoint_root(name: str) -> str:
-    """Folder (relative to BipedRobot/) that play.py searches for the newest checkpoint of this task."""
+    """Folder (relative to training/) that play.py searches for the newest checkpoint of this task."""
     return TASKS[name][2] if name in TASKS else "checkpoints"

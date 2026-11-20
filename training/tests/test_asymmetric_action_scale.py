@@ -3,7 +3,7 @@ inverse a = (q - home)/s_pos if q >= home else (q - home)/s_neg, clipped to [-1,
 number per joint type) must be bit-identical to the symmetric map in every consumer. CPU only; Isaac itself is NOT imported
 (the Isaac env's methods are lifted out of biped_env.py with ast and run on a stand-in `self`).
 
-Run from BipedRobot/:  python -m pytest tests/test_asymmetric_action_scale.py -q
+Run from training/:  python -m pytest tests/test_asymmetric_action_scale.py -q
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ HOME = home_rad(HOME_DEG)
 SC = scale_rad(SCALE)
 POS, NEG = scale_pair_rad(ASYM)
 TABLE = os.path.join(ROOT, "robot_motion_reference", "processed", "gait_table.npz")
-REF_YAML = os.path.join(ROOT, "config", "config_gait_reference.yaml")
+REF_YAML = os.path.join(ROOT, "config", "chhaya.yaml")
 needs_table = pytest.mark.skipif(not os.path.exists(TABLE), reason="baked table not present")
 
 
@@ -249,6 +249,7 @@ def _mj_env(scale_cfg):
     ec.action_map = "residual"
     ec.action_home_deg, ec.action_scale_rad, ec.spawn_height_m = dict(HOME_DEG), scale_cfg, None
     ec.backlash = {**(ec.backlash or {}), "enabled": False}                          # MuJoCo backlash stays disabled
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     return BipedEnvV2(history_size=1, use_history=False, env_config=ec)
 
 
@@ -371,7 +372,8 @@ def test_resolver_modes_validation_and_explicit_passthrough():
 def test_freeze_writes_pos_neg_dicts_and_the_run_config_round_trips(tmp_path):
     cfg = Config(REF_YAML)
     ec = cfg.train.env_config
-    assert ec.action_scale_mode == "symmetric"                                       # the reference config does not switch it on
+    ec.action_home_deg = ec.action_scale_rad = ec.spawn_height_m = "auto"    # Chhaya stores frozen numbers: test the resolver
+    assert ec.action_scale_mode == "symmetric"                                       # the config does not switch it on
     ec.action_scale_mode = "asymmetric"
     rep = rh.freeze_residual_map(cfg, ROOT)
     assert rep is not None and not rh.any_auto(ec)
@@ -390,6 +392,8 @@ def test_freeze_writes_pos_neg_dicts_and_the_run_config_round_trips(tmp_path):
     assert ex._format_version(c, {"mode": "cadence_grid"}) == 6                       # v6 wins over v5: the scale keys changed
     # the same Config, symmetric: no neg scale, the old format versions
     cfg2 = Config(REF_YAML)
+    e2 = cfg2.train.env_config
+    e2.action_home_deg = e2.action_scale_rad = e2.spawn_height_m = "auto"
     rh.freeze_residual_map(cfg2, ROOT)
     assert all(isinstance(v, float) for v in cfg2.train.env_config.action_scale_rad.values())
     cfg2.copy_in_file(str(saved))
@@ -444,9 +448,6 @@ def test_schema_accepts_both_forms_and_the_mode():
 
 
 def test_configs_in_the_repo_keep_the_symmetric_default():
-    ref = Config(REF_YAML).train.env_config
-    assert ref.action_scale_rad == "auto" and ref.action_scale_mode == "symmetric"   # present, NOT switched on
-    base = Config(os.path.join(ROOT, "config", "config.yaml")).train.env_config
-    # config.yaml (no table) uses explicit {pos, neg} scales since 2026-10-25; the mode only matters for `auto`
+    base = Config(REF_YAML).train.env_config
+    # chhaya.yaml uses explicit {pos, neg} scales; the mode only matters for `auto`
     assert base.action_scale_mode == "symmetric" and is_asymmetric_scale(dict(base.action_scale_rad))
-    assert "action_scale_mode: symmetric" in open(REF_YAML, encoding="utf-8").read()

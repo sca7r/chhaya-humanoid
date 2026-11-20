@@ -1,6 +1,6 @@
 """track_lin_target: command | reference (CPU, no Isaac). The linear-velocity tracking kernel centred on the
 gait table's own base velocity instead of the constant command. Pure function in
-envs/isaaclab/rewards/rewards.py + config plumbing. Run from BipedRobot/:
+envs/isaaclab/rewards/rewards.py + config plumbing. Run from training/:
     python -m pytest tests/test_track_lin_reference_target.py -q
 """
 import ast
@@ -20,7 +20,7 @@ STD_REL, STD_MIN = 0.7, 0.07
 # Nominal commands; each is snapped to the nearest baked grid cell of whatever table is present (v1: 0.05 steps,
 # v2: vx +-0.02 / 0.06 / 0.10 ..., vy +-0.018 / 0.055 / 0.091 ..., no wz = 0 point). No v1 grid points assumed.
 GRID_CMDS = [(0.05, 0.0), (0.1, 0.0), (0.2, 0.0), (0.0, 0.1), (0.1, 0.1)]
-STAND_THRESHOLD = 0.05                      # config_gait_reference.yaml reference.stand_threshold
+STAND_THRESHOLD = 0.05                      # chhaya.yaml reference.stand_threshold
 
 
 def _table():
@@ -178,15 +178,12 @@ def test_defaults_and_plumbing_keep_old_behaviour():
     assert "track_lin_target" in env_config._SCALAR_FIELDS
 
 
-def test_gait_reference_config_uses_reference_target_and_config_yaml_does_not():
+def test_chhaya_config_tracks_the_command():
     pytest.importorskip("yaml")
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
-    assert ec.track_lin_target == "reference"
-    assert ec.track_lin_std_rel > 0.0 and ec.reference["npz_path"]            # what the env requires for reference
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
+    assert ec.track_lin_target == "command"
     R.validate_track_lin_target(ec.track_lin_target, has_reference=bool(ec.reference["npz_path"]), std_rel=ec.track_lin_std_rel)
-    ec0 = Config(os.path.join(ROOT, "config", "config.yaml")).train.env_config
-    assert getattr(ec0, "track_lin_target", "command") == "command"
 
 
 def test_env_wiring_samples_the_reference_once_before_tracking():

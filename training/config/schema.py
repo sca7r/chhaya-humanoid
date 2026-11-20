@@ -168,7 +168,7 @@ class EnvConfig(BaseModel):
     # It is the action clamp, the dof_pos_limits box and the bundle's joint limits. None = the robot's walking box
     # (envs/assets/robotV2/biped_robot.py _JOINT_LIMITS_DEG). config_getup.yaml sets the URDF limits x 0.9.
     joint_limits_deg: Optional[Dict[str, List[float]]] = None
-    # Get-up / fall-recovery task block (envs/isaaclab/getup_env.py, --task BipedRobotV2GetUp). None = walking.
+    # Get-up / fall-recovery task block (envs/isaaclab/getup_env.py, --task ChhayaGetUp). None = walking.
     getup: Optional[Dict[str, Any]] = None
     scale_headroom: float = 0.96             # auto action_scale_rad: max|a| + rsi_joint_noise / scale <= this
 

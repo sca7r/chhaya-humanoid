@@ -2,7 +2,7 @@
 
 The Jetson runtime feeds the action it just sent; the sims used to feed the one before it, so
 the policy never saw the a_{t-1} that action_rate_l2 penalises. MuJoCo env only (CPU, no Isaac).
-Run from BipedRobot/:  python -m pytest tests/test_prev_action_obs.py -q
+Run from training/:  python -m pytest tests/test_prev_action_obs.py -q
 """
 import os
 import sys
@@ -20,7 +20,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_obs_carries_the_action_just_applied():
-    cfg = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml"))
+    cfg = Config(os.path.join(ROOT, "config", "chhaya.yaml"))
+    cfg.train.env_config.arms = dict(cfg.train.env_config.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     env = BipedEnvV2(history_size=3, use_history=True, env_config=cfg.train.env_config)
     obs, _ = env.reset(seed=0)
     assert np.allclose(obs["critic"][PREV], 0.0)

@@ -1,5 +1,5 @@
 """imitation_foot_agg (mean | min), contact_height_mode (hard | soft) and the flat-terrain reset datum
-(CPU, no Isaac). Pure functions in envs/isaaclab/rewards/rewards.py + config plumbing. Run from BipedRobot/:
+(CPU, no Isaac). Pure functions in envs/isaaclab/rewards/rewards.py + config plumbing. Run from training/:
     python -m pytest tests/test_foot_agg_soft_contact.py -q
 """
 import ast
@@ -202,11 +202,11 @@ def test_defaults_are_old_behaviour():
     assert "contact_height_mode" in env_config._SCALAR_FIELDS and "imitation_foot_agg" in env_config._SCALAR_FIELDS
 
 
-def test_gait_reference_config_loads_with_new_keys_and_passes_sign_guard():
+def test_chhaya_config_loads_with_new_keys_and_passes_sign_guard():
     pytest.importorskip("yaml")
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
-    assert ec.imitation_foot_agg == "min"
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
+    assert ec.imitation_foot_agg == "mean"
     assert ec.contact_height_mode == "soft"
     assert ec.contact_height_thresh_m == pytest.approx(0.006)
     w = dict(ec.reward_weights)

@@ -1,7 +1,7 @@
 """Elliptical (vx, vy) command limit: utils/command_limit.py and everything that applies it.
 
 CPU only, no Isaac Sim (the Isaac command sampler is loaded with the Isaac-only imports stubbed).
-Run from BipedRobot/:  python -m pytest tests/test_command_limit.py -q
+Run from training/:  python -m pytest tests/test_command_limit.py -q
 """
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def _config(name):
     return Config(os.path.join(ROOT, "config", name)).train.env_config
 
 
-@pytest.mark.parametrize("name", ["config.yaml", "config_gait_reference.yaml"])
+@pytest.mark.parametrize("name", ["chhaya.yaml"])
 def test_configs_select_the_ellipse_and_plumb_it(name):
     ec = _config(name)
     assert ec.commands["base_velocity"]["limit_shape"] == "ellipse_xy"
@@ -216,7 +216,7 @@ def _s(cmd, ranges):
     return torch.sqrt((vx / bx) ** 2 + (vy / by) ** 2)
 
 
-@pytest.mark.parametrize("name", ["config.yaml", "config_gait_reference.yaml"])
+@pytest.mark.parametrize("name", ["chhaya.yaml"])
 def test_sampler_all_inside_and_covers_the_boundary(sampler_mod, name):
     n = 20000
     gen = _gen(sampler_mod, name, n)
@@ -274,7 +274,7 @@ def test_box_sampler_is_bit_identical_to_the_old_one(sampler_mod):
         g.in_heading_mode[env_ids] = is_heading & (~is_standing) & (~is_turn)
         g.heading_target[env_ids] = torch.empty(len(env_ids), device=g.device).uniform_(*r_head)
 
-    for name in ("config.yaml", "config_gait_reference.yaml"):
+    for name in ("chhaya.yaml",):
         new, old = _gen(sampler_mod, name, n, shape="box"), _gen(sampler_mod, name, n, shape="box")
         ids = torch.arange(n)
         quat = torch.tensor([0.9, 0.1, 0.2, 0.3]).repeat(n, 1)
@@ -290,12 +290,12 @@ def test_box_sampler_is_bit_identical_to_the_old_one(sampler_mod):
     cfg = types.SimpleNamespace(commands={"base_velocity": {"ranges": dict(R_REF)}})
     assert sampler_mod.UniformVelocityCommand(cfg, 4, torch.device("cpu"), 0.02).limit_shape == "box"
     with pytest.raises(ValueError):
-        _gen(sampler_mod, "config.yaml", 4, shape="ellipse")
+        _gen(sampler_mod, "chhaya.yaml", 4, shape="ellipse")
 
 
 def test_sampler_curriculum_uses_current_ranges(sampler_mod):
     n = 8000
-    gen = _gen(sampler_mod, "config_gait_reference.yaml", n, rel_standing_envs=0.0, rel_turn_in_place_envs=0.0)
+    gen = _gen(sampler_mod, "chhaya.yaml", n, rel_standing_envs=0.0, rel_turn_in_place_envs=0.0)
     gen.update_ranges({"lin_vel_x": (-0.05, 0.1), "lin_vel_y": (-0.05, 0.05)})
     torch.manual_seed(1)
     gen.resample(torch.arange(n))
@@ -404,12 +404,13 @@ def _mj_env(name):
     from envs.mujoco.biped_env_v2 import BipedEnvV2
     ec = _config(name)
     ec.backlash = {**(ec.backlash or {}), "enabled": False}
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     env = BipedEnvV2(history_size=1, use_history=False, env_config=ec)
     env.reset(seed=0)
     return env
 
 
-@pytest.mark.parametrize("name", ["config.yaml", "config_gait_reference.yaml"])
+@pytest.mark.parametrize("name", ["chhaya.yaml"])
 def test_mujoco_set_command_and_sampling_use_the_limit(name):
     env = _mj_env(name)
     ranges, shape = env.command_limit()
@@ -417,7 +418,7 @@ def test_mujoco_set_command_and_sampling_use_the_limit(name):
     eff = env.set_command(0.2, 0.15, 0.0)
     lim = limit_command(np.array([0.2, 0.15, 0.0]), ranges, "ellipse_xy")
     assert np.allclose(eff, lim, atol=1e-6) and np.allclose(env.commands, lim, atol=1e-6)
-    if name == "config_gait_reference.yaml":     # vx 0.2, vy 0.15 (the Gait Studio box)
+    if name == "chhaya.yaml":     # vx 0.2, vy 0.15 (the Gait Studio box)
         assert abs(env.commands[0] - 0.14142) < 1e-4 and abs(env.commands[1] - 0.10607) < 1e-4
         assert abs(env.commands[2]) < 1e-9
     assert np.allclose(env.set_command(0.1, 0.05, 0.3), (0.1, 0.05, 0.3), atol=1e-6)     # inside: as given
@@ -440,7 +441,7 @@ def test_mujoco_set_command_and_sampling_use_the_limit(name):
 
 
 def test_mujoco_box_config_keeps_set_command_as_given():
-    env = _mj_env("config.yaml")
+    env = _mj_env("chhaya.yaml")
     env.config.commands["base_velocity"]["limit_shape"] = "box"
     assert np.allclose(env.set_command(0.2, 0.2, 5.0), (0.2, 0.2, 5.0), atol=1e-6)   # no clamp, as before
 

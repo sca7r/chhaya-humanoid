@@ -7,13 +7,13 @@ import argparse
 from datetime import datetime
 
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Train the biped in Isaac Lab 3.0 (Newton)")
+parser = argparse.ArgumentParser(description="Train Chhaya in Isaac Lab 3.0 (Newton)")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BipedRobotV2",
-                    help="BipedRobotV2 (walking; Chhaya with env_config.arms) | BipedRobotV2GetUp (fall recovery)")
+parser.add_argument("--task", type=str, default="Chhaya",
+                    help="Chhaya (walking) | ChhayaGetUp (fall recovery)")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint to resume training.")
-parser.add_argument("--config_path", type=str, default="config/config.yaml", help="Path to training config")
+parser.add_argument("--config_path", type=str, default="config/chhaya.yaml", help="Path to training config")
 parser.add_argument("--steps", type=int, default=None, help="Override train.steps (short test runs).")
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
@@ -41,7 +41,6 @@ from src.isaaclab.common import BaseIsaacLabWrapper
 from src.isaaclab.env_config import build_env_cfg, describe as describe_env_cfg
 from src.isaaclab.tasks import resolve_task
 
-# BipedRobot (V1) | BipedRobotV2 (walking) | BipedRobotV2GetUp (fall recovery, config/config_getup.yaml)
 BipedEnvCfg, BipedEnv = resolve_task(args_cli.task)
 
 IsaacLabWrapper = BaseIsaacLabWrapper

@@ -1,6 +1,6 @@
-"""BipedEnvV2 — MuJoCo drop-in inference target for Isaac Lab BipedRobotV2 policies.
+"""BipedEnvV2 — MuJoCo drop-in inference target for Isaac Lab Chhaya policies.
 
-Observation (50 dims) matches Isaac Lab BipedRobotV2EnvCfg exactly:
+Observation (50 dims) matches Isaac Lab ChhayaEnvCfg exactly:
   lin_acc_b(3) | ang_vel_b(3) | projected_gravity(3) | commands(3)
   | joint_pos_rel(12) | joint_vel(12) | prev_actions(12) | gait_phase(2)
 
@@ -37,7 +37,7 @@ from utils.command_limit import limit_command, sample_in_limit, validate_shape
 from utils.motion_reference import CadenceGrid
 
 # ---------------------------------------------------------------------------
-# Joint layout — MUST match Isaac Lab BipedRobotV2EnvCfg (L,R interleaved)
+# Joint layout — MUST match Isaac Lab ChhayaEnvCfg (L,R interleaved)
 #   idx:  0         1         2                3                4                5
 #         l_hip_yaw r_hip_yaw l_hip_roll_joint r_hip_roll_joint l_hip_pitch_joint r_hip_pitch_joint
 #   idx:  6           7         8                9                10               11

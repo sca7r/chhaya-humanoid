@@ -14,7 +14,7 @@ from src.isaaclab.launch import add_launch_args, launch
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--config_path", default=os.path.join(ROOT, "config/chhaya.yaml"))
-ap.add_argument("--task", default="BipedRobotV2")
+ap.add_argument("--task", default="Chhaya")
 ap.add_argument("--num_envs", type=int, default=2)
 ap.add_argument("--steps", type=int, default=200)
 ap.add_argument("--no_dr", action="store_true")

@@ -234,7 +234,7 @@ class BipedEnv(DirectRLEnv):
         # IMU mounting misalignment: a constant rotation of the sensor frame, random axis,
         # angle uniform in [0, max]. This trains tolerance to residual misalignment. It can't
         # learn a SYSTEMATIC mount error, which is why the runtime corrects the known 180 deg
-        # board flip explicitly (BipedRobotJetson hardware/imu/bno055.py).
+        # board flip explicitly (the runtime IMU driver).
         self.imu_misalign_max_rad = math.radians(float(getattr(cfg, 'imu_misalignment_deg', 0.0)))
         self.imu_rot = torch.eye(3, device=self.device).repeat(self.num_envs, 1, 1)
         if self.imu_misalign_max_rad > 0.0:

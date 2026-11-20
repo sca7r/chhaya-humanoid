@@ -51,7 +51,7 @@ SCALE_MODES = ("symmetric", "asymmetric")
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 XML_REL = os.path.join("envs", "assets", "robotV2", "robot_v2.xml")
-MESHES_REL = os.path.join("robot_hardware", "robot_description", "meshes")   # BipedRobotHardware submodule
+MESHES_REL = os.path.join("robot_hardware", "robot_description", "meshes")   # link to ../hardware
 ROBOT_PY_REL = os.path.join("envs", "assets", "robotV2", "biped_robot.py")
 
 # Policy joint order (== envs.mujoco.biped_env_v2.JOINT_NAMES, the table's joint names): L,R interleaved per type.

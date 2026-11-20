@@ -3,7 +3,7 @@ the real BipedEnv mirror transform. CPU only; Isaac is NOT imported: `isaaclab_t
 are stubbed just while src/isaaclab/common.py is loaded, and BipedEnv._build_mirror_transform /
 mirror_obs are lifted out of biped_env.py with ast and run on a stand-in `self` (V2 joint layout).
 
-Run from BipedRobot/:  python -m pytest tests/test_symmetric_obs_stats.py -q
+Run from training/:  python -m pytest tests/test_symmetric_obs_stats.py -q
 (torch_rl_algorithms must be importable as a package, as it is for train.py.)
 """
 from __future__ import annotations

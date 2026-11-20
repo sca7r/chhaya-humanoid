@@ -1,6 +1,6 @@
 """Get-up task plumbing without Isaac: config_getup.yaml (joint box = URDF x 0.9, box action scales reach it exactly),
 env_config's getup / joint-limit handlers, the critic mirror table with the extra dims, and the MuJoCo env's get-up
-mode (zero command / phase, start from a fall-bank state with the Jetson re-arm). Run from BipedRobot/:
+mode (zero command / phase, start from a fall-bank state with the Jetson re-arm). Run from training/:
     python -m pytest tests/test_getup_config.py -q
 """
 import ast
@@ -137,7 +137,7 @@ def test_apply_joint_limits_sets_radian_rows():
 
 
 def test_walking_configs_are_untouched():
-    for name in ("config.yaml", "config_gait_reference.yaml"):
+    for name in ("chhaya.yaml",):
         ec = Config(os.path.join(ROOT, "config", name)).train.env_config
         assert ec.joint_limits_deg is None and ec.getup is None
 
@@ -217,7 +217,7 @@ def test_mujoco_getup_mode_start_state_and_rearm():
 def test_walking_mujoco_env_keeps_its_limits():
     pytest.importorskip("mujoco")
     from envs.mujoco.biped_env_v2 import JLIM_MAX, JLIM_MIN, BipedEnvV2
-    ec = Config(os.path.join(ROOT, "config", "config.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     ec.backlash = {**(ec.backlash or {}), "enabled": False}
     env = BipedEnvV2(history_size=5, use_history=True, env_config=ec, seed=0)
     try:

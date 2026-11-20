@@ -1,5 +1,5 @@
 """Chhaya in the MuJoCo eval env (BipedEnvV2 with env_config.arms.enabled). control: scripted = same
-policy interface as the legs-only robot, arms servo-driven toward scripted targets; control: policy =
+12-joint policy interface, arms servo-driven toward scripted targets; control: policy =
 whole-body policy (20 actions, 74-dim frame). The robot stands with the
 home pose, and the policy gate does not count arm links as legs."""
 import copy
@@ -21,21 +21,6 @@ def _env(mode="rest", control="scripted"):
     ec = cfg.train.env_config
     ec.arms = {**dict(ec.arms), "mujoco_arm_mode": mode, "control": control}
     return BipedEnvV2(history_size=5, use_history=True, env_config=ec, seed=0)
-
-
-def _legs_env():
-    from envs.mujoco.biped_env_v2 import BipedEnvV2
-    cfg = Config(os.path.join(ROOT, "config/config.yaml"))
-    return BipedEnvV2(history_size=5, use_history=True, env_config=cfg.train.env_config, seed=0)
-
-
-def test_same_policy_interface_as_legs_only():
-    a, b = _env(), _legs_env()
-    oa, _ = a.reset(seed=0)
-    ob, _ = b.reset(seed=0)
-    assert a.model.nu == 20 and b.model.nu == 12
-    assert a.action_space.shape == b.action_space.shape == (12,)
-    assert {k: v.shape for k, v in oa.items()} == {k: v.shape for k, v in ob.items()}
 
 
 def test_stands_at_home_with_arms_at_rest():

@@ -1,4 +1,4 @@
-"""foot_slip / foot_drag (E25): contact-point slip and scuffing penalties (CPU, no Isaac). Run from BipedRobot/:
+"""foot_slip / foot_drag (E25): contact-point slip and scuffing penalties (CPU, no Isaac). Run from training/:
     python -m pytest tests/test_foot_slip_drag.py -q
 
 Why: feet_slide penalised the speed of the foot COM frame of every foot in (soft) contact. With the gait table's heel-toe
@@ -210,13 +210,11 @@ def test_sign_guard_entries():
 
 def test_gait_reference_yaml_weights_load():
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     w = dict(ec.reward_weights)
-    # E28: back to the 10-22_18-48 setup: feet_slide on, the E25 terms off (still in the code + classified + sign-guarded; diagnostics log)
-    assert w["feet_slide"] == -0.7
-    assert w["foot_slip"] == -4.0 and w["foot_drag"] == -2.0   # 2026-10-24: foot_drag back on, milder than E25 (-5)
+    assert w["feet_slide"] == -0.7 and w["foot_drag"] == -2.0 and "foot_slip" not in w
     assert 0.0 < float(ec.foot_drag_height_m) <= 0.005
-    R.validate_reward_weight_signs(w, where="config_gait_reference.yaml")
+    R.validate_reward_weight_signs(w, where="chhaya.yaml")
 
 
 def test_cfg_schema_and_env_config_agree_on_drag_height():
@@ -302,8 +300,9 @@ def test_probe_in_the_mujoco_env_stands_with_zero_slip_and_drag():
     pytest.importorskip("onnxruntime")
     from src.mujoco import policy_gate as pg
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     ec.backlash = {**(ec.backlash or {}), "enabled": False}              # enabling it rewrites a generated XML
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     env = pg.BipedEnvV2(history_size=2, use_history=True, env_config=ec, seed=0)
     try:
         env.reset(seed=0)

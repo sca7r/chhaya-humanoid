@@ -2,7 +2,7 @@
 and the bundle exporter. CPU only; Isaac itself is NOT imported (the Isaac env's two map methods
 are lifted out of biped_env.py with ast and run on a stand-in `self`).
 
-Run from BipedRobot/:  python -m pytest tests/test_residual_action_map.py -q
+Run from training/:  python -m pytest tests/test_residual_action_map.py -q
 """
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ HOME_DEG = {"hip_yaw": 0.0, "hip_roll": 0.0, "hip_pitch": -10.0, "knee": -26.0,
             "ankle_roll": 0.0, "ankle_pitch": -16.0}
 SCALE = {"hip_yaw": 0.6, "hip_roll": 0.45, "hip_pitch": 0.8, "knee": 0.6,
          "ankle_roll": 0.45, "ankle_pitch": 0.6}
-CONFIG_YAML_SCALE = {"hip_yaw": 0.45, "hip_roll": 0.45, "hip_pitch": {"pos": 0.6, "neg": 0.8}, "knee": {"pos": 0.55, "neg": 0.8}, "ankle_roll": 0.35, "ankle_pitch": {"pos": 0.6, "neg": 0.35}}   # config/config.yaml since 2026-10-25
-# config/config_gait_reference.yaml says `auto` for home / scales / spawn height: utils/residual_home.py derives them from
+CONFIG_YAML_SCALE = {"hip_yaw": 0.45, "hip_roll": 0.45, "hip_pitch": {"pos": 0.6, "neg": 0.8}, "knee": {"pos": 0.55, "neg": 0.8}, "ankle_roll": 0.35, "ankle_pitch": {"pos": 0.6, "neg": 0.35}}   # config/chhaya.yaml
+# `auto` for for home / scales / spawn height: utils/residual_home.py derives them from
 # the baked table (see the invariants tested below and tests/test_residual_home_resolver.py), so nothing here pins them.
 LIM_DEG = [[-45, 45], [-45, 45], [-25, 45], [-25, 45], [-90, 30], [-90, 30],
            [-120, 5], [-120, 5], [-60, 60], [-60, 60], [-35, 50], [-35, 50]]
@@ -176,15 +176,12 @@ def test_env_config_leaves_other_maps_untouched():
 
 def test_config_yaml_parses_residual_defaults():
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     assert ec.action_map == "residual"
     assert dict(ec.action_home_deg) == HOME_DEG and dict(ec.action_scale_rad) == CONFIG_YAML_SCALE
     assert ec.spawn_height_m == pytest.approx(0.286)
-    # the gait-table config is residual too and derives its map from the baked table: home = the table's STAND pose
-    ec2 = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
-    assert ec2.action_map == "residual"
-    assert ec2.action_home_deg == "auto" and ec2.action_scale_rad == "auto" and ec2.spawn_height_m == "auto"
-    assert ec2.spawn_clearance_m == pytest.approx(0.0054) and ec2.scale_headroom == pytest.approx(0.96)
+    assert ec.spawn_clearance_m == pytest.approx(0.0054) and ec.scale_headroom == pytest.approx(0.96)
+    # `auto` derives the map from the baked table: home = the table's STAND pose
     home_deg, scale, spawn, _ = _resolved()
     h = expand_by_type(home_deg, "x")
     assert abs(h[4] - h[6] + h[10]) < 0.5 and abs(h[2] + h[8]) < 0.5               # flat sole (pitch and roll) within 0.5 deg
@@ -211,11 +208,12 @@ _RESOLVED = {}
 
 
 def _resolved():
-    """(home_deg, scale_rad, spawn_m, report) the resolver derives from config_gait_reference.yaml and the CURRENT table."""
+    """(home_deg, scale_rad, spawn_m, report) the resolver derives from chhaya.yaml set to `auto` and the CURRENT table."""
     if "r" not in _RESOLVED:
         from utils import Config
         from utils.residual_home import resolve_residual_map
-        ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+        ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
+        ec.action_home_deg = ec.action_scale_rad = ec.spawn_height_m = "auto"    # Chhaya stores frozen numbers: test the resolver
         _RESOLVED["r"] = resolve_residual_map(ec, ROOT)
     return _RESOLVED["r"]
 
@@ -228,7 +226,7 @@ def test_reference_config_map_covers_every_baked_cell():
     stand pose, flat sole, L/R symmetric, and each scale is the narrowest 0.05 step that satisfies the headroom. Computed
     here independently of the resolver (own cell selection and arithmetic), so a re-bake cannot break it silently."""
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     REF_HOME_DEG, REF_SCALE, _, _ = _resolved()
     cmd = ec.commands["base_velocity"]["ranges"]
     z = np.load(REAL_TABLE, allow_pickle=False)
@@ -274,12 +272,13 @@ def _jl():
 def _mj_env(action_map="residual"):
     from envs.mujoco.biped_env_v2 import BipedEnvV2
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     ec.action_map = action_map
     if action_map == "residual":
         ec.action_home_deg, ec.action_scale_rad, ec.spawn_height_m = dict(HOME_DEG), dict(SCALE), None
     else:                                           # the reference config is residual itself: drop its map keys
         ec.action_home_deg, ec.action_scale_rad, ec.spawn_height_m = None, None, None
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     return BipedEnvV2(history_size=1, use_history=False, env_config=ec)
 
 
@@ -321,7 +320,7 @@ def test_mujoco_centered_unchanged():
 def test_mujoco_residual_requires_keys():
     from envs.mujoco.biped_env_v2 import BipedEnvV2
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
     ec.action_map = "residual"
     ec.action_home_deg, ec.action_scale_rad = None, None                 # the reference config carries them now
     with pytest.raises(ValueError):

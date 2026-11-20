@@ -1,7 +1,7 @@
 """`auto` residual map (utils/residual_home.py): home = the table's stand frame, scales = narrowest 0.05 step with headroom,
 spawn height = forward kinematics of the home. CPU only (mujoco for FK / the MuJoCo env), no Isaac.
 
-Run from BipedRobot/:  python -m pytest tests/test_residual_home_resolver.py -q
+Run from training/:  python -m pytest tests/test_residual_home_resolver.py -q
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ from utils import residual_home as rh  # noqa: E402
 from utils.residual_action import JOINT_TYPES, RESIDUAL_SPAWN_HEIGHT_M, expand_by_type, home_rad  # noqa: E402
 
 TABLE = os.path.join(ROOT, "robot_motion_reference", "processed", "gait_table.npz")
-REF_YAML = os.path.join(ROOT, "config", "config_gait_reference.yaml")
-BASE_YAML = os.path.join(ROOT, "config", "config.yaml")
+REF_YAML = os.path.join(ROOT, "config", "chhaya.yaml")
+BASE_YAML = os.path.join(ROOT, "config", "chhaya.yaml")
 needs_table = pytest.mark.skipif(not os.path.exists(TABLE), reason="baked table not present")
 
 CROUCH = {"hip_yaw": 0.0, "hip_roll": 0.0, "hip_pitch": -10.0, "knee": -26.0, "ankle_roll": 0.0, "ankle_pitch": -16.0}
@@ -247,7 +247,7 @@ def test_auto_spawn_of_the_current_table_gives_the_requested_clearance():
 def test_freeze_replaces_auto_by_numbers_and_the_saved_config_has_no_auto(tmp_path, capsys):
     cfg = Config(REF_YAML)
     ec = cfg.train.env_config
-    assert (ec.action_home_deg, ec.action_scale_rad, ec.spawn_height_m) == ("auto", "auto", "auto")
+    ec.action_home_deg = ec.action_scale_rad = ec.spawn_height_m = "auto"    # Chhaya stores frozen numbers: test the resolver
     rep = rh.freeze_residual_map(cfg, ROOT)
     assert rep is not None and "frozen into the run config" in capsys.readouterr().out
     home, scale, spawn, _ = rh.resolve_residual_map(_auto_ec(), ROOT)
@@ -312,6 +312,7 @@ def test_isaac_env_config_resolves_auto_defensively(capsys):
 def _mj_env_from(ec):
     from envs.mujoco.biped_env_v2 import BipedEnvV2
     ec.backlash = {**(ec.backlash or {}), "enabled": False}                    # MuJoCo backlash stays disabled
+    ec.arms = dict(ec.arms or {}, control="scripted")   # leg mechanics: 12-joint policy, arms follow arm_motion
     return BipedEnvV2(history_size=1, use_history=False, env_config=ec)
 
 
@@ -329,8 +330,8 @@ def _lowest_foot_vertex_z(env):
 @needs_table
 def test_mujoco_env_resolves_auto_and_spawns_at_the_requested_clearance(capsys):
     home, scale, spawn, rep = rh.resolve_residual_map(_auto_ec(), ROOT)
-    ec = Config(REF_YAML).train.env_config                                     # the gait-reference config, unfrozen
-    assert ec.action_home_deg == "auto"
+    ec = Config(REF_YAML).train.env_config
+    ec.action_home_deg = ec.action_scale_rad = ec.spawn_height_m = "auto"    # Chhaya stores frozen numbers: test the resolver
     env = _mj_env_from(ec)
     assert "NOT frozen" in capsys.readouterr().err
     env.reset(seed=0)
@@ -343,6 +344,8 @@ def test_mujoco_env_resolves_auto_and_spawns_at_the_requested_clearance(capsys):
     assert _lowest_foot_vertex_z(env) * 1e3 == pytest.approx(rep["spawn_fk"]["clearance_m"] * 1e3 + 10.0, abs=0.01)
     # the same env built from the frozen numbers is identical
     cfg = Config(REF_YAML)
+    e2 = cfg.train.env_config
+    e2.action_home_deg = e2.action_scale_rad = e2.spawn_height_m = "auto"
     rh.freeze_residual_map(cfg, ROOT)
     env2 = _mj_env_from(cfg.train.env_config)
     env2.reset(seed=0)

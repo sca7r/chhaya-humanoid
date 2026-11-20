@@ -9,7 +9,7 @@ held for hold_s). This script reproduces that in the get-up env itself (same phy
   push  standing at home, servos holding, kicked over (0.5-1.5 m/s + random spin); torque cut when the tilt passes
         45 deg, exactly the walking fault. The realistic walking fall.
   hold  like drop, but the servos hold the initial pose at a low P (4-12): rests that a stiffer-than-modelled
-        unpowered gearbox would produce (the BAM model underestimates torque-off stiction, see config_gait_reference).
+        unpowered gearbox would produce (the BAM model underestimates torque-off stiction).
 Limp joints get their friction budget scaled x U(1, 3) for the same reason. Physics DR runs at full width.
 
 A state is captured at the first step its settle criterion holds (and settle.min_s has passed, the base is not
@@ -72,7 +72,7 @@ def main() -> int:
     np.random.seed(args_cli.seed)
     config = Config(args_cli.config_path)
     freeze_residual_map(config)
-    cfg_cls, env_cls = resolve_task("BipedRobotV2GetUp")
+    cfg_cls, env_cls = resolve_task("ChhayaGetUp")
     env_cfg = build_env_cfg(config, cfg_cls, training=True, num_envs=args_cli.num_envs, pushes=False)
     g = dict(env_cfg.getup)
     settle = dict(g["settle"])

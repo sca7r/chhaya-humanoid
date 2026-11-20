@@ -43,7 +43,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 _TRL = os.path.join(_ROOT, "torch_rl_algorithms")
 if _TRL not in sys.path:
-    sys.path.append(_TRL)          # appended: its top-level `config` must not shadow BipedRobot's
+    sys.path.append(_TRL)          # appended: its top-level `config` must not shadow the repo's
 
 import mujoco  # noqa: E402
 

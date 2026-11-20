@@ -1,6 +1,6 @@
 """Exporting the gait clock of a gait-table run: a v2 table (cadence follows the command) becomes
 a cadence_grid clock and bundle format v5; a constant cadence stays fixed_period (v3/v4), so
-older runtimes keep working. torch/numpy only, no Isaac. Run from BipedRobot/:
+older runtimes keep working. torch/numpy only, no Isaac. Run from training/:
     python -m pytest tests/test_cadence_export.py -q
 """
 from __future__ import annotations

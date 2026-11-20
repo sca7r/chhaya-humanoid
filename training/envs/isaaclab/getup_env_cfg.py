@@ -1,6 +1,6 @@
-"""Config for the get-up / fall-recovery task (envs/isaaclab/getup_env.py, --task BipedRobotV2GetUp).
+"""Config for the get-up / fall-recovery task (envs/isaaclab/getup_env.py, --task ChhayaGetUp).
 
-Everything the walking BipedRobotV2EnvCfg defines is inherited unchanged: the scene, the BAM servo model, backlash,
+Everything the walking ChhayaEnvCfg defines is inherited unchanged: the scene, the BAM servo model, backlash,
 the sensor model (noise, vibration, delays, biases, quantisation), the DR events and their curriculum. The task-
 specific settings live in one dict, `getup`, which config.yaml's env_config.getup block overrides key by key
 (src/isaaclab/env_config._apply_getup; an unknown key raises). The training config is the source of truth: the
@@ -12,7 +12,7 @@ import copy
 
 from isaaclab.utils import configclass
 
-from .biped_env_cfg import BipedRobotV2EnvCfg
+from .biped_env_cfg import ChhayaEnvCfg
 
 GETUP_DEFAULTS: dict = {
     # ---- start states ------------------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ GETUP_DEFAULTS: dict = {
 
 
 @configclass
-class BipedRobotV2GetUpEnvCfg(BipedRobotV2EnvCfg):
+class ChhayaGetUpEnvCfg(ChhayaEnvCfg):
     # 10 s: a get-up takes 2-4 s, a failed attempt can be retried inside the episode, and the rest is holding still.
     episode_length_s = 10.0
 

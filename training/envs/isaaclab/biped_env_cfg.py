@@ -19,12 +19,10 @@ from isaaclab.terrains import TerrainGeneratorCfg
 
 from .mdp.events import (randomize_bam_actuator, randomize_rigid_body_com_absolute, reset_joints_by_offset,
                          reset_root_state_uniform)
-from envs.assets.robot.biped_robot import BIPED_ROBOT_CFG as BIPED_ROBOT_V1_CFG
-from envs.assets.robot.biped_robot import JOINT_LIMITS as JOINT_LIMITS_V1
 from envs.assets.robotV2.biped_robot import BIPED_ROBOT_CFG as BIPED_ROBOT_V2_CFG
 from envs.assets.robotV2.biped_robot import JOINT_LIMITS as JOINT_LIMITS_V2
 
-# Rough terrain scaled for the 29 cm BipedRobotV2.
+# Rough terrain scaled for Chhaya.
 # Purpose: ground perturbation training, NOT an obstacle course.
 # The robot is BLIND (no height scanner), so anything it cannot absorb reactively is just
 # noise in the reward. Worst feature is ~12 mm; see the per-terrain notes below for scaling.
@@ -124,8 +122,8 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
 )
 
 @configclass
-class BipedRobotSceneCfg(InteractiveSceneCfg):
-    robot: ArticulationCfg = BIPED_ROBOT_V1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+class BaseSceneCfg(InteractiveSceneCfg):
+    robot: ArticulationCfg = BIPED_ROBOT_V2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     contact_forces: ContactSensorCfg = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/Robot/.*",
         history_length=3,
@@ -139,7 +137,7 @@ class BipedRobotSceneCfg(InteractiveSceneCfg):
 
 
 @configclass
-class BipedRobotV2SceneCfg(InteractiveSceneCfg):
+class ChhayaSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = BIPED_ROBOT_V2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     contact_forces: ContactSensorCfg = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/Robot/.*",
@@ -165,13 +163,13 @@ class BipedEnvCfg(DirectRLEnvCfg):
     curriculum_episode_len_threshold: float = 15.0
 
     # scene
-    scene: BipedRobotSceneCfg = BipedRobotSceneCfg(
+    scene: BaseSceneCfg = BaseSceneCfg(
         num_envs=4096,
         env_spacing=0.5,
     )
 
     # robot-specific mappings
-    joint_limits = JOINT_LIMITS_V1
+    joint_limits = JOINT_LIMITS_V2
     right_foot_body_name = "r_foot"
     left_foot_body_name = "l_foot"
     base_body_name = "torso_link"
@@ -770,9 +768,9 @@ class BipedRoughEnvCfg(BipedEnvCfg):
 
 
 @configclass
-class BipedRobotV2EnvCfg(BipedEnvCfg):
+class ChhayaEnvCfg(BipedEnvCfg):
     # scene
-    scene: BipedRobotV2SceneCfg = BipedRobotV2SceneCfg(
+    scene: ChhayaSceneCfg = ChhayaSceneCfg(
         num_envs=4096,
         env_spacing=0.5,
     )
@@ -788,8 +786,8 @@ class BipedRobotV2EnvCfg(BipedEnvCfg):
 
     # robot-specific mappings
     joint_limits = JOINT_LIMITS_V2
-    right_foot_body_name = "(r|right)_foot_link(_\d+)?"
-    left_foot_body_name  = "(l|left)_foot_link(_\d+)?"
+    right_foot_body_name = r"(r|right)_foot_link(_\d+)?"
+    left_foot_body_name  = r"(l|left)_foot_link(_\d+)?"
     base_body_name       = "base_link"
 
     hip_joint_names = [

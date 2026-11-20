@@ -19,7 +19,7 @@ The states are what the Jetson sees when it re-arms: the robot fell with torque 
 criterion held, and the policy starts from there (see the get-up bundle's start_protocol).
 
 Mirror (sagittal plane, the env's y -> -y): a pure joint permutation for V2 (mirror signs are all +1, see
-biped_env_cfg.BipedRobotV2EnvCfg), quaternion (w, x, y, z) -> (w, -x, y, -z), body-frame vectors: linear (x, -y, z),
+biped_env_cfg.ChhayaEnvCfg), quaternion (w, x, y, z) -> (w, -x, y, -z), body-frame vectors: linear (x, -y, z),
 angular (-x, y, -z), category left <-> right.
 """
 from __future__ import annotations
@@ -40,7 +40,7 @@ CATEGORIES = ("upright", "prone", "supine", "left_side", "right_side", "inverted
 SOURCES = ("drop", "push", "hold")
 _MIRROR_CATEGORY = {"left_side": "right_side", "right_side": "left_side"}
 
-# V2 policy order: mirror is the L <-> R swap of every joint type, signs +1 (biped_env_cfg.BipedRobotV2EnvCfg).
+# V2 policy order: mirror is the L <-> R swap of every joint type, signs +1 (biped_env_cfg.ChhayaEnvCfg).
 MIRROR_JOINT_PERM = (1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10)
 MIRROR_JOINT_SIGNS = (1.0,) * 12
 
@@ -222,11 +222,11 @@ def save_bank(bank: FallBank, path: str) -> None:
 
 
 def load_bank(path: str, root_dir: str | None = None) -> FallBank:
-    """Load and validate. A relative path is resolved against root_dir (the BipedRobot repo) when given."""
+    """Load and validate. A relative path is resolved against root_dir (training/) when given."""
     full = path if os.path.isabs(path) or root_dir is None else os.path.join(root_dir, path)
     if not os.path.exists(full):
         raise FileNotFoundError(
-            f"fall bank {full} not found. Generate it first (Isaac Lab python, from BipedRobot/):\n"
+            f"fall bank {full} not found. Generate it first (Isaac Lab python, from training/):\n"
             f"  python src/isaaclab/make_fall_bank.py --config_path config/config_getup.yaml --headless")
     with np.load(full, allow_pickle=False) as z:
         meta = json.loads(str(z["meta_json"]))

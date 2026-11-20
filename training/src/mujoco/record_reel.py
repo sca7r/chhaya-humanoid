@@ -1,11 +1,11 @@
-"""record_reel.py -- real-time 4K video of one BipedRobotV2 walking in MuJoCo (offscreen).
+"""record_reel.py -- real-time 4K video of one Chhaya walking in MuJoCo (offscreen).
 
 The MuJoCo counterpart of src/isaaclab/record_reel.py's follow shot: side view a bit up, following the
 robot along its spawn heading, one frame per 50 Hz policy step written at 50 fps (real time). The policy
 runs exactly as in sim2real.py (deterministic, the checkpoint's obs scaler). Only the looks change: a
 copy of the robot XML in a temp dir gets a gradient sky and a 10 cm checker floor (no physics change).
 
-Usage (from BipedRobot/):
+Usage (from training/):
   python -m src.mujoco.record_reel --checkpoint <run>/step_N.pt --vx 0.1 --out videos/reel/mujoco.mp4
   --vertical renders 2160x3840 instead of 3840x2160; --preview N writes PNG stills every N frames.
 """
@@ -62,7 +62,7 @@ def _dressed_xml(src: str) -> str:
 
 
 def main():
-    p = argparse.ArgumentParser(description="Record a 4K MuJoCo reel video of BipedRobotV2")
+    p = argparse.ArgumentParser(description="Record a 4K MuJoCo reel video of Chhaya")
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--config_path", default=None, help="Default: the checkpoint dir's config.yaml")
     p.add_argument("--vx", type=float, default=0.1)

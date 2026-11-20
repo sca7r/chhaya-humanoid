@@ -8,7 +8,7 @@ Builds the env, wrapper and SAC exactly like train.py, then runs the Trainer.run
   3. syncs      host-device sync sites (torch.cuda.set_sync_debug_mode), grouped by project call site
   4. profiler   torch.profiler key averages (self CPU time) + cudaStreamSynchronize / memcpy counts
 
-    python -m src.isaaclab.profile_train --task BipedRobotV2 --config_path config/config_gait_reference.yaml \
+    python -m src.isaaclab.profile_train --task Chhaya --config_path config/chhaya.yaml \
         --num_envs 1024 --out <dir>
 
 Small on purpose so it can run next to a live training run: flat terrain by default (rough terrain makes
@@ -23,8 +23,8 @@ import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--task", type=str, default="BipedRobotV2")
-parser.add_argument("--config_path", type=str, default="config/config_gait_reference.yaml")
+parser.add_argument("--task", type=str, default="Chhaya")
+parser.add_argument("--config_path", type=str, default="config/chhaya.yaml")
 parser.add_argument("--num_envs", type=int, default=1024)
 parser.add_argument("--warmup", type=int, default=60, help="iterations before any measurement")
 parser.add_argument("--baseline_iters", type=int, default=100)
@@ -62,7 +62,7 @@ from utils.residual_home import freeze_residual_map  # noqa: E402
 from src.isaaclab.common import BaseIsaacLabWrapper  # noqa: E402
 from src.isaaclab.env_config import build_env_cfg  # noqa: E402
 from envs.isaaclab.biped_env import BipedEnv  # noqa: E402
-from envs.isaaclab.biped_env_cfg import BipedEnvCfg, BipedRobotV2EnvCfg  # noqa: E402
+from envs.isaaclab.biped_env_cfg import BipedEnvCfg, ChhayaEnvCfg  # noqa: E402
 
 
 class Timers:
@@ -246,7 +246,7 @@ def main():
     if not args.rough:
         config.train.use_rough_terrain = False
     config.buffer.size = args.buffer_size
-    env_cfg = build_env_cfg(config, BipedRobotV2EnvCfg if args.task == "BipedRobotV2" else BipedEnvCfg,
+    env_cfg = build_env_cfg(config, ChhayaEnvCfg if args.task == "Chhaya" else BipedEnvCfg,
                             training=True, num_envs=args.num_envs)
     env_cfg.seed = config.train.seed
     torch.manual_seed(config.train.seed)

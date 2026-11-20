@@ -1,5 +1,5 @@
 """stand_pose_l2: non-saturating stand-pose anchor, only while the gait reference is standing (CPU, no Isaac).
-Pure kernel in envs/isaaclab/rewards/rewards.py + sign guard + config + source-level wiring. Run from BipedRobot/:
+Pure kernel in envs/isaaclab/rewards/rewards.py + sign guard + config + source-level wiring. Run from training/:
     python -m pytest tests/test_stand_pose_l2.py -q
 """
 import math
@@ -90,14 +90,10 @@ def test_sign_is_negative_and_positive_weight_rejected():
 def test_configs_load_with_the_expected_weight():
     pytest.importorskip("yaml")
     from utils import Config
-    ec = Config(os.path.join(ROOT, "config", "config_gait_reference.yaml")).train.env_config
-    assert ec.reward_weights["stand_pose_l2"] == -1.0
+    ec = Config(os.path.join(ROOT, "config", "chhaya.yaml")).train.env_config
+    assert ec.reward_weights["stand_pose_l2"] == -2.0
     assert ec.reference["npz_path"]                               # the env needs the table for a nonzero weight
     R.validate_stand_pose_l2(ec.reward_weights["stand_pose_l2"], has_reference=bool(ec.reference["npz_path"]))
-    ec0 = Config(os.path.join(ROOT, "config", "config.yaml")).train.env_config
-    w0 = dict(getattr(ec0, "reward_weights", None) or {})
-    assert w0.get("stand_pose_l2", 0.0) == -2.0                   # 2026-10-31: home-pose anchor, no reference there
-    R.validate_stand_pose_l2(w0.get("stand_pose_l2", 0.0), has_reference=bool(getattr(ec0, "reference", None) and ec0.reference.get("npz_path")))
 
 
 # ---------------- 4. env wiring (source level) ----------------

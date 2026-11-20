@@ -1,7 +1,7 @@
 """Get-up export (format 7) end to end, and the MuJoCo get-up gate on the exported bundle. A tiny fake checkpoint (the
 exporter rebuilds the actor from tensor shapes only) in a temporary run folder with config_getup.yaml beside it.
 Walking export rules (v2-v6, the 45 deg tilt fault, the +g accelerometer check) must be unchanged. CPU only.
-Run from BipedRobot/:  python -m pytest tests/test_getup_export.py -q
+Run from training/:  python -m pytest tests/test_getup_export.py -q
 """
 import json
 import math
@@ -19,7 +19,7 @@ sys.path.insert(0, ROOT)
 from src.isaaclab import export_onnx as X  # noqa: E402
 
 CFG = os.path.join(ROOT, "config", "config_getup.yaml")
-WALK_CFG = os.path.join(ROOT, "config", "config_gait_reference.yaml")
+WALK_CFG = os.path.join(ROOT, "config", "chhaya.yaml")
 
 
 def test_format_version_and_role_detection():

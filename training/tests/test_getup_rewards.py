@@ -1,6 +1,6 @@
 """Get-up reward kernels (envs/isaaclab/rewards/getup_rewards.py) and their wiring: values and orderings, mirror
 invariance, gating, the overload integrator, the sign guard, the config's weights vs the env's implemented terms.
-CPU only, no Isaac (getup_env.py is read as source). Run from BipedRobot/:  python -m pytest tests/test_getup_rewards.py -q
+CPU only, no Isaac (getup_env.py is read as source). Run from training/:  python -m pytest tests/test_getup_rewards.py -q
 """
 import ast
 import math

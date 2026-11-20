@@ -8,18 +8,18 @@ import time
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Play a trained policy in Isaac Lab 3.0 (Newton)")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BipedRobotV2",
-                    help="BipedRobotV2 (walking; Chhaya with env_config.arms) | BipedRobotV2GetUp (fall recovery)")
+parser.add_argument("--task", type=str, default="Chhaya",
+                    help="Chhaya (walking) | ChhayaGetUp (fall recovery)")
 parser.add_argument("--start_category", type=str, default=None,
-                    help="BipedRobotV2GetUp only: start every episode from fall-bank states of this category "
+                    help="ChhayaGetUp only: start every episode from fall-bank states of this category "
                          "(upright | prone | supine | left_side | right_side | inverted).")
 parser.add_argument("--bank_split", type=str, default=None, choices=["train", "gate"],
-                    help="BipedRobotV2GetUp only: which fall-bank split to start from (default: the config's).")
+                    help="ChhayaGetUp only: which fall-bank split to start from (default: the config's).")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint.")
 parser.add_argument("--config_path", type=str, default=None,
                     help="Training config. Default: the checkpoint dir's config.yaml (the run's own), "
-                         "else config/config.yaml")
+                         "else config/chhaya.yaml")
 parser.add_argument("--pushes", action="store_true",
                     help="Keep the training pushes (events.push_robot) on during playback, to watch "
                          "push recovery. Off by default: play runs the nominal, unperturbed robot.")
@@ -49,7 +49,6 @@ from src.isaaclab.common import BaseIsaacLabWrapper
 from src.isaaclab.env_config import build_env_cfg, describe as describe_env_cfg
 from src.isaaclab.tasks import checkpoint_root, resolve_task
 
-# BipedRobot (V1) | BipedRobotV2 (walking) | BipedRobotV2GetUp (fall recovery, config/config_getup.yaml)
 BipedEnvCfg, BipedEnv = resolve_task(args_cli.task)
 
 class IsaacLabWrapper(BaseIsaacLabWrapper):
@@ -101,11 +100,11 @@ def play():
 
     # Load config. Without --config_path, use the run's own config so a gait-table checkpoint
     # gets its reference block (fixed-period clock) and its actor type (equivariant_actor)
-    # instead of config/config.yaml's.
+    # instead of config/chhaya.yaml's.
     if args_cli.config_path is None:
         run_cfg = (os.path.join(os.path.dirname(os.path.abspath(checkpoint_path)), "config.yaml")
                    if checkpoint_path else None)
-        args_cli.config_path = run_cfg if run_cfg and os.path.exists(run_cfg) else "config/config.yaml"
+        args_cli.config_path = run_cfg if run_cfg and os.path.exists(run_cfg) else "config/chhaya.yaml"
     print(f"[play] task={args_cli.task}  config={args_cli.config_path}")
     if not os.path.exists(args_cli.config_path):
         rel_path = os.path.join(os.path.dirname(__file__), "../../../", args_cli.config_path)
@@ -136,7 +135,7 @@ def play():
             g["bank_split"] = args_cli.bank_split
         env_cfg.getup = g
     elif args_cli.start_category or args_cli.bank_split:
-        raise SystemExit("--start_category / --bank_split need --task BipedRobotV2GetUp")
+        raise SystemExit("--start_category / --bank_split need --task ChhayaGetUp")
     print("[play] env contract:", describe_env_cfg(env_cfg))
 
     with launch(env_cfg, args_cli):

@@ -1,4 +1,4 @@
-"""GaitTableReference sampler. numpy + torch only. Run from BipedRobot/:  python -m pytest tests/test_gait_table_reference.py -q"""
+"""GaitTableReference sampler. numpy + torch only. Run from training/:  python -m pytest tests/test_gait_table_reference.py -q"""
 from __future__ import annotations
 
 import os
@@ -163,7 +163,7 @@ def test_v2_frequency_is_trilinear_and_clamped(tmp_path):
 
 def test_cadence_golden_vectors():
     """Isaac (torch) and numpy CadenceGrid agree with an independent interpolator and with the
-    golden file the Jetson runtime is tested against (BipedRobotJetson/tests/data)."""
+    golden file the Jetson runtime is tested against (the runtime test data)."""
     import json
 
     from scipy.interpolate import RegularGridInterpolator

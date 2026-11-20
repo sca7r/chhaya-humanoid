@@ -1,5 +1,5 @@
 """Fall bank (utils/fall_bank.py): gravity / categories, the exact sagittal mirror, yaw removal, the train / gate split,
-save / load. numpy only (no Isaac). Run from BipedRobot/:  python -m pytest tests/test_fall_bank.py -q
+save / load. numpy only (no Isaac). Run from training/:  python -m pytest tests/test_fall_bank.py -q
 """
 import math
 import os

@@ -1,5 +1,5 @@
 """Reward-shaping pure functions (CPU, no Isaac): relative tracking kernels, touchdown-paid
-feet_air_time, swing-time gate for swing_foot_height. Run from BipedRobot/:
+feet_air_time, swing-time gate for swing_foot_height. Run from training/:
     python -m pytest tests/test_reward_shaping.py -q
 """
 import os

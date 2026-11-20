@@ -19,8 +19,8 @@ Usage:
 
 Arguments:
     --checkpoint     Path to .pt checkpoint. If omitted, latest in checkpoints/ is used.
-    --config_path    Path to the training config YAML (default: config/config.yaml).
-    --task           Robot variant (default: BipedRobotV2 — only V2 supported here).
+    --config_path    Path to the training config YAML (default: config/chhaya.yaml).
+    --task           Robot variant (default: Chhaya — only V2 supported here).
     --seed           Random seed (default: 42).
     --headless       Disable the MuJoCo viewer window.
     --num_episodes   Episodes to run before exiting (0 = run forever, default: 0).
@@ -74,13 +74,13 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 def _parse_args():
-    p = argparse.ArgumentParser(description="MuJoCo sim-to-real inference for BipedRobotV2")
+    p = argparse.ArgumentParser(description="MuJoCo sim-to-real inference for Chhaya")
     p.add_argument("--checkpoint",   type=str,   default=None,
                    help="Path to .pt checkpoint file.")
     p.add_argument("--config_path",  type=str,   default=None,
                    help="Training config YAML. Default: the checkpoint dir's config.yaml "
-                        "(the run's own), else config/config.yaml.")
-    p.add_argument("--task",         type=str,   default="BipedRobotV2")
+                        "(the run's own), else config/chhaya.yaml.")
+    p.add_argument("--task",         type=str,   default="Chhaya")
     p.add_argument("--seed",         type=int,   default=42)
     p.add_argument("--headless",     action="store_true", default=False,
                    help="Run without rendering window.")
@@ -223,10 +223,10 @@ def main():
     cfg_path = args.config_path
     if cfg_path is None:
         # The run's own config: a gait-table run needs its reference block (fixed-period clock),
-        # which config/config.yaml does not have.
+        # which config/chhaya.yaml does not have.
         run_cfg = os.path.join(os.path.dirname(os.path.abspath(args.checkpoint)), "config.yaml") \
             if args.checkpoint else None
-        cfg_path = run_cfg if run_cfg and os.path.exists(run_cfg) else "config/config.yaml"
+        cfg_path = run_cfg if run_cfg and os.path.exists(run_cfg) else "config/chhaya.yaml"
         print(f"[sim2real] config: {cfg_path}")
     if not os.path.exists(cfg_path):
         cfg_path = os.path.join(_ROOT, cfg_path)

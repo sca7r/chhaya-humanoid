@@ -576,7 +576,7 @@ def apply_stall_cap(params: BamParams, stall_torque_cap_nm: float | None) -> Bam
 
 
 def load_params(path: str | Path) -> BamParams:
-    """Load a params JSON, resolving paths relative to the BipedRobot repo root if needed."""
+    """Load a params JSON, resolving paths relative to training/ if needed."""
     path = Path(path)
     if not path.is_absolute() and not path.exists():
         path = Path(__file__).resolve().parent.parent / path

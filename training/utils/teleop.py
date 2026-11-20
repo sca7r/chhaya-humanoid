@@ -2,7 +2,7 @@
 MuJoCo sim2real.py. Pure numpy: the input devices live in src/isaaclab/teleop.py (carb) and
 src/mujoco/teleop.py (GLFW), which both feed axes_to_command().
 
-Bindings are the Jetson web UI's (BipedRobotJetson/web/static/js/control.js):
+Bindings are the robot web UI:
   W/S +vx/-vx   A/D +vy/-vy (left = +y)   Q/E +wz/-wz (Q turns left)   Z/X speed level -/+   Space push
   pad: left stick vx/vy, right stick x wz, LB/RB speed level -/+, A push
 

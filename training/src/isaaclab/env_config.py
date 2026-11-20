@@ -218,7 +218,7 @@ def _apply_joint_limits(env_cfg, env_conf) -> None:
 
 
 def _apply_getup(env_cfg, env_conf, *, training: bool) -> None:
-    """env_config.getup -> env_cfg.getup (BipedRobotV2GetUpEnvCfg only). Nested dicts merge one level deep; an unknown
+    """env_config.getup -> env_cfg.getup (ChhayaGetUpEnvCfg only). Nested dicts merge one level deep; an unknown
     key raises. Play / eval (training=False) turns the assist force off (the robot never gets a helping hand) and the
     success termination (play keeps the episode running so the stand can be watched; the Jetson hands off instead)."""
     block = _as_dict(getattr(env_conf, "getup", None))
@@ -229,7 +229,7 @@ def _apply_getup(env_cfg, env_conf, *, training: bool) -> None:
                              "terminate_on_success": False}
         return
     if not has:
-        raise ValueError("env_config.getup is only for the get-up task (--task BipedRobotV2GetUp)")
+        raise ValueError("env_config.getup is only for the get-up task (--task ChhayaGetUp)")
     merged = dict(env_cfg.getup)
     _check_keys("getup", block, set(merged))
     for key, val in block.items():

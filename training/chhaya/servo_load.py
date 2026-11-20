@@ -2,7 +2,7 @@
 
     python -m chhaya.servo_load [--out docs_dir]
 
-Three load cases, for Chhaya (config/chhaya.yaml) and, as a reference, the legs-only rig (config/config.yaml):
+Three load cases, for Chhaya (config/chhaya.yaml):
   1. standing on both feet in the home pose (measured in the simulation: zero action, 3 s);
   2. standing on ONE foot in the same pose (quasi-static: for each stance-leg joint, the gravity moment of
      everything on the far side of the joint; walking loads each leg like this once per step);
@@ -152,15 +152,15 @@ def main():
     global STALL, CONT
     STALL, arm_stall, desc = stall_from_config(a.config)
     CONT = STALL / 3.0
-    res = {"chhaya": analyse(a.config), "legs_only": analyse("config.yaml")}
-    ch, lo = res["chhaya"], res["legs_only"]
-    lines = [f"{a.config}: {ch['mass_kg']} kg, legs-only rig {lo['mass_kg']} kg. Servos: {desc}. "
+    res = {"chhaya": analyse(a.config)}
+    ch = res["chhaya"]
+    lines = [f"{a.config}: {ch['mass_kg']} kg. Servos: {desc}. "
              f"Leg stall {STALL:.2f} N m (continuous guide {CONT:.2f}), arm stall {arm_stall:.2f} N m.", ""]
-    lines += ["| Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous | One foot, legs-only rig |", "|---|---|---|---|---|---|"]
+    lines += ["| Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous |", "|---|---|---|---|---|"]
     worst = 0.0
     for n, v in ch["single_support"].items():
         worst = max(worst, v)
-        lines.append(f"| {n} | {ch['stand_mean'].get(n, float('nan')):.2f} | {v:.2f} | {100 * v / STALL:.0f} % | {100 * v / CONT:.0f} % | {lo['single_support'].get(n, float('nan')):.2f} |")
+        lines.append(f"| {n} | {ch['stand_mean'].get(n, float('nan')):.2f} | {v:.2f} | {100 * v / STALL:.0f} % | {100 * v / CONT:.0f} % |")
     lines += ["", "| Knee bend | Knee torque, both legs | Knee torque, one leg | % of stall (one leg) |", "|---|---|---|---|"]
     for ang, v in ch["squat_knee"].items():
         lines.append(f"| {ang} deg | {v['two_legs']:.2f} | {v['one_leg']:.2f} | {100 * v['one_leg'] / STALL:.0f} % |")

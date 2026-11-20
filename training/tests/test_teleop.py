@@ -1,6 +1,6 @@
 """utils/teleop.py: manual-command mapping, speed level, push sampling.
 
-CPU only, no Isaac Sim / GLFW. Run from BipedRobot/:  python -m pytest tests/test_teleop.py -q
+CPU only, no Isaac Sim / GLFW. Run from training/:  python -m pytest tests/test_teleop.py -q
 """
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def sampler_mod():
 
 
 def test_manual_overrides_sampling_heading_and_reset(sampler_mod):
-    g = _gen(sampler_mod, "config.yaml", 4)
+    g = _gen(sampler_mod, "chhaya.yaml", 4)
     alias = g.commands
     quat = torch.tensor([[1.0, 0, 0, 0]]).repeat(4, 1)
     g.set_manual((0.1, -0.05, 0.3))
@@ -124,7 +124,7 @@ def test_manual_overrides_sampling_heading_and_reset(sampler_mod):
 
 def test_arrow_and_arc_geometry(sampler_mod):
     from utils.teleop import ARC_SEGMENTS, ARROW_LEN_AT_MAX
-    g = _gen(sampler_mod, "config.yaml", 3)
+    g = _gen(sampler_mod, "chhaya.yaml", 3)
     v_max = max(abs(v) for k in ("lin_vel_x", "lin_vel_y") for v in g.ranges[k])
     pos0 = torch.zeros(3, 3)
     v = torch.tensor([[v_max, 0.0], [0.0, 0.5 * v_max], [0.0, 0.0]])   # full, half, stopped
@@ -156,7 +156,7 @@ def test_visualize_feeds_one_instancer_per_colour(sampler_mod):
             calls.append(kw)
 
     n = 2
-    g = _gen(sampler_mod, "config.yaml", n)
+    g = _gen(sampler_mod, "chhaya.yaml", n)
     g.set_manual((0.1, 0.0, 0.5))
     g.apply_heading(torch.tensor([[1.0, 0, 0, 0]]).repeat(n, 1))
     g.visualize((FakeMarker(), FakeMarker()), torch.zeros(n, 3), torch.tensor([[1.0, 0, 0, 0]]).repeat(n, 1),

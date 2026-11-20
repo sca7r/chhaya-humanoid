@@ -25,7 +25,7 @@ from src.isaaclab.launch import add_launch_args, launch  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
 ap.add_argument("--config_path", default=os.path.join(ROOT, "config/chhaya.yaml"))
-ap.add_argument("--task", default="BipedRobotV2")
+ap.add_argument("--task", default="Chhaya")
 ap.add_argument("--num_envs", type=int, default=1024)
 ap.add_argument("--preset", choices=("paper", "laptop", "tiny"), default="laptop")
 ap.add_argument("--model", choices=("eth", "v1"), default="eth",

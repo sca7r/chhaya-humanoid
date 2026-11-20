@@ -1,4 +1,4 @@
-"""record_reel.py -- real-time 4K videos of BipedRobotV2 in Isaac Lab (headless, offscreen).
+"""record_reel.py -- real-time 4K videos of Chhaya in Isaac Lab (headless, offscreen).
 
 One frame per policy step (50 Hz) written at 50 fps, so playback is real time no matter how slowly
 the 4K frames render. Unlike play.py, a fallen robot is reset on its own (the env's auto-reset):
@@ -8,14 +8,14 @@ Shots:
   crowd   static high camera framing the whole env grid
   follow  side view of env 0, a bit up, following it along its spawn heading
 
-Usage (from BipedRobot/):
+Usage (from training/):
   # step-0 policy (fresh SAC actor, sampled like training), 300 robots
-  python -m src.isaaclab.record_reel --task BipedRobotV2 --shot crowd --untrained --num_envs 300 \
+  python -m src.isaaclab.record_reel --task Chhaya --shot crowd --untrained --num_envs 300 \
       --checkpoint <run>/step_N.pt --out videos/reel/untrained.mp4
   # trained, random commands
-  python -m src.isaaclab.record_reel --task BipedRobotV2 --shot crowd --num_envs 300 --checkpoint <ckpt>
+  python -m src.isaaclab.record_reel --task Chhaya --shot crowd --num_envs 300 --checkpoint <ckpt>
   # one robot walking forward at 0.1 m/s
-  python -m src.isaaclab.record_reel --task BipedRobotV2 --shot follow --num_envs 1 --vx 0.1 --checkpoint <ckpt>
+  python -m src.isaaclab.record_reel --task Chhaya --shot follow --num_envs 1 --vx 0.1 --checkpoint <ckpt>
 
   --vertical renders 2160x3840 instead of 3840x2160. --preview N writes PNG stills every N frames and
   no video (for framing the camera).
@@ -28,7 +28,7 @@ import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Record reel videos of the Biped Robot in Isaac Lab")
-parser.add_argument("--task", type=str, default="BipedRobotV2")
+parser.add_argument("--task", type=str, default="Chhaya")
 parser.add_argument("--checkpoint", type=str, required=True,
                     help="Trained checkpoint. With --untrained only its config.yaml / obs layout is used.")
 parser.add_argument("--config_path", type=str, default=None, help="Default: the checkpoint dir's config.yaml")
@@ -94,10 +94,9 @@ from utils.residual_home import freeze_residual_map
 from src.isaaclab.common import BaseIsaacLabWrapper
 from src.isaaclab.env_config import build_env_cfg
 from envs.isaaclab.biped_env import BipedEnv
-from envs.isaaclab.biped_env_cfg import BipedEnvCfg as BipedRobotEnvCfg
-from envs.isaaclab.biped_env_cfg import BipedRobotV2EnvCfg
+from envs.isaaclab.biped_env_cfg import ChhayaEnvCfg
 
-BipedEnvCfg = {"BipedRobot": BipedRobotEnvCfg, "BipedRobotV2": BipedRobotV2EnvCfg}[args_cli.task]
+BipedEnvCfg = ChhayaEnvCfg
 
 
 class Wrapper(BaseIsaacLabWrapper):

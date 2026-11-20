@@ -1,6 +1,6 @@
 """Reward-weight sign guard (CPU, no Isaac): rewards.validate_reward_weight_signs rejects a positive
 weight on a penalty term (and a negative one on a reward term), names every offending key, and every
-config in config/ passes. Run from BipedRobot/:
+config in config/ passes. Run from training/:
     python -m pytest tests/test_reward_sign_guard.py -q
 """
 import ast
@@ -114,7 +114,7 @@ def test_repo_config_passes(path):
 
 
 def test_fixed_gait_reference_config_has_non_positive_foot_flat():
-    weights, _ = _weights_and_schedule(_load_env_config(os.path.join(ROOT, "config", "config_gait_reference.yaml")))
+    weights, _ = _weights_and_schedule(_load_env_config(os.path.join(ROOT, "config", "chhaya.yaml")))
     # never the +1.0 sign error that rewarded edge standing in run gaitref_2026-10-19_20-20-42
     assert weights["foot_flat_l2"] <= 0.0
     # E22: the guard is on (runs with 0 stood on their outer foot edges at command 0); strictly negative
@@ -122,7 +122,7 @@ def test_fixed_gait_reference_config_has_non_positive_foot_flat():
 
 
 def test_old_run_value_is_rejected_on_real_config():
-    weights, schedule = _weights_and_schedule(_load_env_config(os.path.join(ROOT, "config", "config_gait_reference.yaml")))
+    weights, schedule = _weights_and_schedule(_load_env_config(os.path.join(ROOT, "config", "chhaya.yaml")))
     weights["foot_flat_l2"] = 1.0           # the value in checkpoints/BipedV2_SAC_gaitref_2026-10-19_20-20-42
     with pytest.raises(ValueError, match="foot_flat_l2"):
         R.validate_reward_weight_signs(weights, schedule)

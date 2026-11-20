@@ -3,7 +3,7 @@
 Runs a checkpoint deterministically, headless, on flat terrain, with one fixed command, and
 reports per-joint chatter numbers. Toggle the simulator suspects to see what each contributes:
 
-    python src/isaaclab/jitter_probe.py --task BipedRobotV2 --checkpoint <run>/step_N.pt
+    python src/isaaclab/jitter_probe.py --task Chhaya --checkpoint <run>/step_N.pt
     python src/isaaclab/jitter_probe.py ... --no-backlash --no-action-noise --alpha 0.2
 
 Metrics (averaged over envs, after a 2 s settle):
@@ -20,7 +20,7 @@ import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--task", type=str, default="BipedRobotV2")
+parser.add_argument("--task", type=str, default="Chhaya")
 parser.add_argument("--checkpoint", type=str, required=True)
 parser.add_argument("--config_path", type=str, default=None, help="defaults to the checkpoint dir's config.yaml")
 parser.add_argument("--num_envs", type=int, default=16)
@@ -50,7 +50,7 @@ from utils.residual_home import freeze_residual_map  # noqa: E402
 from src.isaaclab.common import BaseIsaacLabWrapper  # noqa: E402
 from src.isaaclab.env_config import build_env_cfg  # noqa: E402
 from envs.isaaclab.biped_env import BipedEnv  # noqa: E402
-from envs.isaaclab.biped_env_cfg import BipedEnvCfg, BipedRobotV2EnvCfg  # noqa: E402
+from envs.isaaclab.biped_env_cfg import BipedEnvCfg, ChhayaEnvCfg  # noqa: E402
 
 
 class Wrapper(BaseIsaacLabWrapper):
@@ -68,7 +68,7 @@ def main():
     freeze_residual_map(config, warn_unfrozen=True)
     config.train.use_rough_terrain = False
 
-    env_cfg = build_env_cfg(config, BipedRobotV2EnvCfg if args.task == "BipedRobotV2" else BipedEnvCfg,
+    env_cfg = build_env_cfg(config, ChhayaEnvCfg if args.task == "Chhaya" else BipedEnvCfg,
                             training=False, num_envs=args.num_envs)
     bv = env_cfg.commands["base_velocity"]
     vx, vy, wz = args.cmd
