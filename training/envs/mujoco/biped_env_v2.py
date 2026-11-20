@@ -11,7 +11,7 @@ Action: 12 joints in [-1, 1], mapped to joint limits via the same formula as Isa
 Control loop: 50 Hz (decimation=4 at 200 Hz physics), matching Isaac Lab.
 
 Joint limits: env_config.joint_limits_deg when set (the get-up box), else JLIM_MIN / JLIM_MAX (the walking box).
-Get-up mode (env_config.getup set, config/config_getup.yaml): command 0, gait-phase slots (0, 0), no tilt termination,
+Get-up mode (env_config.getup set, config/chhaya_getup.yaml): command 0, gait-phase slots (0, 0), no tilt termination,
 and reset(options={"start_state": fall-bank row}) starts from a fall-bank state with the Jetson's re-arm convention
 (EMA state = the pose, previous action = the action of the pose). See src/mujoco/getup_gate.py.
 """

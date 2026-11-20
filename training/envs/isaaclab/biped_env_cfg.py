@@ -398,7 +398,7 @@ class BipedEnvCfg(DirectRLEnvCfg):
     # tests/test_foot_proximity.py re-derives them from the MJCF and asserts this matches within 1 mm.
     foot_sole_half_extents_m: list = [0.0450, 0.0186]
     # Gap [m] below which the penalty starts. 6 mm: the gait table's own footprint gap over every cell the training command
-    # ranges select (the whole 16x12x16 grid) has min 6.4 mm / p1 11.4 mm / p5 17.1 mm (CHANGES.md, E21), so the reference
+    # ranges select (the whole 16x12x16 grid) has min 6.4 mm / p1 11.4 mm / p5 17.1 mm, so the reference
     # gait is never penalised. Largest whole mm below the table minimum; tests/test_foot_proximity.py recomputes it.
     foot_proximity_margin_m: float = 0.006
     # foot_drag (E25): a foot that is NOT loaded (|F| <= 1 N) and lower than this clearance [m] (lowest sole corner above its

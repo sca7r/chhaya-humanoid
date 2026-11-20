@@ -24,7 +24,7 @@ def main():
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     print(f"MuJoCo {mujoco.__version__}: {xml.name} compiles -- nq={m.nq} nv={m.nv} nu={m.nu} bodies={m.nbody}")
-    print(f"total mass {m.body_subtreemass[1]:.3f} kg (legs-only robot_v2: 1.661 kg)")
+    print(f"total mass {m.body_subtreemass[1]:.3f} kg")
     com = d.subtree_com[1] - d.xpos[1]
     print(f"CoM relative to base_link origin: {np.round(com * 1000, 1)} mm")
     print("\njoint                 range [rad]          actuator")

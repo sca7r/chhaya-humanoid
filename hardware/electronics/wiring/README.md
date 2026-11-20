@@ -11,14 +11,11 @@ Pi I2C1 (pins 3/5)   ──► BNO055 IMU (address 0x28)
 Pi PWM (pins 32/33)  ──► left / right claw micro servo (5 V from the Pi's 5 V pins)
 ```
 
-The legs-only reference robot used a Jetson Orin Nano with the same pin numbers; it does not fit on Chhaya's
-electronics rack.
-
 ## Servo ID map
 
 All 20 servos share one half-duplex bus at 1 Mbaud. IDs are set once per servo (see
-[build guide step 2](../../docs/build/02_servo_setup.md)). The leg values are the ones in
-BipedRobotJetson's `config/robot.yaml`; set the arm signs during calibration (positive = the joint's positive
+[build guide step 2](../../docs/build/02_servo_setup.md)). The leg signs are those of the
+reference build; set the arm signs during calibration (positive = the joint's positive
 direction in `robot_description`).
 
 | ID | Joint | Limb | direction_sign |
@@ -75,8 +72,8 @@ about 0.7 A; the Pi itself needs about 2 A here). Their 3.3 V PWM signal drives 
 
 The BNO055 is mounted rotated **180° about the body X axis** (forward) relative to the robot frame
 (X forward, Y left, Z up). The runtime corrects for it by negating Y and Z of the accelerometer and
-gyro. If you mount it the other way up, change `_MOUNT_FLIP_YZ` in BipedRobotJetson's
-`hardware/imu/bno055.py` to `+1.0` and re-check with the self-test.
+gyro. If you mount it the other way up, the runtime's IMU mounting setting
+must change with it.
 
 ## Power PCB connectors
 

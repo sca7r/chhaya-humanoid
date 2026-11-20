@@ -27,26 +27,26 @@ Both expose the same observation and action, run the same servo model
 - `mujoco/`: `biped_env_v2.py` (`BipedEnvV2`), `base_env.py` (model loading, viewer).
 - `assets/robotV2/` (current robot: MJCF, USD, URDF, `ArticulationCfg`, `BamActuator`).
 
-`BipedRobotV2` is the robot and task.
+`Chhaya` is the robot and task (`ChhayaGetUp` for fall recovery).
 
 ---
 
 ## Using the environments
 
-The Isaac environment needs Isaac Sim launched first, so build it inside a script (see
+The Isaac environment needs Isaac Lab launched first, so build it inside a script (see
 `src/isaaclab/play.py`). MuJoCo is plain Python:
 
 ```python
 # Isaac Lab
 from src.isaaclab.env_config import build_env_cfg
 from envs.isaaclab.biped_env import BipedEnv
-from envs.isaaclab.biped_env_cfg import BipedRobotV2EnvCfg
-env = BipedEnv(build_env_cfg(config, BipedRobotV2EnvCfg, training=True, num_envs=64))
+from envs.isaaclab.biped_env_cfg import ChhayaEnvCfg
+env = BipedEnv(build_env_cfg(config, ChhayaEnvCfg, training=True, num_envs=64))
 
 # MuJoCo
 from utils import Config
 from envs.mujoco.biped_env_v2 import BipedEnvV2
-config = Config("config/config.yaml")
+config = Config("config/chhaya.yaml")
 env = BipedEnvV2(history_size=5, use_history=True, env_config=config.train.env_config)
 obs, _ = env.reset(seed=0)               # obs["actor"] (250,), obs["critic"] (60,)
 env.set_command(0.1, 0.0, 0.0)           # vx, vy, wz; limited like in training
@@ -163,7 +163,7 @@ physics substep, so `alpha = 0.4` is about 0.87 per 20 ms control step. Joint li
 `_JOINT_LIMITS_DEG` in [`assets/robotV2/biped_robot.py`](assets/robotV2/biped_robot.py).
 
 Changing the action map, home pose, scales or filter makes every existing checkpoint wrong (the same
-action means a different target). The exporter writes the map into the bundle and the Jetson refuses
+action means a different target). The exporter writes the map into the bundle and the runtime refuses
 a mismatch.
 
 ---
@@ -206,7 +206,7 @@ Config keys (`train.env_config.commands.base_velocity`, see [`config/README.md`]
 - **Heading mode** sets `wz = heading_error * heading_control_stiffness` every step, clamped to the
   `ang_vel_z` range and `heading_max_ang_vel`. Standing and turn-in-place robots are exempt.
 - The limit lives in [`utils/command_limit.py`](../utils/command_limit.py), shared by the sampler,
-  `BipedEnvV2.set_command`, the export and the Jetson runtime; the training config is its source of
+  `BipedEnvV2.set_command`, the export and the robot runtime; the training config is its source of
   truth. `standing_envs_start/end/ramp_steps` ramp `rel_standing_envs` during training.
 
 ---
@@ -226,7 +226,7 @@ held while both `|v_xy|` and `|wz|` are below `gait_clock_stand_threshold` (with
 
 With a gait table (`reference:` block) the table's own cadence grid is used; it shares one format with
 the cadence law ([`utils/cadence_law.py`](../utils/cadence_law.py)), so MuJoCo, the export and the
-Jetson clock the policy the same way.
+runtime clock the policy the same way.
 
 ---
 
@@ -342,11 +342,9 @@ must be kept equal to the Isaac side by hand:
 (`ArticulationCfg`, `_JOINT_LIMITS_DEG`) and `bam_actuator.py` (`BamActuator`, the servo model as an
 Isaac Lab actuator).
 
-The URDF and meshes are not in this repo: they live in
-[BipedRobotHardware](https://github.com/AsterisCrack/BipedRobotHardware), included as the `robot_hardware/`
-submodule (`robot_hardware/robot_description/`). Mesh paths in `robot_v2.xml` are relative to the file
+The URDF and meshes live in `../hardware/robot_description/`, reached through the `robot_hardware/` link. Mesh paths in `robot_v2.xml` are relative to the file
 (`../../../robot_hardware/robot_description/meshes/...`), and the generated `robot_v2.backlash.xml` is
-written next to it, so both load from any checkout that has the submodule.
+written next to it, so both load from any checkout.
 
 After changing the URDF in the hardware repo, copy the new inertials into `robot_v2.xml` and re-import the
 URDF in Isaac Sim to regenerate `usd/Robot/`.
@@ -426,24 +424,22 @@ case (say a heavier torso) change the model in `BipedEnvV2.reset()`.
 The environment is written for the V2 robot (12 joints named by type, left/right interleaved).
 Supported today: **a variant of it** with the same joint and body names but different geometry, mass,
 limits or servo parameters. A different joint count or topology also changes the observation size, the
-action, the mirror tables, the exporter and the Jetson runtime (see the observation tutorial).
+action, the mirror tables, the exporter and the robot runtime (see the observation tutorial).
 
 1. **Asset folder** `assets/<name>/`. Convert your URDF to USD with Isaac Lab's URDF converter. Copy
    `assets/robotV2/biped_robot.py` and edit the spawn path, `_JOINT_LIMITS_DEG` (row *i* is bound to
    DOF *i* by position), the initial base height and the actuator (`BamActuatorCfg`, `params_file`).
-2. **Env cfg.** In `biped_env_cfg.py` subclass `BipedEnvCfg` like `BipedRobotV2EnvCfg`: scene with your
+2. **Env cfg.** In `biped_env_cfg.py` subclass `BipedEnvCfg` like `ChhayaEnvCfg`: scene with your
    `ArticulationCfg` (and IMU prim and offset), `joint_limits`, foot, base and joint name regexes,
    `mirror_joint_perm` / `mirror_joint_signs`. Validate the mirror with `tests/test_whole_body_isaac_logic.py`; wrong signs
    collapse training.
-3. **Register the task** by hand in `src/isaaclab/train.py`, `play.py`, `jitter_probe.py` and
-   `profile_train.py`, then run with `--task <name>` (the default task is the V1 `BipedRobot`; pass
-   `--task BipedRobotV2` for the current robot).
+3. **Register the task** in `src/isaaclab/tasks.py`, then run with `--task <name>`.
 4. **MuJoCo.** An MJCF with the 12 motors named as `JOINT_NAMES` in `biped_env_v2.py`, bodies
    `base_link`, `l_foot_link_1`, `r_foot_link_1`, site `imu_site` and a floor plane. Update
    `JLIM_MIN/MAX` and pass `xml_path=` to `BipedEnvV2`.
 5. **Export and check.** `export_onnx.py` reads the limits from `assets/robotV2/biped_robot.py` and has
    the joint names built in; point it at your files. Run `src/isaaclab/check_actuator.py` (it builds
-   `BipedRobotV2EnvCfg`, so adapt the import) before a training run. A new servo model is a separate
+   `ChhayaEnvCfg`, so adapt the import) before a training run. A new servo model is a separate
    step: identify it with [`actuator/`](../actuator/README.md) and set `actuator.params_file`.
 
 ---
@@ -463,15 +459,14 @@ add one actor-visible channel `foo` (1 dim).
    in `_reset_sensor_lag`, and `FRAME = 50` in `src/mujoco/policy_gate.py`.
 5. Export: the `OBS_LAYOUT` slices and the `proprio_dim != 50` check in `src/isaaclab/export_onnx.py`
    (`verify_onnx_bundle.py` reads the layout from the bundle).
-6. Robot: in [BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson),
-   `policy/observation.py` assembles the frame and `policy/deploy_config.py` validates it. The robot
+6. Robot: the runtime assembles the same frame and validates the bundle. The robot
    needs a real source for `foo`, and the bundle format must change so an old runtime refuses it.
 
 This breaks every existing checkpoint and bundle (the actor input size and the saved
 `<checkpoint>_obs_scalers.pt` shape change) and tests that fix the sizes, such as
 `tests/test_symmetric_obs_stats.py`. A **critic-only** change (`obs_priv_dim`) is lighter: update
 `BipedEnv.__init__`, `_get_observations`, the critic mirror table and `BipedEnvV2._build_obs`; export
-and Jetson are unaffected (the critic is never exported), but old checkpoints still stop loading.
+and runtime are unaffected (the critic is never exported), but old checkpoints still stop loading.
 
 ---
 

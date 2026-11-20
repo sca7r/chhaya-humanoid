@@ -58,7 +58,8 @@ trusted. The full story, with videos of each stage, is in [`docs/JOURNEY.md`](do
 | Printed parts, PLA or PETG | 34 | [`hardware/print/`](hardware/print/); the servos themselves are the frame |
 
 The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). Chhaya costs
-about $620 with a Raspberry Pi 5. Cheaper options are in [`docs/BUDGET_ELECTRONICS.md`](docs/BUDGET_ELECTRONICS.md).
+about ₹58,700 with a Raspberry Pi 5, most of it the 20 servos. Cheaper options are in the
+[BOM](hardware/bom/README.md#cheaper-options).
 
 | Specification | Value |
 |---|---|
@@ -122,7 +123,6 @@ retraining.
 |---|---|---|
 | Tap a spot | tap the floor: Chhaya turns, walks there and stops | available in the browser demo |
 | Keyboard and buttons | arrow keys walk and turn, `,` `.` step sideways, `Space` stops; the same on on-screen buttons | available in the browser demo |
-| Voice | say "forward", "turn left" or "stop", and the words map to a command | planned |
 
 The browser demo is `web/`: MuJoCo compiled to WebAssembly, the policy in onnxruntime-web and the same servo
 model, observation and action map as the MuJoCo check (`web/sim.mjs`). To refresh it with a new policy:
@@ -188,7 +188,7 @@ chhaya/
 │   ├── src/mujoco/            MuJoCo checks, playback and video rendering
 │   └── tests/                 test suite
 ├── web/                       browser demo (GitHub Pages): tap-to-walk, physics and policy in the browser
-└── docs/                      training guides, design decisions, results
+└── docs/                      training guides and results
 ```
 
 ## Where Chhaya is today
@@ -200,8 +200,9 @@ chhaya/
 | Walking | learned in simulation: forward, backward and sideways, turning both ways, recovering from pushes. Checked in MuJoCo |
 | Turning | turns at about 60% of the asked-for rate on the spot. Being improved |
 | Hip servos | work hard while walking (about 1.15 N·m RMS, above the continuous rating). Being reduced |
-| Physical build | Chhaya has not been built yet. Its legs and electronics come from a design that has been built and walks (see [NOTICE.md](NOTICE.md)) |
-| On-robot software | the current runtime drives the 12 leg servos. The 20-joint runtime for the Raspberry Pi 5 is next |
+| Getting up | a get-up policy for the whole robot (arms included) is being trained for the next release |
+| Physical build | Chhaya has not been built yet |
+| On-robot software | the runtime for the Raspberry Pi 5 (20 servos, IMU, claws) is next |
 
 ## Contributing
 
@@ -216,4 +217,5 @@ Issues and pull requests are welcome. Before opening a pull request:
 
 The software in `training/` is released under the [MIT License](training/LICENSE.txt). The hardware in
 `hardware/` is released under the [CERN Open Hardware Licence Version 2, Permissive](hardware/LICENSE). Chhaya
-builds on open-source work; the credits and notices those licences require are in [NOTICE.md](NOTICE.md).
+builds on Pablo Gomez Martinez's open-source biped (MIT software, CERN-OHL-P-2.0 hardware); the copyright
+notice is in `training/LICENSE.txt` and the hardware modification notice in [`hardware/README.md`](hardware/README.md#license).

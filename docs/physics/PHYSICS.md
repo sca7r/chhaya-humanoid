@@ -11,15 +11,15 @@ model, not a controller. Reproduce with `python -m chhaya.physics_check` from th
 | Test | Result |
 |---|---|
 | T0 model sanity | ✅ compiles (MuJoCo 3.2.7 and 4.0); all inertias physical; every arm joint's sign matches the docs |
-| T1 stand 6 s from a drop | ✅ settles at 0.279 m (same as the legs-only robot) and 0.22° tilt; 0 mm drift; no servo saturates; no arm contacts. Peak leg torque at rest 0.37 N·m vs 0.25 N·m legs-only (ankle pitch carries the extra weight) |
+| T1 stand 6 s from a drop | ✅ settles at 0.279 m and 0.22° tilt; 0 mm drift; no servo saturates; no arm contacts. Peak leg torque at rest 0.37 N·m|
 | T2 holding worst arm poses | ✅ T-pose / arms forward / arms up: arm servos at most 6.7 % of stall; tracking error ≤ 1.1°; robot tilt ≤ 0.7° |
 | T3 arm tracking | ✅ 0.5 Hz, ±0.6–0.8 rad: 2.7–3.5° RMS, 40 ms lag, no saturation. At 1.5 Hz the command needs ~7.5 rad/s, beyond the servo's ~4.9 rad/s no-load speed, so it saturates. That is the real servo's limit, not a model fault |
 | T4 arms moving while standing | ✅ arm swing 1.5 Hz, wave, raise/lower, fast random arms: never falls; peak tilt 1.3°; leg servos never saturate; no arm contacts |
 | T5 leg clearance | ✅ arms at rest, 2000 random leg poses within gait ranges: **0 %** contact. Within the legs' full soft limits (e.g. 45° hip abduction): 12.5 % of poses touch, which is real and also happens on a person |
 | T6 robustness | ✅ half timestep (2.5 ms): identical result; backlash hinges (1.5°) on all 20 joints: stable, 2.9° tilt |
 | T7 torque off | ✅ no blow-up. The gearbox friction in the model holds the stance (as the real servos' gearboxes do) |
-| T8 shove and fall | ✅ no NaN, contacts behave. Worst arm penetration into the floor is 9.9 mm, vs 14 mm for the legs-only robot's base in the same fall. Peak arm joint torque on impact is 4.0 N·m (friction + motor), so falls, not stall, are the bracket design load: print in PETG |
-| T9 speed | raw `mj_step` 18k/s vs 26k/s legs-only (64 vs 14 geoms, 26 vs 18 dofs). Inside the env the Python BAM servo step dominates (~4.6k vs ~4.5k steps/s), so training throughput in MuJoCo is about unchanged |
+| T8 shove and fall | ✅ no NaN, contacts behave. Worst arm penetration into the floor is 9.9 mm. Peak arm joint torque on impact is 4.0 N·m (friction + motor), so falls, not stall, are the bracket design load: print in PETG |
+| T9 speed | raw `mj_step` 18k/s (64 geoms, 26 dofs). Inside the env the Python BAM servo step dominates (~4.6k steps/s), so training throughput in MuJoCo is about unchanged |
 
 **Verdict:** the model is physically sound and ready for policy work. The training-code side
 (BAM on the arm joints, arm rest pose as home, scripted arm motion, mass randomisation, USD) is

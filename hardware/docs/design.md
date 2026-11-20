@@ -13,7 +13,7 @@ to the servos' own holes.
 | New joints | 8: `{l,r}_shoulder_pitch`, `{l,r}_shoulder_roll`, `{l,r}_arm_yaw`, `{l,r}_elbow` |
 | Servos | 8x STS3215 12 V (same as the legs, same bus, same BAM model) |
 | Mass of chest, head, arms and electronics | 1145 g: 480 g of it the 8 STS3215s, 27 g the claw micro servos, 245 g the battery and computer, 142 g the rest of the electronics and wiring (see Electronics) |
-| Robot mass | 2.423 kg with battery and Raspberry Pi 5; the torso structure is 250 g (legs-only robot as originally modelled, with its electronics: 1.661 kg) |
+| Robot mass | 2.423 kg with battery and Raspberry Pi 5; the torso structure is 250 g |
 | Height | the head hoop top is ~0.54 m above the floor when standing |
 | Printed parts | 20 (9 left/right pairs + chest + head), plus the face disc; ~190 g PLA/PETG |
 | Physics | passes every check in `../../docs/physics/PHYSICS.md`: stands, holds worst arm poses at under 7 % of stall, arms moving never tip it, no arm/leg contact within gait ranges, stable at half timestep and with backlash |
@@ -194,9 +194,8 @@ safety factor is under 3. Results are in `cad/parametric/checks/` (`parts.json`,
 
 ## Electronics
 
-Measured on the body (`body.step`): its top is a rim tray, 78 x 99 mm inside, with 4 bosses in the
-Jetson Orin Nano's hole pattern (58 x 86 mm). The tray was laid out for a Jetson with the battery
-strapped on top; the power PCB and the servo bus adapter hang inside the torso.
+Measured on the body (`body.step`): its top is a rim tray, 78 x 99 mm inside, with 4 bosses
+(58 x 86 mm pattern) that hold the electronics rack; the power PCB and the servo bus adapter hang inside the torso.
 
 Chhaya keeps the heavy parts there, low and over the hips:
 
@@ -215,9 +214,6 @@ itself held by the 4 computer bosses and 4 M3 bolts through the torso's solid to
 
 **The chest moved up 23 mm** to make room for the battery and the computer under it. Every arm joint and
 the head moved with it; nothing about the legs changed.
-
-**A Jetson does not fit.** It fills the whole rim tray (100 x 79 mm), where the rack and the chest's feet
-now are. A Jetson would need its own mounting design.
 
 **Running on a cable instead.** The power PCB has a DC input for a 12 V supply, so the robot can run
 tethered with the battery removed. Keep the battery's weight on the rack (a 180 g dummy) while tethered:

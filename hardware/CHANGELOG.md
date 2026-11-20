@@ -10,7 +10,7 @@
 
 ## Leg platform v2.0 (2026-10-30)
 
-The legs, hips, torso and power electronics, as taken from their source (see `../NOTICE.md`).
+The legs, hips, torso and power electronics.
 
 - 12 Waveshare ST3215 servos, BNO055 IMU, 3S LiPo.
 - Custom power distribution PCB.

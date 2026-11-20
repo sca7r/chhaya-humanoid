@@ -27,7 +27,7 @@ config/ablations
 
 videos/reel
 
-# Get-up task outputs (config/config_getup.yaml): runs_getup/ and checkpoints_getup/ match *runs*/ and *checkpoints*/ above
+# Get-up task outputs (config/chhaya_getup.yaml): runs_getup/ and checkpoints_getup/ match *runs*/ and *checkpoints*/ above
 exported_getup/
 data_getup/
 videos_getup/

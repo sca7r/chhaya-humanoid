@@ -7,8 +7,7 @@ CAD, print files, bill of materials, power PCB, robot description (URDF) and bui
   <img src="media/chhaya/overview.png" alt="Chhaya" width="90%"/>
 </p>
 
-The picture is a render of the model: Chhaya has not been built yet. Credits and licences:
-[`../NOTICE.md`](../NOTICE.md).
+The picture is a render of the model: Chhaya has not been built yet.
 
 ---
 
@@ -22,11 +21,11 @@ The picture is a render of the model: Chhaya has not been built yet. Credits and
 | Actuators | 20× Waveshare ST3215 serial bus servos (12 V, 30 kg·cm), one shared bus at 1 Mbaud; 2 micro servos for the claws |
 | Hands | One-servo claws on a standard wrist plate |
 | Head | Halo head with a drilled plate for a camera and small boards |
-| Compute | Raspberry Pi 5 on the electronics rack under the chest, 50 Hz control loop. A Jetson Orin Nano does not fit (see [`docs/design.md`](docs/design.md#electronics)) |
+| Compute | Raspberry Pi 5 on the electronics rack under the chest, 50 Hz control loop. |
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
 | Structure | 34 printed parts, PLA or PETG |
-| Cost | ≈ $624 with a Raspberry Pi 5 (2 GB). Cheaper options in [`../docs/BUDGET_ELECTRONICS.md`](../docs/BUDGET_ELECTRONICS.md) |
+| Cost | ≈ ₹58,700 with a Raspberry Pi 5 (2 GB). Cheaper options in [`bom/`](bom/README.md#cheaper-options) |
 
 ---
 
@@ -42,32 +41,25 @@ The picture is a render of the model: Chhaya has not been built yet. Credits and
 | Build it | [`docs/build/`](docs/build/) |
 | Simulate it | [`robot_description/`](robot_description/) (URDF + meshes) |
 
-The Fusion 360 archive of the legs and the PCB gerbers are downloads on the release page of the
-leg platform's source repository (linked in [`../NOTICE.md`](../NOTICE.md)).
-
 ---
 
 ## Cost
 
-| Part | Cost (USD) |
+| Part | ₹ |
 |---|---|
-| 20× Waveshare ST3215 servos | 439.80 |
-| Raspberry Pi 5, 2 GB + 12 V to 5 V USB-C step-down | 97.50 |
-| 2× micro servos for the claws (estimate) | 6.00 |
-| BNO055 IMU | 17.00 |
-| Power PCB | 25.00 |
-| Waveshare Bus Servo Adapter (A) | 4.99 |
-| 3S 2200 mAh LiPo | 20.00 |
-| Fuses, power switch, servo leads (estimate) | 9.00 |
-| **Total** | **≈ 619** |
+| 20× Waveshare ST3215 servos | 41,400 |
+| Raspberry Pi 5, 2 GB, Active Cooler and 12 V to 5 V step-down | 9,630 |
+| 2× micro servos for the claws (estimate) | 560 |
+| BNO055 IMU | 1,600 |
+| Power PCB | 2,350 |
+| Waveshare Bus Servo Adapter (A) | 470 |
+| 3S 2200 mAh LiPo | 1,880 |
+| Fuses, power switch, servo leads (estimate) | 820 |
+| **Total** | **≈ 58,700** |
 
-The policy is a small network that runs on the CPU, so the Raspberry Pi 5 is enough; a Jetson Orin Nano does not
-fit on the rack. The Pi setup is in [build step 06](docs/build/06_software.md) and hasn't been
-tested on a robot yet. The legs alone (12 servos, no arms) come to ≈ $331 without a computer.
-
-Prices were checked in October 2026; details and links are in [`bom/`](bom/). Not in the prices: the microSD
-card, about 0.7 kg of filament, small parts (wires, switch, leads, fuses) and the M2/M3 screws for the arms. Tools: a 3D printer, a soldering
-iron and a LiPo balance charger.
+List prices converted at ₹94 per US dollar; details, links and cheaper options are in [`bom/`](bom/). The policy
+is a small network that runs on the CPU, so a Raspberry Pi 5 is enough. Not in the prices: the microSD card,
+about 0.75 kg of filament, wires and screws. Tools: a 3D printer, a soldering iron and a LiPo balance charger.
 
 ---
 
@@ -76,10 +68,9 @@ iron and a LiPo balance charger.
 ```
 cad/
 ├── step/              One STEP per printed part; the legs-and-torso assembly (zipped)
-├── fusion/            Fusion 360 archive of the legs (download from the release)
 └── parametric/        CadQuery source of the chest, head, arms and claws + check results
 print/stl/             One STL per printed part, with print notes in print/README.md
-robot_description/     URDF + meshes: chhaya.urdf is the whole robot (ROS package "Robot_description")
+robot_description/     URDF + meshes: chhaya.urdf is the whole robot
 electronics/
 ├── Schematic_RobotPCB.pdf
 ├── power_pcb/         Power PCB: EasyEDA source, gerbers, BOM, pick-and-place, render
@@ -101,9 +92,7 @@ The training code reads the robot description from here through `training/robot_
   <img src="media/pcbway.png" alt="PCBWay logo" height="40"/>
 </p>
 
-- The legs, hips, torso and power electronics derive from open-source work by Pablo Gomez Martinez
-  ([`../NOTICE.md`](../NOTICE.md)).
-- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board for the leg platform's source project.
+- The power PCB was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored the board.
 - The servo model used in simulation builds on Rhoban's [BAM](https://github.com/Rhoban/bam).
 - The URDF was exported from Fusion 360 with [fusion2urdf](https://github.com/syuntoku14/fusion2urdf)
   (MIT, see [`robot_description/LICENSE-fusion2urdf`](robot_description/LICENSE-fusion2urdf)).
@@ -115,4 +104,9 @@ The training code reads the robot description from here through `training/robot_
 The hardware design (CAD, print files, PCB, robot description, documentation) is licensed under the
 [CERN Open Hardware Licence Version 2 - Permissive](LICENSE) (CERN-OHL-P-2.0).
 The exporter template files in `robot_description/` keep their own MIT licence; the robot design itself is
-covered by CERN-OHL-P. The software repos are MIT.
+covered by CERN-OHL-P. The software in `../training/` is MIT.
+
+Modification notice (CERN-OHL-P-2.0 §3.3): the legs, hips, torso and power PCB are modified from
+[BipedRobotHardware](https://github.com/AsterisCrack/BipedRobotHardware) by Pablo Gomez Martinez. In November 2026
+the chest, head, arms, claws and electronics rack were added (parametric CAD, STEP, STL, URDF links and meshes),
+the documentation was rewritten for the whole robot, and the build and check tools were added.

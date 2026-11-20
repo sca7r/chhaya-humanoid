@@ -166,7 +166,7 @@ class EnvConfig(BaseModel):
     spawn_clearance_m: float = 0.0054        # lowest sole point above the floor at the spawn pose (auto spawn_height_m)
     # Joint limit box by joint type, {type: [min_deg, max_deg]} (l/r share a row; utils/residual_action.limits_rows_deg).
     # It is the action clamp, the dof_pos_limits box and the bundle's joint limits. None = the robot's walking box
-    # (envs/assets/robotV2/biped_robot.py _JOINT_LIMITS_DEG). config_getup.yaml sets the URDF limits x 0.9.
+    # (envs/assets/robotV2/biped_robot.py _JOINT_LIMITS_DEG). chhaya_getup.yaml sets the URDF limits x 0.9.
     joint_limits_deg: Optional[Dict[str, List[float]]] = None
     # Get-up / fall-recovery task block (envs/isaaclab/getup_env.py, --task ChhayaGetUp). None = walking.
     getup: Optional[Dict[str, Any]] = None

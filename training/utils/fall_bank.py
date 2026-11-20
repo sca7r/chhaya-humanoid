@@ -227,7 +227,7 @@ def load_bank(path: str, root_dir: str | None = None) -> FallBank:
     if not os.path.exists(full):
         raise FileNotFoundError(
             f"fall bank {full} not found. Generate it first (Isaac Lab python, from training/):\n"
-            f"  python src/isaaclab/make_fall_bank.py --config_path config/config_getup.yaml --headless")
+            f"  python src/isaaclab/make_fall_bank.py --config_path config/chhaya_getup.yaml --headless")
     with np.load(full, allow_pickle=False) as z:
         meta = json.loads(str(z["meta_json"]))
         arrays = {k: np.asarray(z[k]) for k in ARRAY_KEYS}

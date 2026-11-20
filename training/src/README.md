@@ -5,24 +5,22 @@ Every runnable script under `src/`, grouped by what you are doing:
 | Workflow | Scripts |
 |---|---|
 | [Train](#train) | [`isaaclab/train.py`](#isaaclabtrainpy) |
-| [Evaluate](#evaluate) | [`isaaclab/play.py`](#isaaclabplaypy), [`mujoco/sim2real.py`](#mujocosim2realpy), [`mujoco/sweep_all.py`](#mujocosweep_allpy) |
+| [Evaluate](#evaluate) | [`isaaclab/play.py`](#isaaclabplaypy), [`mujoco/sim2real.py`](#mujocosim2realpy) |
 | [Export and deploy](#export-and-deploy) | [`isaaclab/export_onnx.py`](#isaaclabexport_onnxpy), [`isaaclab/verify_onnx_bundle.py`](#isaaclabverify_onnx_bundlepy), [`mujoco/policy_gate.py`](#mujocopolicy_gatepy) |
-| [Get-up policy](#get-up-policy) | [`isaaclab/make_fall_bank.py`](#get-up-policy), `train.py` / `play.py` / `export_onnx.py` with `--task BipedRobotV2GetUp`, [`mujoco/getup_gate.py`](#get-up-policy) |
+| [Get-up policy](#get-up-policy) | [`isaaclab/make_fall_bank.py`](#get-up-policy), `train.py` / `play.py` / `export_onnx.py` with `--task ChhayaGetUp`, [`mujoco/getup_gate.py`](#get-up-policy) |
 | [Diagnose](#diagnose) | [`isaaclab/check_actuator.py`](#isaaclabcheck_actuatorpy), [`isaaclab/jitter_probe.py`](#isaaclabjitter_probepy), [`isaaclab/profile_train.py`](#isaaclabprofile_trainpy) |
-| [Legacy](#legacy) | `isaaclab/export.py` |
 
 The typical loop is **train → play → export → verify → gate**, with the diagnostics when something
 looks wrong. See [`config/README.md`](../config/README.md) for the config file these scripts read.
 
 ## Conventions
 
-- Run everything from the `BipedRobot/` root.
+- Run everything from `training/`.
 - **Isaac Lab scripts** (train, play, check_actuator, jitter_probe, profile_train, the Isaac tools)
   need Isaac Lab's Python. They also accept Isaac Lab's own launcher flags such as `--headless`,
   `--device` and `--enable_cameras` (see `--help`).
 - **The export, verify, gate and MuJoCo scripts** run without Isaac Lab.
-- `--task` is `BipedRobotV2` (the current robot) or `BipedRobot` (the older V1). Where the default is
-  `BipedRobot`, pass `--task BipedRobotV2`.
+- `--task` is `Chhaya` (walking, the default) or `ChhayaGetUp` (fall recovery).
 - A checkpoint is `checkpoints/<run>/step_<N>.pt`. Next to it sit `config.yaml` (the config the run
   used, with `auto` values frozen) and `step_<N>_obs_scalers.pt` (observation statistics). The scripts
   below find these by themselves.
@@ -39,13 +37,13 @@ looks wrong. See [`config/README.md`](../config/README.md) for the config file t
 Train a policy in Isaac Lab. The algorithm, network, rewards and environment come from the config.
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config.yaml --headless
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml --headless
 ```
 
 | Argument | Default | Description |
 |---|---|---|
-| `--task` | `BipedRobot` | `BipedRobot` or `BipedRobotV2` |
-| `--config_path` | `config/config.yaml` | Training config. With `--checkpoint` and no `--config_path`, the config saved in the checkpoint's folder is used |
+| `--task` | `Chhaya` | `Chhaya` or `ChhayaGetUp` |
+| `--config_path` | `config/chhaya.yaml` | Training config. With `--checkpoint` and no `--config_path`, the config saved in the checkpoint's folder is used |
 | `--num_envs` | `4096` (env default) | Parallel robots |
 | `--seed` | from config | Overrides `train.seed` |
 | `--checkpoint` | none | Resume from a checkpoint: network weights and observation statistics are restored; the optimiser and replay buffer start fresh, and the step counter restarts at 0 |
@@ -58,10 +56,10 @@ Outputs: TensorBoard logs in `runs/<model_name>_<timestamp>/`, checkpoints in
 
 ```bash
 # Resume (the run's own config.yaml is picked up automatically)
-python src/isaaclab/train.py --task BipedRobotV2 --checkpoint checkpoints/<run>/step_<N>.pt --headless
+python src/isaaclab/train.py --task Chhaya --checkpoint checkpoints/<run>/step_<N>.pt --headless
 
 # Quick smoke test with few robots and a gait-table config
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config_gait_reference.yaml --num_envs 64
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml --num_envs 64
 ```
 
 ---
@@ -74,16 +72,16 @@ Watch a checkpoint in Isaac Lab. It runs the nominal robot (no pushes, no physic
 no action noise) through the same observation and actuation pipeline as training.
 
 ```bash
-python src/isaaclab/play.py --task BipedRobotV2 --checkpoint checkpoints/<run>/step_<N>.pt
-python src/isaaclab/play.py --task BipedRobotV2 --checkpoint ... --pushes --num_envs 4
-python src/isaaclab/play.py --task BipedRobotV2 --checkpoint ... --teleop
+python src/isaaclab/play.py --task Chhaya --checkpoint checkpoints/<run>/step_<N>.pt
+python src/isaaclab/play.py --task Chhaya --checkpoint ... --pushes --num_envs 4
+python src/isaaclab/play.py --task Chhaya --checkpoint ... --teleop
 ```
 
 | Argument | Default | Description |
 |---|---|---|
-| `--task` | `BipedRobot` | `BipedRobot` or `BipedRobotV2` |
+| `--task` | `Chhaya` | `Chhaya` or `ChhayaGetUp` |
 | `--checkpoint` | newest | Checkpoint to load. If omitted, the newest `.pt` in the newest folder under `checkpoints/` |
-| `--config_path` | run's `config.yaml` | Otherwise `config/config.yaml` |
+| `--config_path` | run's `config.yaml` | Otherwise `config/chhaya.yaml` |
 | `--num_envs` | `1` | Robots to show |
 | `--pushes` | off | Keep the training pushes on to watch push recovery |
 | `--teleop` | off | Drive the command from the keyboard or a gamepad ([controls](#manual-control-and-pushes)). The camera follows env 0 and episodes don't time out |
@@ -110,8 +108,8 @@ python src/mujoco/sim2real.py --checkpoint ... --teleop
 | Argument | Default | Description |
 |---|---|---|
 | `--checkpoint` | newest | Checkpoint to load |
-| `--config_path` | run's `config.yaml` | Otherwise `config/config.yaml` |
-| `--task` | `BipedRobotV2` | Only V2 is supported |
+| `--config_path` | run's `config.yaml` | Otherwise `config/chhaya.yaml` |
+| `--task` | `Chhaya` | Robot |
 | `--seed` | `42` | Random seed |
 | `--headless` | off | No viewer window |
 | `--num_episodes` | `0` | Episodes before exiting (0 = run until closed) |
@@ -123,7 +121,7 @@ python src/mujoco/sim2real.py --checkpoint ... --teleop
 
 ### Manual control and pushes
 
-`play.py` and `sim2real.py` share these bindings (`utils/teleop.py`), the same as the Jetson web UI.
+`play.py` and `sim2real.py` share these bindings (`utils/teleop.py`), the same as the robot's web UI.
 Keys need the sim window focused.
 
 | Keyboard | Gamepad | Action |
@@ -141,29 +139,11 @@ Isaac. A push adds a world-frame velocity kick in a random direction, at the edg
 push range (`events.push_robot`) times `--push_scale`, plus a random yaw kick. In Isaac, Space is
 normally Kit's Play/Pause hotkey; `play.py` unbinds it for the session.
 
-### `mujoco/sweep_all.py`
-
-Run the [`policy_gate`](#mujocopolicy_gatepy) forward-speed sweep over several checkpoint folders and
-print which ones walk. A run that fails to load is reported and the loop continues.
-
-```bash
-python src/mujoco/sweep_all.py <run_a> <run_b>:step_<N>.pt --cmds 0.1 0.2
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `runs` | | One or more `checkpoints/<run>` folders (or bare run names). `RUN:step_N.pt` picks a step; without it the highest `step_*.pt` is used |
-| `--cmds` | `0.05 0.1 0.15 0.2 0.3` | Forward-velocity commands to test (m/s) |
-| `--seeds` | `2` | Seeds per command |
-| `--seconds` | `10.0` | Episode length |
-| `--legacy-imu` | off | As in `sim2real.py` |
-
 ---
 
 ## Export and deploy
 
-Export, verify and gate a policy, then copy the bundle to the robot's Jetson
-([BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson)):
+Export, verify and gate a policy, then copy the bundle to the robot:
 
 ```bash
 python -m src.isaaclab.export_onnx --checkpoint checkpoints/<run>/step_<N>.pt
@@ -256,18 +236,18 @@ python src/mujoco/policy_gate.py --checkpoint checkpoints/<run>/step_<N>.pt --cm
 
 ## Get-up policy
 
-A separate fall-recovery policy (`config/config_getup.yaml`; the design is in that file's header and in
+A separate fall-recovery policy (`config/chhaya_getup.yaml`; the design is in that file's header and in
 `envs/isaaclab/getup_env.py`). Its outputs never mix with walking runs: `runs_getup/`, `checkpoints_getup/`,
 `exported_getup/`, `data_getup/`.
 
 ```bash
-# 1. fall bank: limp-settled falls captured with the Jetson's settle rule (+ mirrors, + a held-out gate split)
-python src/isaaclab/make_fall_bank.py --config_path config/config_getup.yaml --headless   # -> data_getup/fall_bank.npz
+# 1. fall bank: limp-settled falls captured with the runtime's settle rule (+ mirrors, + a held-out gate split)
+python src/isaaclab/make_fall_bank.py --config_path config/chhaya_getup.yaml --headless   # -> data_getup/fall_bank.npz
 # 2. train / smoke test
-python -m src.isaaclab.train --task BipedRobotV2GetUp --config_path config/config_getup.yaml --headless
-python -m src.isaaclab.train --task BipedRobotV2GetUp --config_path config/config_getup.yaml --num_envs 64
+python -m src.isaaclab.train --task ChhayaGetUp --config_path config/chhaya_getup.yaml --headless
+python -m src.isaaclab.train --task ChhayaGetUp --config_path config/chhaya_getup.yaml --num_envs 64
 # 3. watch (newest run in checkpoints_getup/ when --checkpoint is omitted); one start category, or the gate split
-python -m src.isaaclab.play --task BipedRobotV2GetUp --start_category supine [--bank_split gate]
+python -m src.isaaclab.play --task ChhayaGetUp --start_category supine [--bank_split gate]
 # 4. export (format 7, policy_role getup) -> exported_getup/<run>_<step>/
 python -m src.isaaclab.export_onnx --checkpoint checkpoints_getup/<run>/step_<N>.pt
 # 5. MuJoCo gate, including the hand-off to a walking bundle -> data_getup/gate/<bundle>.json
@@ -275,7 +255,7 @@ python src/mujoco/getup_gate.py --bundle exported_getup/<name> --walk_bundle exp
 ```
 
 `mujoco/policy_gate.py` refuses a get-up bundle (it gates walking). A get-up bundle needs a runtime that knows
-format 7 (`start_protocol`, `settle`, `handoff`); the current Jetson runtime refuses it by version.
+format 7 (`start_protocol`, `settle`, `handoff`); a walking-only runtime refuses it by version.
 
 ## Diagnose
 
@@ -286,7 +266,6 @@ map or the sim-to-real settings, before spending a training run. It builds the e
 `train.py`, holds every robot still under a zero command, and prints PASS or FAIL for: the actuator
 class and parameter file, action `0` reproducing the default pose, the sign of the mount offset, the
 external-torque observer, the resting foot height, the sampled servo population, and staying upright.
-It uses `BipedRobotV2`.
 
 ```bash
 python src/isaaclab/check_actuator.py --headless
@@ -295,7 +274,7 @@ python src/isaaclab/check_actuator.py --headless --num_envs 64 --seconds 4 --con
 
 | Argument | Default | Description |
 |---|---|---|
-| `--config_path` | `config/config.yaml` | Config to check |
+| `--config_path` | `config/chhaya.yaml` | Config to check |
 | `--num_envs` | `16` | Robots |
 | `--seconds` | `3.0` | Simulated time |
 | `--no-backlash` | off | Disable backlash (A/B) |
@@ -310,7 +289,7 @@ flat ground, one fixed command) and reports per-joint chatter numbers; toggle th
 each contributes.
 
 ```bash
-python src/isaaclab/jitter_probe.py --task BipedRobotV2 --checkpoint checkpoints/<run>/step_<N>.pt
+python src/isaaclab/jitter_probe.py --task Chhaya --checkpoint checkpoints/<run>/step_<N>.pt
 python src/isaaclab/jitter_probe.py --checkpoint ... --no-backlash --no-action-noise --alpha 0.2
 ```
 
@@ -324,7 +303,7 @@ python src/isaaclab/jitter_probe.py --checkpoint ... --no-backlash --no-action-n
 
 | Argument | Default | Description |
 |---|---|---|
-| `--task` | `BipedRobotV2` | Robot |
+| `--task` | `Chhaya` | Robot |
 | `--checkpoint` | required | Checkpoint (SAC) |
 | `--config_path` | run's `config.yaml` | Config |
 | `--num_envs` | `16` | Robots |
@@ -344,14 +323,14 @@ checkpoints), so it can run next to a live training run. Launch costs do not sca
 so measure two sizes and extrapolate.
 
 ```bash
-python -m src.isaaclab.profile_train --task BipedRobotV2 --config_path config/config_gait_reference.yaml \
+python -m src.isaaclab.profile_train --task Chhaya --config_path config/chhaya.yaml \
     --num_envs 1024 --out profile_out
 ```
 
 | Argument | Default | Description |
 |---|---|---|
-| `--task` | `BipedRobotV2` | Robot |
-| `--config_path` | `config/config_gait_reference.yaml` | Config (must use `model: sac`) |
+| `--task` | `Chhaya` | Robot |
+| `--config_path` | `config/chhaya.yaml` | Config (must use `model: sac`) |
 | `--num_envs` | `1024` | Robots |
 | `--warmup` | `60` | Iterations before any measurement |
 | `--baseline_iters` | `100` | Iterations for the baseline pass |
@@ -361,13 +340,3 @@ python -m src.isaaclab.profile_train --task BipedRobotV2 --config_path config/co
 | `--buffer_size` | `100000` | Replay size |
 | `--rough` | off | Keep the config's rough terrain (the first reset is slow) |
 | `--out` | none | Folder for the scratch logs, trace and JSON |
-
----
-
-## Legacy
-
-Predates the Isaac Lab pipeline; kept because tests import its helpers. **Not maintained**.
-
-| Script | Status |
-|---|---|
-| `isaaclab/export.py` | Old TorchScript export. It hard-codes a 52-dim observation frame (the real one is 50), so it fails against current checkpoints. Use `export_onnx.py` |

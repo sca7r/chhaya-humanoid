@@ -9,3 +9,12 @@ web/node_modules/
 web/package*.json
 CLAUDE.md
 .vscode/
+
+# Internal notes: kept locally, not published
+docs/HANDOFF.md
+docs/PROJECT_LOG.md
+docs/READINESS.md
+docs/TRAINING_OPTIONS.md
+docs/ELECTRONICS_LAYOUT.md
+training/CHANGES.md
+training/TODO_SIM2REAL.md

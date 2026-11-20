@@ -14,7 +14,7 @@ and adds the chest, head and arms with the same authoring conventions as Isaac S
   * visuals under <link>/visuals, colliders under <link>/collisions (convex hulls + a box per
     servo case), with FilteredPairsAPI on the same pairs the MJCF excludes.
 
-    python tools/build_usd.py --train <BipedRobot checkout>
+    python tools/build_usd.py --train ../training
 """
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 Build Chhaya's robot description from the parametric CAD (cad/parametric/chhaya_cad.py).
 
 The leg links come from the Fusion export (robot_description/urdf/Robot.urdf and the training
-repo's robot_v2.xml, both kept as the legs-only rig); this adds the chest, head and arm links and
+repo's robot_v2.xml, the leg export); this adds the chest, head and arm links and
 writes the whole robot:
   hardware/robot_description/urdf/chhaya.urdf          whole robot
   hardware/robot_description/meshes/<link>*.stl         visual, servo and collision meshes (mm, link frames)
@@ -301,7 +301,7 @@ def write_urdf(variant, props, meshes, hw_root, out_urdf):
 
 
 def write_mjcf(variant, props, meshes, train_root, out_xml, mesh_rel):
-    """The legs-only MJCF (robot_v2.xml) plus the chest, head and arm bodies = chhaya.xml."""
+    """The leg MJCF (robot_v2.xml) plus the chest, head and arm bodies = chhaya.xml."""
     src = train_root / "envs/assets/robotV2/robot_v2.xml"
     txt = src.read_text()
     # robot_v2.xml has "--" inside comments, which MuJoCo tolerates but strict XML does not

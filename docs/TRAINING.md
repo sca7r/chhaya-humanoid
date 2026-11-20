@@ -37,15 +37,12 @@ the equivariant actor and the symmetry augmentation cover all 20 joints.
 chores. Those need their own tasks (commands for hand targets, rewards, objects in the scene),
 which are not written. The claws are still fixed mass in simulation.
 
-**A legs-only checkpoint cannot be resumed** into this policy: the network input and output sizes
-differ (370 → 20 instead of 250 → 12).
+## Scripted arms
 
-## The old mode: legs-only policy, scripted arms
-
-`arms.control: scripted` keeps the 12-joint policy and drives the arms from
+`arms.control: scripted` gives a 12-joint policy and drives the arms from
 `envs/isaaclab/mdp/arm_motion.py` as a moving payload (rest 30 %, gait-synced swing 30 %, random
-25 %, hold 15 %, drawn per episode). It is still tested and is the fallback if the whole-body run
-does not converge.
+25 %, hold 15 %, drawn per episode). The tests of the leg mechanics use it. A scripted-arms checkpoint
+cannot be resumed as a whole-body policy: the network sizes differ (250 → 12 against 370 → 20).
 
 ## Turning it on
 
@@ -53,7 +50,7 @@ does not converge.
 env_config:
   arms:
     enabled: true
-    control: policy                # policy = whole-body (20 actions) | scripted = legs-only policy
+    control: policy                # policy = whole-body (20 actions) | scripted = 12-joint policy, arms scripted
     action_scale_rad: {shoulder_pitch: 1.0, shoulder_roll: 0.6, arm_yaw: 0.8, elbow: 1.0}
     mass_scale_range: [0.9, 1.1]   # arm mass DR (training only)
   reward_weights:
@@ -63,12 +60,10 @@ env_config:
     arm_pos_limits: -1.0
 ```
 
-A config without the `arms` block runs the legs-only rig (Chhaya without chest, head and arms),
-which the regression tests use.
 `config/chhaya.yaml` is Chhaya's config.
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml
 ```
 
 An alternative trainer, SuperMimic (a learned world model of the simulator and backpropagation through
@@ -92,8 +87,7 @@ imagined rollouts), uses the same environment and config: `SUPERMIMIC.md`. The s
 | Domain randomisation | servo model (voltage, stiffness, friction), masses, action delay, sensor noise, bias and lag, pushes |
 | Checkpoints | `save_steps: 3000`, to `checkpoints/Chhaya_SAC*/` |
 
-All of these except the arm block come unchanged from the legs-only setup, where the original
-author tuned them against the real legs-only robot. Leave them alone for the first run.
+These were tuned against real ST3215 legs. Leave them alone for the first run.
 
 ## Where the arm support lives (paths under `training/`)
 
@@ -103,7 +97,7 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
 | `envs/assets/robotV2/chhaya_robot.py` | `CHHAYA_ROBOT_CFG`: the USD, arm rest pose in `init_state`, actuator groups `legs` (first) and `arms` |
 | `envs/assets/robotV2/chhaya.xml` | Chhaya for MuJoCo (meshes from `robot_hardware/robot_description/meshes/`) |
 | `envs/isaaclab/mdp/arm_motion.py` | arm target generator (pure torch, unit-tested) |
-| `envs/isaaclab/biped_env.py` | "policy joints" vs articulation joints: every leg joint-vector term (obs, actions, limits, defaults, rewards, imitation, resets) uses the 12 leg joints. Whole-body policy: the arm block is appended to the action and the frame (`_setup_arm_policy`, `_arm_obs`, `_arm_reward_terms`, `arm_actions_to_targets`, mirror tables). Scripted mode: the arms are driven from `arm_motion`. With `policy_joint_names = None` (legs-only robot) every mapping is the identity |
+| `envs/isaaclab/biped_env.py` | "policy joints" vs articulation joints: every leg joint-vector term (obs, actions, limits, defaults, rewards, imitation, resets) uses the 12 leg joints. Whole-body policy: the arm block is appended to the action and the frame (`_setup_arm_policy`, `_arm_obs`, `_arm_reward_terms`, `arm_actions_to_targets`, mirror tables). Scripted mode: the arms are driven from `arm_motion`. |
 | `envs/isaaclab/biped_env_cfg.py` | `policy_joint_names`, `arm_joint_names`, `arm_motion`, `arm_body_regex` (defaults: off) |
 | `src/isaaclab/env_config.py` | `_apply_arms`: swaps in the robot with arms, sets the fields above and adds the `randomize_arm_mass` event. `_apply_action_home` keeps the arm init entries |
 | `config/schema.py` | `env_config.arms` |
@@ -125,9 +119,8 @@ author tuned them against the real legs-only robot. Leave them alone for the fir
 ## Known limits
 
 - `src/isaaclab/check_actuator.py`, `jitter_probe.py` and `make_fall_bank.py` still use the Isaac Lab 2.x
-  launcher and assume the legs-only robot: they do not start on Isaac Lab 3.0 (`ISAACLAB3.md`).
-- The get-up task was ported but not run (it needs a fall bank, whose generator is not ported), and it
-  was not adapted to the arms.
+  launcher: they do not start on Isaac Lab 3.0 (`ISAACLAB3.md`).
+- The get-up task is being ported to the whole robot (fall bank and policy with the arms) for the next release.
 - **Not adapted to the whole-body policy yet:** `src/isaaclab/export_onnx.py` (it insists on a
   50-dim frame and 12 actions), `src/mujoco/policy_gate.py` (same), and the on-robot runtime (reads
   and commands 12 servos). Do these after the first training run shows the policy learns.

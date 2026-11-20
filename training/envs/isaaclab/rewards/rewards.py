@@ -748,7 +748,7 @@ def foot_footprint_gap(
     exactly when they overlap). The two branches meet at 0 when touching.
 
     It is 2D: height is ignored, so a swing foot passing OVER the other foot's footprint reads <= 0
-    although the 3D geometry is apart. The stance-width band keeps that rare (see CHANGES.md).
+    although the 3D geometry is apart. The stance-width band keeps that rare.
     """
     hx = half_extents[0]
     hy = half_extents[1]
@@ -820,7 +820,7 @@ def foot_sole_slip_speed(
     gaitref_2026-10-22_18-48-09: true contact-point slip (force-weighted) ~15 mm/s mean at vx 0.1-0.2 and
     20 mm/s at vy 0.1, origin speed 25-30 mm/s: about half of the old "slip" was rolling. (Isaac's feet_slide
     measured 76-79 mm/s: robot.data.body_lin_vel_w is the foot COM frame, and the soft contact score also counts
-    unloaded feet within a few mm of the floor.) Calibration table: CHANGES.md, "Feet sliding" (2026-10-23).
+    unloaded feet within a few mm of the floor.) (2026-10-23).
     """
     assert pos_w.shape[1] == 2
     one = pos_w[:, :, 0]                                                  # (N, F)

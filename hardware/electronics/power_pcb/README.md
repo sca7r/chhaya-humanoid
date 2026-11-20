@@ -31,7 +31,7 @@ Schematic: [`../Schematic_RobotPCB.pdf`](../Schematic_RobotPCB.pdf).
 |---|---|
 | [`source/`](source/) | EasyEDA project (`SCH_RobotPCB.json` schematic, `PCB_PCB_RobotPCB.json` board): import it in EasyEDA to modify the board |
 | [`fabrication/Gerber_RobotPCB_PCB_RobotPCB_2026-03-17.zip`](fabrication/) | Gerbers + drill files |
-| [`fabrication/BOM_RobotPCB_2026-03-17.csv`](fabrication/) | Components, with LCSC part numbers (about $4 of parts) |
+| [`fabrication/BOM_RobotPCB_2026-03-17.csv`](fabrication/) | Components, with LCSC part numbers (about ₹380 of parts) |
 | [`fabrication/PickAndPlace_PCB_RobotPCB_2026-03-17.csv`](fabrication/) | Component placement, for assembly |
 | [`renders/PCB_render.png`](renders/PCB_render.png) | Board render |
 

@@ -5,8 +5,8 @@ the things you will most likely want to change. The provided configs are templat
 it, and pass it with `--config_path`.
 
 ```bash
-cp config/config.yaml config/my_run.yaml
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/my_run.yaml --headless
+cp config/chhaya.yaml config/my_run.yaml
+python src/isaaclab/train.py --task Chhaya --config_path config/my_run.yaml --headless
 ```
 
 | Jump to | |
@@ -65,7 +65,7 @@ Not every unknown key is an error. Know which ones are:
 | `action_home_deg` / `action_scale_rad` while `action_map` is not `residual` | Error |
 | `encoder_offset_rad` non-zero | Error (renamed to `mount_offset_rad`) |
 | `getup` block key (or nested `assist` / `settle` / `handoff` key) that does not exist, or a `getup` block with a walking task | Error |
-| `reward_weights` nonzero on a non-get-up term with `--task BipedRobotV2GetUp` | Error listing them |
+| `reward_weights` nonzero on a non-get-up term with `--task ChhayaGetUp` | Error listing them |
 | `joint_limits_deg` without exactly the six joint types, or min >= max | Error |
 
 When a setting seems to do nothing, check the key against [`schema.py`](schema.py) and the
@@ -88,29 +88,12 @@ When a setting seems to do nothing, check the key against [`schema.py`](schema.p
 
 | Config | Reference motion | Use |
 |---|---|---|
-| [`config.yaml`](config.yaml) | no | Start here. Velocity tracking with hand-written gait rewards, rough terrain, full randomization, residual action map with explicit numbers, `cadence_law` gait clock |
-| [`config_gait_reference.yaml`](config_gait_reference.yaml) | yes | `config.yaml` plus a `reference:` block and the `imitation_*` rewards. The hand-written swing, air-time and gait-phase rewards are off, the action map is `auto` (derived from the table), and the actor is mirror-equivariant |
-| [`config_gait_reference_resume.yaml`](config_gait_reference_resume.yaml) | yes | Continue or fine-tune a run: action map frozen to numbers, curricula at full strength from step 1 (the step counter restarts at 0 on resume). Its numbers belong to one particular earlier run; for your own run, start from that run's saved `config.yaml` instead (see [Resume](#resume-or-fine-tune)) |
-| [`config_gait_reference_no_rand.yaml`](config_gait_reference_no_rand.yaml) | yes | Debugging without randomization: flat ground, no pushes, no physics randomization, zero sensor noise, biases and backlash, no action delay. A fixed 1-step encoder lag and a 0-1 step IMU lag remain. It uses the older `centered` action map and no equivariant actor, so its checkpoints are not compatible with the residual-map configs |
-| [`ablations/`](ablations/) | no | A generator plus generated copies of `config.yaml`; see below |
-| [`config_getup.yaml`](config_getup.yaml) | no | **Get-up / fall recovery** (`--task BipedRobotV2GetUp`, a separate policy). The walking sim2real recipe (servo model, backlash, sensor model, DR) with get-up starts (a fall bank of limp-settled falls, `make_fall_bank.py`), get-up rewards, time-out-only episodes, the joint box `joint_limits_deg` = URDF x 0.9, `action_scale_rad: box` around the deployed walking home, no equivariant actor. Writes to `runs_getup/`, `checkpoints_getup/`, `exported_getup/`, `data_getup/`. See the comments at the top of the file |
+| [`chhaya.yaml`](chhaya.yaml) | yes | Walking: one whole-body policy for all 20 joints, gait-table imitation, mirror-equivariant actor, rough terrain, full randomization, residual action map with explicit numbers |
+| [`chhaya_lite.yaml`](chhaya_lite.yaml) | yes | `chhaya.yaml` with the hobby-servo model (`../docs/CHHAYA_LITE.md`) |
+| [`chhaya_getup.yaml`](chhaya_getup.yaml) | no | **Get-up / fall recovery** (`--task ChhayaGetUp`, a separate policy). The walking sim2real recipe (servo model, backlash, sensor model, DR) with get-up starts (a fall bank of limp-settled falls, `make_fall_bank.py`), get-up rewards, time-out-only episodes, the joint box `joint_limits_deg` = URDF x 0.9, `action_scale_rad: box` around the deployed walking home, no equivariant actor. Writes to `runs_getup/`, `checkpoints_getup/`, `exported_getup/`, `data_getup/`. See the comments at the top of the file |
 
-Reference motion is optional. `config.yaml` trains with no gait table at all; the gait-reference
-configs only add the `reference:` block and the `imitation_*` terms on top.
-
-### `ablations/`
-
-[`generate.py`](ablations/generate.py) writes full config files, each one `config.yaml` with a
-few overrides deep-merged on top. Each ablation is a whole file (not a command-line override), because
-the saved run config must be exactly what ran. To make your own variant, add an entry to the
-`ABLATIONS` dict (an override dictionary shaped like the config) and run:
-
-```bash
-python config/ablations/generate.py     # writes config/ablations/<name>.yaml
-```
-
-The `.yaml` files already in that folder are snapshots generated from earlier versions of
-`config.yaml` (they use the `centered` action map). Regenerate before using one as a baseline.
+Reference motion is optional: without the `reference:` block and the `imitation_*` terms the env falls back to
+the hand-written gait rewards.
 
 ---
 
@@ -167,7 +150,7 @@ positions relative to the home pose (12), joint velocities (12), previous action
 Fields used only by the legacy MuJoCo trainer (no effect in Isaac Lab): `worker_groups`,
 `workers_per_group`, `sim_frequency`, `max_episode_steps`. Not read by `src/isaaclab/train.py`
 either: `overwrite_model`, `test_environment`, `test_episodes`. The Isaac Lab episode length is set
-in `biped_env_cfg.py`. `train.env_config.action_rate_limit` (set to `0` in `config.yaml`) is not read
+in `biped_env_cfg.py`. `train.env_config.action_rate_limit` (set to `0` in `chhaya.yaml`) is not read
 by any code: the schema accepts it, nothing uses it. The robot-side rate limiter is a deployment
 setting, tested by the gate's `--rate`.
 
@@ -422,7 +405,7 @@ train:
 | `rel_heading_envs` | Robots in heading mode derive their yaw command from a random heading target, at `heading_control_stiffness × error`, clamped to `heading_max_ang_vel` |
 | `ranges` | Sampling ranges. The config is the source of truth for the command limit: the same shape and ranges are written into the exported bundle, so the robot clamps commands the same way |
 
-Keys you omit keep the environment defaults, which differ from `config.yaml`. With a gait table,
+Keys you omit keep the environment defaults, which differ from `chhaya.yaml`. With a gait table,
 keep the ranges inside the range the table was baked for.
 
 ### Observation noise and vibration
@@ -559,7 +542,7 @@ end value.
 ### Servo model and backlash
 
 The simulated servo is an identified model of the real STS3215 (BAM). Both blocks need a robot with
-a BAM actuator (`BipedRobotV2`). Method, parameters and validation are in
+a BAM actuator (Chhaya's robot asset). Method, parameters and validation are in
 [`actuator/README.md`](../actuator/README.md).
 
 ```yaml
@@ -702,7 +685,7 @@ Optional. Adds imitation of a gait table baked in
       imitation_foot_pos: 0.4
       imitation_contact: 0.5
       imitation_foot_height: 1.5
-      # ... see config_gait_reference.yaml for the full set
+      # ... see chhaya.yaml for the full set
 ```
 
 | Key | Meaning |
@@ -787,8 +770,7 @@ size from the constants in `biped_env_cfg.py`, not from your `events:` override.
 
 ### Make a no-randomization debug run
 
-Use [`config_gait_reference_no_rand.yaml`](config_gait_reference_no_rand.yaml), or switch things off
-in your own config:
+Switch things off in your own config:
 
 ```yaml
 train:
@@ -812,7 +794,7 @@ train:
 ### Resume or fine-tune
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 \
+python src/isaaclab/train.py --task Chhaya \
     --checkpoint checkpoints/<run>/step_<N>.pt --headless
 ```
 
@@ -828,8 +810,6 @@ continue at full strength, collapse them:
     curriculum_dr_full_steps: 1
     action_rate_weight_start: -0.1     # = action_rate_weight_end, no ramp
 ```
-
-[`config_gait_reference_resume.yaml`](config_gait_reference_resume.yaml) is an example of this.
 
 ### Change the command range
 
@@ -847,7 +827,7 @@ the cells inside it.
 ### Add a reference motion to your config
 
 Copy the `reference:` block and the `imitation_*` weights from
-[`config_gait_reference.yaml`](config_gait_reference.yaml), set the hand-written gait terms
+[`chhaya.yaml`](chhaya.yaml), set the hand-written gait terms
 (`gait_phase_contact`, `feet_air_time`, `swing_foot_height`) to 0 as the table now provides that, and
 optionally set `action_home_deg`, `action_scale_rad` and `spawn_height_m` to `auto`.
 

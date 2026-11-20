@@ -9,10 +9,10 @@
 #
 # Run (from training/, Isaac Lab python):
 #   1. Fall bank (once, and again after any change to the robot, the joint box or getup.settle):
-#        python src/isaaclab/make_fall_bank.py --config_path config/config_getup.yaml --headless
+#        python src/isaaclab/make_fall_bank.py --config_path config/chhaya_getup.yaml --headless
 #      -> data_getup/fall_bank.npz (train + held-out gate split, mirror-complete)
 #   2. Train:
-#        python -m src.isaaclab.train --task ChhayaGetUp --config_path config/config_getup.yaml --headless
+#        python -m src.isaaclab.train --task ChhayaGetUp --config_path config/chhaya_getup.yaml --headless
 #      -> runs_getup/ (TensorBoard), checkpoints_getup/<run>/
 #   3. Watch:  python -m src.isaaclab.play --task ChhayaGetUp --checkpoint checkpoints_getup/<run>/step_N.pt
 #              [--start_category supine|prone|left_side|right_side|upright|inverted]

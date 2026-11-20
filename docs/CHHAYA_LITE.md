@@ -17,8 +17,8 @@ Train either one with the same command (`ISAACLAB3.md` for the install):
 
 ```bash
 cd training
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml       --num_envs 1024
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya_lite.yaml  --num_envs 1024
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml       --num_envs 1024
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya_lite.yaml  --num_envs 1024
 ```
 
 On one GPU run them one after the other; two at once share the memory and each gets slower.

@@ -170,8 +170,8 @@ run there. `replay.py` and the parity scripts that need Isaac run in the Isaac L
 
    It prints the equivalent point pendulum (`mass`, `length`) for each hole, the peak gravity
    torque as a share of the continuous rating (with warnings if too high or too low), and writes
-   `rig/loads.json`. Copy that file to `data/sysid/loads.json` on the robot's Jetson.
-3. **Record.** In the Jetson's SysID tab ([BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson)):
+   `rig/loads.json`. Copy that file to `data/sysid/loads.json` on the robot.
+3. **Record.** In the robot runtime's SysID tab:
    start a session for the servo id, capture the hanging zero, record every trajectory at every
    `kp` and hole, and download the session zip. Do not remount the servo mid-session: BAM fits one
    offset across all of it. Unzip so the recordings (`<time>_<trajectory>_kp<kp>_h<hole>.json`) sit
@@ -204,7 +204,7 @@ run there. `replay.py` and the parity scripts that need Isaac run in the Isaac L
 7. **Run the parity tests** (below) if you changed the kernel or a simulator integration.
 8. **Set the robot-specific values.** On the robot, suspended, use the SysID tab's **Screen all
    joints** to measure per-joint hysteresis (backlash plus friction deadband) and set
-   `backlash.lash_deg_range`. Read the `TORQUE_LIMIT` and `DEADBAND` registers (the Jetson's
+   `backlash.lash_deg_range`. Read the `TORQUE_LIMIT` and `DEADBAND` registers (the runtime's
    `tools/servo_registers.py`) for `torque_scale` and `deadband_counts`. Set `stall_torque_cap_nm`
    to the datasheet stall unless you have stalled-torque data.
 9. **Point the config at it.** Set `actuator.params_file`. Nothing else changes.

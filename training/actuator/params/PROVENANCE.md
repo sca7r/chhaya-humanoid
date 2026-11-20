@@ -2,7 +2,7 @@
 
 Every file here is in BAM's own params JSON schema, which is exactly what
 `python -m bam.fit --output <file>` writes. To switch the simulator to a new fit, point
-`actuator_params` in `config/config.yaml` at that file; no code changes are needed.
+`actuator_params` in `config/chhaya.yaml` at that file; no code changes are needed.
 
 ## Validation against our own hardware — 2026-10-09
 

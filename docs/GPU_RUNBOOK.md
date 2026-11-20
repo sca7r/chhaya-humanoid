@@ -5,14 +5,12 @@ the instance busy only while it trains, and copy the results off before deleting
 
 ## 0. Before renting (on your VM)
 
-1. Push this repository to your GitHub (see `HANDOFF.md`).
-2. Run the tests once (no GPU needed), as in `HANDOFF.md`. The 11 arm tests
-   (`tests/test_arm_motion.py`, `tests/test_chhaya_mujoco.py`) must pass.
-3. Bake the gait table if you haven't (only the `config_gait_reference*.yaml` configs and some unit tests
-   read it; `chhaya.yaml` and `chhaya_lite.yaml` train without a motion reference). Always pass the style: a
+1. Clone this repository with its submodules on the GPU machine.
+2. Run the tests once (no GPU needed): `pytest tests` from `training/`.
+3. Bake the gait table if you haven't (`chhaya.yaml`, `chhaya_lite.yaml` and some unit tests read it). Always pass the style: a
    plain `python -m gait_studio.bake` uses a different style and gives a different table: `(cd robot_motion_reference && python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz)`.
 4. Check the battery and computer sizes and masses in `hardware/cad/parametric/chhaya_cad.py`
-   match the parts you will use (`ELECTRONICS_LAYOUT.md`), and regenerate if not.
+   match the parts you will use, and regenerate if not (`hardware/regenerate.sh`).
 
 ## Where to train
 
@@ -22,7 +20,7 @@ longer needs Isaac Sim, RT cores or a large disk, so the choice of GPU is much w
 | Option | Works? | Notes |
 |---|---|---|
 | RTX 3060 laptop (6 GB) | Yes by NVIDIA's requirements; **not yet measured** | free. Start with 1024 robots and a 300 k replay buffer. Mains power, cooling stand, overnight runs |
-| RTX 4090 24 GB, rented (≈ $0.34/h on RunPod Community) | Yes | the reference choice for a full-size run (4096 robots) |
+| RTX 4090 24 GB, rented (≈ ₹32/h on RunPod Community) | Yes | the reference choice for a full-size run (4096 robots) |
 | L4, A30, A100, H100, H200 (JarvisLabs and others) | Yes: RT cores are no longer needed | pick by price per hour; the simulation is the bottleneck, so a big data-centre card is not automatically faster per rupee |
 | CPU only | Yes, for tests | ≈ 30 robot-steps/s on 2 cores: checks the code, cannot train |
 
@@ -56,7 +54,7 @@ The environment has run on a CPU only. Check it on the GPU at small scale first:
 
 ```bash
 python src/isaaclab/env_check.py --num_envs 1024 --steps 200     # prints robot-steps/s
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --num_envs 1024
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml --num_envs 1024
 ```
 
 `env_check.py` should print 20 joints, 21 bodies, 2.423 kg, action size **20**, observation **370**
@@ -72,16 +70,14 @@ If it crashes, fix it on that machine before training.
 ## 4. Full run
 
 ```bash
-nohup python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml \
+nohup python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml \
       > train.log 2>&1 &
 ```
 
 Use `nohup` or `tmux` so a dropped SSH session doesn't kill the run. Checkpoints go to
 `checkpoints/Chhaya_SAC*/` every `save_steps`.
 
-**When to stop.** The legs-only runs on the old simulator took about 40–370 M steps. A 20-joint
-policy starting from scratch on a new simulator will differ; treat that only as an order of magnitude.
-Stop when, for about 30–60 min:
+**When to stop.** Stop when, for about 30–60 min:
 - `track_lin_vel_xy_exp` and the episode length have plateaued, and
 - terminations (`Episode_Termination/*`) are no longer falling.
 

@@ -1,8 +1,6 @@
 # 04 Chest, arms and head
 
-Do this after the legs and torso are assembled ([03](03_legs.md)). To prove the legs first, fit the
-electronics ([05](05_electronics.md)), do the standing test ([06](06_software.md)) and come back: the chest
-bolts on afterwards without taking anything apart.
+Do this after the legs and torso are assembled ([03](03_legs.md)).
 
 Parts: the 20 printed parts in [`print/README.md`](../../print/README.md), 8 servos, 2 micro
 servos and the screws listed under "fasteners" in [`bom/bom.csv`](../../bom/bom.csv).
@@ -51,9 +49,8 @@ scripted; the walking policy doesn't know about them.
 
 ## Software
 
-The on-robot runtime ([06](06_software.md)) drives the 12 leg servos. Chhaya's
-policy commands all 20 joints, so the runtime needs the 8 arm servos added (same bus and protocol),
-plus the claws. That is **not written yet**.
+The policy commands all 20 bus servos; the claws are scripted on top. The on-robot runtime that does
+this is **not written yet** ([06](06_software.md)).
 
 ## Check
 

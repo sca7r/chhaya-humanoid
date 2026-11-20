@@ -1,4 +1,4 @@
-"""Get-up task plumbing without Isaac: config_getup.yaml (joint box = URDF x 0.9, box action scales reach it exactly),
+"""Get-up task plumbing without Isaac: chhaya_getup.yaml (joint box = URDF x 0.9, box action scales reach it exactly),
 env_config's getup / joint-limit handlers, the critic mirror table with the extra dims, and the MuJoCo env's get-up
 mode (zero command / phase, start from a fall-bank state with the Jetson re-arm). Run from training/:
     python -m pytest tests/test_getup_config.py -q
@@ -21,7 +21,7 @@ from utils import Config  # noqa: E402
 from utils.residual_action import JOINT_TYPES, actions_to_targets_np, home_rad, limits_rows_deg, scale_pair_rad  # noqa: E402
 from utils.residual_home import freeze_residual_map  # noqa: E402
 
-CFG = os.path.join(ROOT, "config", "config_getup.yaml")
+CFG = os.path.join(ROOT, "config", "chhaya_getup.yaml")
 
 
 def _frozen():
@@ -98,7 +98,7 @@ def _defaults():
     return _module_literal(os.path.join("envs", "isaaclab", "getup_env_cfg.py"), "GETUP_DEFAULTS")
 
 
-def test_config_getup_block_has_every_default_key():
+def test_chhaya_getup_block_has_every_default_key():
     block = Config(CFG).train.env_config.getup
     assert set(block) == set(_defaults())                     # the config is the source of truth: nothing implicit
     for k, v in _defaults().items():

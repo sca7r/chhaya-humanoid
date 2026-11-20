@@ -6,22 +6,17 @@ evaluation, the servo model and policy export. Run everything from this folder.
 | For Chhaya | |
 |---|---|
 | Config | `config/chhaya.yaml` (one whole-body policy commands all 20 joints: 12 legs + 8 arms) |
-| Train | `python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml` |
+| Train | `python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml` |
 | How it works | [`../docs/TRAINING.md`](../docs/TRAINING.md) |
 | On a rented GPU | [`../docs/GPU_RUNBOOK.md`](../docs/GPU_RUNBOOK.md) |
 | Physics and servo-load checks | `python -m chhaya.physics_check`, `python -m chhaya.servo_load` → [`../docs/physics/`](../docs/physics/) |
 
-The rest of this page is the reference documentation of the training stack. It is written around
-the legs-only rig (`config/config.yaml`: Chhaya without chest, head and arms, the 12-joint robot the
-stack was first built for). Everything in it applies to Chhaya; where Chhaya differs (20 joints,
-whole-body policy) [`../docs/TRAINING.md`](../docs/TRAINING.md) is the authority. Credits and
-licences: [`../NOTICE.md`](../NOTICE.md).
+The rest of this page is the reference documentation of the training stack.
 
 ---
 
 # Training stack reference
 
-**A small 3D-printed robot that learns to walk in simulation and runs the learned policy on the real hardware.**
 The stack has its own RL algorithms, network backbones, environments, reward functions, servo model
 and gait generator.
 
@@ -69,12 +64,12 @@ the gate run without it.
 ### 2. Train
 
 ```bash
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config.yaml
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml
 ```
 
 | Argument | |
 |---|---|
-| `--task` | `BipedRobotV2` (current robot) or `BipedRobot` (the older V1) |
+| `--task` | `Chhaya` (walking, the default) or `ChhayaGetUp` (fall recovery) |
 | `--config_path` | The YAML that defines the run (see [Configuring and experimenting](#configuring-and-experimenting)) |
 | `--num_envs N` | Number of parallel robots; defaults to the env config |
 | `--checkpoint <path>` | Resume from a checkpoint |
@@ -93,7 +88,7 @@ Checkpoints are written to `checkpoints/<model_name>_<timestamp>/step_<N>.pt`.
 
 ```bash
 # Isaac Lab (add --pushes to shove the robots)
-python src/isaaclab/play.py --task BipedRobotV2 --checkpoint checkpoints/<run>/step_<N>.pt
+python src/isaaclab/play.py --task Chhaya --checkpoint checkpoints/<run>/step_<N>.pt
 
 # MuJoCo sim-to-sim with a fixed command: a different simulator and servo implementation
 python src/mujoco/sim2real.py --checkpoint checkpoints/<run>/step_<N>.pt --vx 0.1
@@ -115,8 +110,7 @@ python -m src.mujoco.policy_gate --bundle exported/<bundle>
 | **Verify** | Cross-checks the bundle against the training actor. |
 | **Gate** | Runs the bundle in MuJoCo the way the robot does: same rate limiter, same history start. Fails it on falls, chatter, saturated joints or a bad standing pose. Exit code 0 = PASS. |
 
-Copy the bundle to `models/<name>/` in [BipedRobotJetson](https://github.com/AsterisCrack/BipedRobotJetson).
-It needs no torch, no Isaac Lab and nothing from this repo.
+The bundle runs on the robot without torch, Isaac Lab or anything else from this repo.
 
 Every script and argument is listed in [`src/README.md`](src/README.md).
 
@@ -131,11 +125,9 @@ directory keeps a copy, so every checkpoint stays reproducible.
 
 | Config | Use |
 |---|---|
-| [`config.yaml`](config/config.yaml) | Start here: velocity tracking with hand-written gait rewards, no reference motion |
-| [`config_gait_reference.yaml`](config/config_gait_reference.yaml) | Same, plus imitation of a Gait Studio gait table |
-| [`config_gait_reference_resume.yaml`](config/config_gait_reference_resume.yaml) | Continue or fine-tune a run: frozen action map, curricula at full strength from step 1 |
-| [`config_gait_reference_no_rand.yaml`](config/config_gait_reference_no_rand.yaml) | No randomization, for debugging |
-| [`ablations/`](config/ablations/) | A generator for single-change variants (the committed snapshots are from an older `config.yaml`; regenerate before use) |
+| [`chhaya.yaml`](config/chhaya.yaml) | Walking: one whole-body policy for all 20 joints, imitating the Gait Studio gait table |
+| [`chhaya_lite.yaml`](config/chhaya_lite.yaml) | The same with hobby servos ([`../docs/CHHAYA_LITE.md`](../docs/CHHAYA_LITE.md)) |
+| [`chhaya_getup.yaml`](config/chhaya_getup.yaml) | Get-up / fall recovery, a separate policy (`--task ChhayaGetUp`) |
 
 The sections below are the knobs you'll reach for most. The full reference is
 [`config/README.md`](config/README.md).
@@ -287,11 +279,11 @@ pip install -r gait_studio/requirements.txt
 python -m gait_studio.app                       # design: http://localhost:8080
 python -m gait_studio.bake --style processed/gait_table_style.yaml --out processed/gait_table.npz
 cd ..
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/config_gait_reference.yaml
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml
 ```
 
 To add imitation to your own config, add a `reference:` block pointing at the table and give the
-`imitation_*` reward terms a weight. [`config_gait_reference.yaml`](config/config_gait_reference.yaml)
+`imitation_*` reward terms a weight. [`chhaya.yaml`](config/chhaya.yaml)
 shows how. The training config stays the source of truth for commands and the action map; the
 table only supplies motion and cadence.
 
@@ -300,7 +292,7 @@ table only supplies motion and cadence.
 ## Project structure
 
 ```
-BipedRobot/
+training/
 ├── config/                  Training configs + Pydantic schema
 ├── actuator/                Servo model (BAM kernel, backlash), identification, replay, parity tests
 ├── envs/
@@ -309,8 +301,7 @@ BipedRobot/
 │   └── assets/              Simulation models (MJCF, USD) and Isaac Lab robot config
 ├── src/
 │   ├── isaaclab/            train, play, export_onnx, verify_onnx_bundle, diagnostics
-│   ├── mujoco/              policy_gate, sim2real viewer, sweeps
-│   └── tools/               Symmetry validators, interactive joint/IK debuggers
+│   └── mujoco/              policy_gate, sim2real viewer, replay videos, browser-demo export
 ├── utils/                   Config loader, gait-table reader, command limit, action map, IK
 ├── tests/                   pytest suite
 ├── torch_rl_algorithms/     Submodule: RL algorithms and network backbones
@@ -328,7 +319,7 @@ BipedRobot/
 | [`robot_motion_reference/gait_studio/README.md`](robot_motion_reference/gait_studio/README.md) | Gait Studio |
 
 ```bash
-python -m pytest tests -q   # two legacy test files are stale
+python -m pytest tests -q
 ```
 
 ---
@@ -345,11 +336,11 @@ description (URDF + meshes) is the one this folder simulates (`robot_hardware/` 
 
 The servo model builds on Rhoban's [BAM](https://github.com/Rhoban/bam). Gait Studio is inspired
 by Disney Research's *Interactive Design of Stylized Walking Gaits for Robotic Characters*
-(SIGGRAPH 2024). The power PCB of the original leg platform was fabricated with support from
-[PCBWay](https://www.pcbway.com/). Full credits: [`../NOTICE.md`](../NOTICE.md).
+(SIGGRAPH 2024). The power PCB was fabricated with support from [PCBWay](https://www.pcbway.com/).
 
 ---
 
 ## License
 
-[MIT](LICENSE.txt). The hardware design in `../hardware/` is licensed separately under CERN-OHL-P-2.0.
+[MIT](LICENSE.txt), derived from Pablo Gomez Martinez's MIT-licensed training stack (copyright notice in
+`LICENSE.txt`). The hardware design in `../hardware/` is licensed separately under CERN-OHL-P-2.0.

@@ -10,7 +10,7 @@ import importlib
 TASKS: dict[str, tuple[str, str, str]] = {
     "Chhaya": ("envs.isaaclab.biped_env_cfg:ChhayaEnvCfg", "envs.isaaclab.biped_env:BipedEnv",
                      "checkpoints"),
-    # Get-up / fall recovery (config/config_getup.yaml). Its outputs live in runs_getup/ and checkpoints_getup/.
+    # Get-up / fall recovery (config/chhaya_getup.yaml). Its outputs live in runs_getup/ and checkpoints_getup/.
     "ChhayaGetUp": ("envs.isaaclab.getup_env_cfg:ChhayaGetUpEnvCfg",
                           "envs.isaaclab.getup_env:BipedGetUpEnv", "checkpoints_getup"),
 }

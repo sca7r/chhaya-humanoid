@@ -33,7 +33,7 @@ CROUCH = {"hip_yaw": 0.0, "hip_roll": 0.0, "hip_pitch": -10.0, "knee": -26.0, "a
 SCALE = {"hip_yaw": 0.6, "hip_roll": 0.45, "hip_pitch": 0.8, "knee": 0.6, "ankle_roll": 0.45, "ankle_pitch": 0.6}
 CONFIG_YAML_SCALE = {"hip_yaw": 0.45, "hip_roll": 0.45, "hip_pitch": {"pos": 0.6, "neg": 0.8}, "knee": {"pos": 0.55, "neg": 0.8}, "ankle_roll": 0.35, "ankle_pitch": {"pos": 0.6, "neg": 0.35}}   # config/config.yaml since 2026-10-25
 # homes with a documented spawn clearance (Isaac frame): the hand home of the 2026-10-23 17:36 bake, the home before the v2
-# table (CHANGES.md: "reads 15.43 mm" in MuJoCo = 5.43 mm here), and the 2026-10-21 v2 home at 0.28 (5.4 mm)
+# table ("reads 15.43 mm" in MuJoCo = 5.43 mm here), and the 2026-10-21 v2 home at 0.28 (5.4 mm)
 HAND_HOME = {"hip_yaw": 1.5, "hip_roll": -6.8, "hip_pitch": -6.5, "knee": -19.2, "ankle_roll": 6.9, "ankle_pitch": -12.6}
 OLD_HOME = {"hip_yaw": 0.0, "hip_roll": -2.5, "hip_pitch": -8.0, "knee": -22.0, "ankle_roll": 2.5, "ankle_pitch": -14.0}
 V2_HOME = {"hip_yaw": 2.1, "hip_roll": -6.2, "hip_pitch": -17.7, "knee": -36.6, "ankle_roll": 6.5, "ankle_pitch": -18.7}

@@ -16,7 +16,7 @@ A state is captured at the first step its settle criterion holds (and settle.min
 moving: a free-falling robot has a quiet gyro and quiet joints); envs that never settle within settle.max_s are
 dropped. The bank stores every state plus its exact mirror and a held-out gate split (build_bank).
 
-    python src/isaaclab/make_fall_bank.py --config_path config/config_getup.yaml --headless [--num_envs 4096 --rounds 4]
+    python src/isaaclab/make_fall_bank.py --config_path config/chhaya_getup.yaml --headless [--num_envs 4096 --rounds 4]
 """
 import argparse
 import os
@@ -25,7 +25,7 @@ import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Generate the get-up fall bank")
-parser.add_argument("--config_path", type=str, default="config/config_getup.yaml")
+parser.add_argument("--config_path", type=str, default="config/chhaya_getup.yaml")
 parser.add_argument("--num_envs", type=int, default=4096)
 parser.add_argument("--rounds", type=int, default=4)
 parser.add_argument("--out", type=str, default=None, help="Default: the config's env_config.getup.bank_path")

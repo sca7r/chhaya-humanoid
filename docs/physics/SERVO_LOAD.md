@@ -1,15 +1,15 @@
 # Servo load check
 
-chhaya.yaml: 2.423 kg, legs-only rig 1.661 kg. Servos: legs sts3215_12v, arms sts3215_12v, supply 12 V. Leg stall 2.94 N m (continuous guide 0.98), arm stall 2.94 N m.
+chhaya.yaml: 2.423 kg. Servos: legs sts3215_12v, arms sts3215_12v, supply 12 V. Leg stall 2.94 N m (continuous guide 0.98), arm stall 2.94 N m.
 
-| Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous | One foot, legs-only rig |
-|---|---|---|---|---|---|
-| l_hip_yaw | 0.01 | 0.01 | 0 % | 1 % | 0.01 |
-| l_hip_roll_joint | 0.01 | 1.26 | 43 % | 128 % | 0.87 |
-| l_hip_pitch_joint | 0.07 | 0.12 | 4 % | 12 % | 0.03 |
-| l_knee_joint | 0.04 | 0.13 | 4 % | 13 % | 0.13 |
-| l_ankle_roll_joint | 0.04 | 1.19 | 40 % | 121 % | 0.82 |
-| l_ankle_pitch_joint | 0.27 | 0.55 | 19 % | 57 % | 0.32 |
+| Joint (left leg) | Stand, both feet | One foot, Chhaya | % of stall | % of continuous |
+|---|---|---|---|---|
+| l_hip_yaw | 0.01 | 0.01 | 0 % | 1 % |
+| l_hip_roll_joint | 0.01 | 1.26 | 43 % | 128 % |
+| l_hip_pitch_joint | 0.07 | 0.12 | 4 % | 12 % |
+| l_knee_joint | 0.04 | 0.13 | 4 % | 13 % |
+| l_ankle_roll_joint | 0.03 | 1.19 | 40 % | 121 % |
+| l_ankle_pitch_joint | 0.28 | 0.55 | 19 % | 57 % |
 
 | Knee bend | Knee torque, both legs | Knee torque, one leg | % of stall (one leg) |
 |---|---|---|---|

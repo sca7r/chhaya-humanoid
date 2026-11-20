@@ -57,7 +57,7 @@ From `training/`:
 python src/isaaclab/env_check.py --num_envs 2 --steps 200
 
 # 2. train
-python src/isaaclab/train.py --task BipedRobotV2 --config_path config/chhaya.yaml --num_envs 1024
+python src/isaaclab/train.py --task Chhaya --config_path config/chhaya.yaml --num_envs 1024
 
 # 3. watch / evaluate a checkpoint
 python src/isaaclab/play.py --checkpoint checkpoints/<run>/step_<N>.pt --num_envs 4 --viz newton --command 0.15 0 0
@@ -111,8 +111,7 @@ What else changed:
 | Item | State |
 |---|---|
 | `src/isaaclab/check_actuator.py`, `jitter_probe.py`, `make_fall_bank.py`, `profile_train.py`, `record_reel.py`, `teleop.py` | still use the Isaac Lab 2.x launcher; they will not start |
-| Old V1 robot task (`BipedRobot`) | dropped (its USD is PhysX-only) |
-| `export_onnx.py`, `policy_gate.py`, on-robot runtime | not affected by this port, but still assume 12 joints (see `READINESS.md`) |
+| On-robot runtime | not written yet for the 20-joint policy |
 | Video recording during training | removed; use `play.py --viz` |
 
 ## Known differences from the PhysX version

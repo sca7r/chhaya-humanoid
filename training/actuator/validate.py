@@ -2,7 +2,7 @@
 """
 actuator/validate.py -- do the published 12 V STS3215 parameters describe OUR servos?
 
-This is the Phase-2 gate in TODO_SIM2REAL.md. It takes one SysID session recorded on the
+This is the sim-to-real servo gate. It takes one SysID session recorded on the
 Jetson (copied to actuator/data/<session>/) and:
 
   1. Screens out PWM-saturated recordings before anything else. Saturated frames make

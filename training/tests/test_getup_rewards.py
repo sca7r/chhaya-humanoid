@@ -161,7 +161,7 @@ def test_foot_flat_quality_has_no_dead_zone():
 
 def _config():
     import yaml
-    with open(os.path.join(ROOT, "config", "config_getup.yaml"), encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "config", "chhaya_getup.yaml"), encoding="utf-8") as fh:
         return yaml.safe_load(fh)["train"]["env_config"]
 
 
@@ -267,7 +267,7 @@ def test_success_reward_is_the_value_of_standing_at_home_forever():
     endless perfect hold would be, so success never pays less than any non-terminal state can (all score <= r_home
     per step), and the Q scale stays that of the old time-out-bootstrapped episodes."""
     import yaml
-    with open(os.path.join(ROOT, "config", "config_getup.yaml"), encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "config", "chhaya_getup.yaml"), encoding="utf-8") as fh:
         full = yaml.safe_load(fh)
     w, gamma = full["train"]["env_config"]["reward_weights"], full["buffer"]["discount_factor"]
     r_home = sum(v for k, v in w.items() if v > 0 and k != "getup_success")

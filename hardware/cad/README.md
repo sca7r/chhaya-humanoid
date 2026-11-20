@@ -6,7 +6,6 @@
 | [`step/bodies/`](step/bodies/) | One STEP per printed part |
 | [`parametric/chhaya_cad.py`](parametric/chhaya_cad.py) | CadQuery source of the chest, head, arms and claws: every dimension is a named constant. Their STEP files in `step/bodies/` are generated from it (`../regenerate.sh`) |
 | [`parametric/checks/`](parametric/checks/) | Results of the automatic checks on those parts: overlap, clearance, strength |
-| [`fusion/`](fusion/) | The Fusion 360 archive (`Robot.f3z`), attached to the [latest release](https://github.com/AsterisCrack/BipedRobotHardware/releases/latest) because it is over GitHub's 100 MB file limit |
 
 STEP opens in any CAD tool (FreeCAD, Onshape, SolidWorks, Fusion 360...). Units are millimetres, and the
 robot frame follows the URDF: X forward, Y left, Z up.
