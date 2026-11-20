@@ -274,7 +274,7 @@ exploration:
   decay_rate: 1.0e-07
   start_steps: 4096
 buffer:
-  size: 1000000
+  size: 200000    # ~0.7 GB on the GPU: 1M (3.5 GB) overflowed a 6 GB laptop card
   return_steps: 5
   batch_iterations: 10
   batch_size: 2048
