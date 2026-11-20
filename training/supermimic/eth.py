@@ -271,7 +271,12 @@ class GetUpCfg:
     w_stand: float = 3.0            # stand score * pose quality
     w_feet_flat: float = 1.5        # stand score * flat soles on the ground
     w_still: float = -1.0           # stand score * base speed^2
-    w_action_rate: float = -0.05
+    # Smoothness (the first run thrashed): action changes, joint speed, and a soft cap on joint speed. A servo
+    # jerking at 5 rad/s through its gears is what breaks a printed robot in a fall.
+    w_action_rate: float = -0.5
+    w_joint_vel: float = -0.005    # sum qd^2 over the 20 joints
+    w_joint_vel_cap: float = -0.2  # sum relu(|qd| - joint_vel_cap)^2
+    joint_vel_cap: float = 3.0
     w_limits: float = -1.0
     stand_height_frac: float = 0.9
     stand_tilt_deg: float = 15.0
@@ -309,6 +314,8 @@ class GetUpMDP(ChhayaMDP):
              "feet_flat": cf.w_feet_flat * score * (c * torch.exp(-self._roll ** 2 / cf.std_roll ** 2)).mean(-1),
              "still": cf.w_still * score * ((v ** 2).sum(-1) + (w ** 2).sum(-1)),
              "action_rate": cf.w_action_rate * ((a.clamp(-1, 1) - a_prev) ** 2).sum(-1),
+             "joint_vel": cf.w_joint_vel * (self._sl(s2, self.iqd) ** 2).sum(-1),
+             "joint_vel_cap": cf.w_joint_vel_cap * (torch.relu(self._sl(s2, self.iqd).abs() - cf.joint_vel_cap) ** 2).sum(-1),
              "limits": cf.w_limits * (torch.relu(q - self.hi) + torch.relu(self.lo - q)).sum(-1)}
         if terms:
             return {k: x * self.dt for k, x in t.items()}
