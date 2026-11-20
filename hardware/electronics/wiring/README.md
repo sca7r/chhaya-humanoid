@@ -4,11 +4,12 @@
 
 ```
 3S LiPo (XT60) ──► Power PCB ──┬──► SERVOS terminal ──► servo bus power (20× ST3215: 4 chains, one per limb)
-                    (fused,    └──► computer terminal (labelled JETSON) ──► 12 V to 5 V step-down ──► Pi 5 USB-C
-                     switched)
+                    (fused,    └──► computer terminal (labelled JETSON) ──► 12 V to 5 V step-down
+                     switched)                                                ├──► Pi 5 (USB-C pigtail)
+                                                                              └──► claw servos' 5 V and GND
 Pi UART0 (pins 8/10) ──► Waveshare Bus Servo Adapter (A) ──► servo bus data line
 Pi I2C1 (pins 3/5)   ──► BNO055 IMU (address 0x28)
-Pi PWM (pins 32/33)  ──► left / right claw micro servo (5 V from the Pi's 5 V pins)
+Pi PWM (pins 32/33)  ──► left / right claw micro servo signal (pin 34: common ground)
 ```
 
 ## Servo ID map
@@ -59,14 +60,15 @@ reach the adapter.
 | 9 | GND | BNO055 GND |
 | 32 | GPIO12, hardware PWM | left claw servo signal |
 | 33 | GPIO13, hardware PWM | right claw servo signal |
-| 2, 4 | 5 V | claw servos' + (both) |
-| 34, 39 | GND | claw servos' − |
+| 34 | GND | claw servos' ground reference (their power comes from the step-down) |
 
 The Waveshare adapter is wired **straight through** (TX to TX, RX to RX), not crossed like most UARTs.
 Crossing them gives complete silence on the bus.
 
-The Pi's 5 V pins are its input rail, so the claw servos draw from the 5 A step-down directly (an MG90S stalls at
-about 0.7 A; the Pi itself needs about 2 A here). Their 3.3 V PWM signal drives an MG90S reliably.
+The claw servos take their 5 V and ground straight from the step-down's terminals, next to the Pi's pigtail, not
+from the Pi's header: a stalling MG90S (about 0.7 A) then cannot pull the Pi's supply down. The Pi needs about 2 A
+here, so both fit in the step-down's 5 A. Their 3.3 V PWM signal from pins 32/33 drives an MG90S reliably; pin 34
+ties the grounds together at the Pi.
 
 ## IMU mounting
 

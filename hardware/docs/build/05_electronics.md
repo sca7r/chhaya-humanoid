@@ -11,7 +11,8 @@ blade fuse in each holder.
 - **BATTERY** (XT60): the 3S LiPo.
 - **SWITCH**: your power switch. It is in series with both outputs, so it turns the whole robot on and off.
 - **SERVOS**: servo bus power.
-- **JETSON** (the computer output): the 12 V to 5 V step-down, its USB-C lead to the Raspberry Pi 5.
+- **JETSON** (the computer output): the 12 V to 5 V step-down. From its 5 V terminals: the USB-C pigtail to the
+  Raspberry Pi 5, and the two claw servos' power.
 
 Before connecting anything, check the polarity of every output with a multimeter.
 
@@ -23,7 +24,7 @@ the bus adapter on the rack with a 30 cm extension lead.
 ## 3. Raspberry Pi and servo adapter
 
 Waveshare Bus Servo Adapter (A), wired **straight through**: Pi pin 8 (TX) to adapter TX, pin 10 (RX)
-to adapter RX, pin 6 to GND. Claw servos: signal to pins 32 (left) and 33 (right), power from the 5 V pins
+to adapter RX, pin 6 to GND. Claw servos: signal to pins 32 (left) and 33 (right), power from the step-down's 5 V terminals
 (see [wiring](../../electronics/wiring/README.md#raspberry-pi-5-header)).
 
 ## 4. IMU

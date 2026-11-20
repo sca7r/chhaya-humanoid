@@ -25,7 +25,7 @@ The picture is a render of the model: Chhaya has not been built yet.
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
 | Structure | 34 printed parts, PLA or PETG |
-| Cost | ≈ ₹58,700 with a Raspberry Pi 5 (2 GB). Cheaper options in [`bom/`](bom/README.md#cheaper-options) |
+| Cost | ≈ ₹58,860 with a Raspberry Pi 5 (2 GB). Cheaper options in [`bom/`](bom/README.md#cheaper-options) |
 
 ---
 
@@ -48,14 +48,14 @@ The picture is a render of the model: Chhaya has not been built yet.
 | Part | ₹ |
 |---|---|
 | 20× Waveshare ST3215 servos | 41,400 |
-| Raspberry Pi 5, 2 GB, Active Cooler and 12 V to 5 V step-down | 9,630 |
+| Raspberry Pi 5, 2 GB, Active Cooler, 12 V to 5 V step-down and pigtail | 9,780 |
 | 2× micro servos for the claws (estimate) | 560 |
 | BNO055 IMU | 1,600 |
 | Power PCB | 2,350 |
 | Waveshare Bus Servo Adapter (A) | 470 |
 | 3S 2200 mAh LiPo | 1,880 |
 | Fuses, power switch, servo leads (estimate) | 820 |
-| **Total** | **≈ 58,700** |
+| **Total** | **≈ 58,860** |
 
 List prices converted at ₹94 per US dollar; details, links and cheaper options are in [`bom/`](bom/). The policy
 is a small network that runs on the CPU, so a Raspberry Pi 5 is enough. Not in the prices: the microSD card,

@@ -18,8 +18,8 @@ and error: one neural network drives all 20 of its joints, 50 times a second.
   <img src="docs/media/four_views.png" alt="Chhaya mid-stride from the front, side, back and an isometric view" width="90%"/>
 </p>
 
-**[Walk Chhaya in your browser](https://sca7r.github.io/chhaya-humanoid/)**: tap the floor and it walks there.
-The same brain that learned to walk drives it on your device, with nothing to install.
+**[Walk Chhaya in your browser](https://sca7r.github.io/chhaya-humanoid/)**: the same brain, running on your
+device, with nothing to install.
 
 ## What Chhaya can do
 
@@ -58,7 +58,7 @@ trusted. The full story, with videos of each stage, is in [`docs/JOURNEY.md`](do
 | Printed parts, PLA or PETG | 34 | [`hardware/print/`](hardware/print/); the servos themselves are the frame |
 
 The full bill of materials, with suppliers and prices, is in [`hardware/bom/`](hardware/bom/). Chhaya costs
-about ₹58,700 with a Raspberry Pi 5, most of it the 20 servos. Cheaper options are in the
+about ₹58,860 with a Raspberry Pi 5, most of it the 20 servos. Cheaper options are in the
 [BOM](hardware/bom/README.md#cheaper-options).
 
 | Specification | Value |
@@ -66,7 +66,7 @@ about ₹58,700 with a Raspberry Pi 5, most of it the 20 servos. Cheaper options
 | Height | about 54 cm |
 | Mass | 2.42 kg in the model, with battery and Raspberry Pi 5 |
 | Joints | per leg: hip yaw, hip roll, hip pitch, knee, ankle roll, ankle pitch. Per arm: shoulder pitch, shoulder roll, arm yaw, elbow |
-| Control | one neural network for all 20 joints at 50 Hz. The claws are scripted |
+| Control | 50 Hz; the claws are scripted |
 | Walking speed | up to 0.2 m/s forward and backward, 0.15 m/s sideways, turning in place |
 
 Every printed part passes automatic overlap, clearance (1 mm or more) and strength (safety factor 3 or more)
@@ -75,16 +75,13 @@ checks, rerun whenever a dimension changes.
 ## Getting started
 
 1. **Source the hardware.** Order the parts in the [bill of materials](hardware/bom/).
-2. **Print the parts.** STL files are in [`hardware/print/`](hardware/print/). Use your printer's default PLA
-   profile. Print `ankle_and_hip.stl` tilted 45 degrees with at least 6 walls: it takes the hardest knocks
-   in a fall.
+2. **Print the parts.** STL files and settings are in [`hardware/print/`](hardware/print/).
 3. **Assemble the robot.** Follow the [build guide](hardware/docs/build/), from servo setup to the
    electronics.
 4. **Try it in simulation.** No robot or GPU is needed. See [Run in simulation](#run-in-simulation).
 5. **Train or fine-tune a policy.** Any recent NVIDIA GPU works, a laptop RTX 3060 included. See
    [Teach Chhaya yourself](#teach-chhaya-yourself).
-6. **Deploy to the robot.** Export the policy as an ONNX bundle and run it on the Raspberry Pi. See
-   [Where Chhaya is today](#where-chhaya-is-today) for what is ready.
+6. **Deploy to the robot.** The Raspberry Pi runtime is next (see [Where Chhaya is today](#where-chhaya-is-today)).
 
 ## Run in simulation
 
@@ -106,11 +103,12 @@ python -m chhaya.physics_check --out /tmp/phys
 pytest tests
 ```
 
-To watch a trained policy, run the MuJoCo check on an exported bundle. It walks the robot through standing,
-walking and control-delay tests and prints a pass or fail report:
+To try a trained policy without a GPU, download `chhaya-policies-v0.1.0.zip` from the
+[release](https://github.com/sca7r/chhaya-humanoid/releases), unzip it into `training/exported/` and run the MuJoCo
+check. It walks the robot through standing, walking and control-delay tests and prints a pass or fail report:
 
 ```bash
-python -m src.mujoco.policy_gate --bundle exported/chhaya_final
+python -m src.mujoco.policy_gate --bundle exported/policies/chhaya
 ```
 
 ## Talking to Chhaya
@@ -129,7 +127,7 @@ model, observation and action map as the MuJoCo check (`web/sim.mjs`). To refres
 
 ```bash
 cd training
-python -m src.mujoco.export_web --bundle exported/chhaya_final --trace 300   # writes web/assets/
+python -m src.mujoco.export_web --bundle exported/policies/chhaya --trace 300   # writes web/assets/
 cd ../web && npm install --no-save @mujoco/mujoco@3.17.0 onnxruntime-web@1.20.1 && node test_sim.mjs .
 python3 -m http.server 8000                                                 # open http://localhost:8000
 ```
@@ -197,7 +195,7 @@ chhaya/
 |---|---|
 | CAD, print files, URDF | done, all automatic checks pass |
 | Simulation model | done, physics checks pass ([`docs/physics/`](docs/physics/)) |
-| Walking | learned in simulation: forward, backward and sideways, turning both ways, recovering from pushes. Checked in MuJoCo |
+| Walking | learned in simulation ([what it can do](#what-chhaya-can-do)), checked in MuJoCo |
 | Turning | turns at about 60% of the asked-for rate on the spot. Being improved |
 | Hip servos | work hard while walking (about 1.15 N·m RMS, above the continuous rating). Being reduced |
 | Getting up | a get-up policy for the whole robot (arms included) is being trained for the next release |
@@ -208,7 +206,7 @@ chhaya/
 
 Issues and pull requests are welcome. Before opening a pull request:
 
-- run the test suite and `python -m chhaya.physics_check` from `training/`;
+- run `pytest tests` and the physics check from `training/` ([Run in simulation](#run-in-simulation));
 - change the CAD in `hardware/cad/parametric/chhaya_cad.py` and run `hardware/regenerate.sh`, rather than
   editing the generated URDF, MuJoCo, USD or STL files;
 - keep the leg geometry and servo mounting as they are: the trained policies depend on them.

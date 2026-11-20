@@ -12,7 +12,8 @@
 | 20 | Waveshare ST3215 servo, 12 V (12 legs + 8 arms) | 41,400 |
 | 1 | Raspberry Pi 5, 2 GB | 8,220 |
 | 1 | Raspberry Pi 5 Active Cooler | 470 |
-| 1 | 12 V to 5 V 5 A step-down, USB-C output (estimate) | 940 |
+| 1 | 12 V to 5 V 5 A step-down, screw-terminal output (estimate) | 940 |
+| 1 | USB-C power pigtail to the Pi (estimate) | 150 |
 | 2 | Micro servo for the claws, MG90S class (estimate) | 560 |
 | 1 | BNO055 IMU breakout | 1,600 |
 | 1 | Power distribution PCB ([`electronics/power_pcb`](../electronics/power_pcb/)) | 2,350 |
@@ -21,7 +22,7 @@
 | 2 | Blade fuses, 10 A (estimate) | 180 |
 | 1 | Power switch, 15 A at 12 V DC (estimate) | 280 |
 | 4 | Servo extension leads, 30 cm (estimate) | 360 |
-| | **Total** | **≈ ₹58,700** |
+| | **Total** | **≈ ₹58,860** |
 
 The servos are most of the cost. Prices are the suppliers' list prices from October 2026, converted at ₹94 per
 US dollar (November 2026) and rounded to ₹10; Indian shops, shipping and import duty change them, so check before
