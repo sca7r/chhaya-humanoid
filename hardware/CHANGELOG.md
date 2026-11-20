@@ -1,6 +1,6 @@
 # Changelog
 
-## Chhaya v1.0 (2026-11)
+## Chhaya v0.1.0 (2026-11-20)
 
 - Whole robot: 20 servo joints (12 legs, 8 arms), one-servo claws, halo head with a sensor plate.
 - Electronics rack under the chest: battery and Raspberry Pi 5; the chest stands on the rack.

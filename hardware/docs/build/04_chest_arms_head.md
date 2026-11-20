@@ -1,17 +1,17 @@
-# 07 Chest, arms and head
+# 04 Chest, arms and head
 
-Do this after the legs and torso are assembled ([03](03_legs.md)). If you'd rather prove the legs first, fit the electronics ([05](05_electronics.md)), do the standing test ([06](06_software.md)) and come back.
-The robot can be tested legs-only first: the chest bolts on afterwards without taking anything
-apart.
+Do this after the legs and torso are assembled ([03](03_legs.md)). To prove the legs first, fit the
+electronics ([05](05_electronics.md)), do the standing test ([06](06_software.md)) and come back: the chest
+bolts on afterwards without taking anything apart.
 
 Parts: the 20 printed parts in [`print/README.md`](../../print/README.md), 8 servos, 2 micro
 servos and the screws listed under "fasteners" in [`bom/bom.csv`](../../bom/bom.csv).
 
 ## Servo IDs
 
-Servo IDs continue after the legs (13 is used by `l_hip_yaw`). For example: 14–17 for the left
-arm (pitch, roll, yaw, elbow) and 18–21 for the right arm. Set them one at a time, as with the
-legs.
+Servo IDs continue after the legs (13 is `l_hip_yaw`): 14–17 for the left arm (shoulder pitch,
+shoulder roll, arm yaw, elbow) and 18–21 for the right arm, as in the
+[ID map](../../electronics/wiring/README.md#servo-id-map). Set them one at a time, as with the legs.
 
 ## Assembly
 
@@ -51,7 +51,7 @@ scripted; the walking policy doesn't know about them.
 
 ## Software
 
-The on-robot runtime (BipedRobotJetson, see [06](06_software.md)) drives the 12 leg servos. Chhaya's
+The on-robot runtime ([06](06_software.md)) drives the 12 leg servos. Chhaya's
 policy commands all 20 joints, so the runtime needs the 8 arm servos added (same bus and protocol),
 plus the claws. That is **not written yet**.
 

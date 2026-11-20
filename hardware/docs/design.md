@@ -86,8 +86,8 @@ down are the ones this assumes. Current result (`cad/parametric/checks/strength.
 | fixed jaw, middle, in the jaw plane | 45 N on the jaw tip | 5.9 MPa | 50.0 MPa | 8.4 |
 | fixed jaw, middle, across the jaw plane | 45 N on the jaw tip | 8.1 MPa | 50.0 MPa | 6.2 |
 | moving jaw, near the hub | 0.30 N*m (its micro servo stalls / strips first) | 8.1 MPa | 50.0 MPa | 6.1 |
-| wrist screws (4x M3), fore-aft | 45 N on the claw tip -> 113 N per screw | 113.0 MPa | 509.82158281536846 MPa | 4.5 |
-| wrist screws (4x M3), sideways | 45 N on the claw tip -> 55 N per screw | 54.5 MPa | 509.82158281536846 MPa | 9.4 |
+| wrist screws (4x M3), fore-aft | 45 N on the claw tip -> 113 N per screw | 113.0 MPa | 509.8 MPa | 4.5 |
+| wrist screws (4x M3), sideways | 45 N on the claw tip -> 55 N per screw | 54.5 MPa | 509.8 MPa | 9.4 |
 | shoulder bracket, plate beside the pad | shoulder-roll torque 4.9 N*m | 4.5 MPa | 50.0 MPa | 11.2 |
 | neck above the flange, fore-aft hit | 50 N on top of the hoop | 2.6 MPa | 25.0 MPa | 9.7 |
 | neck above the flange, side hit | 50 N on top of the hoop | 3.7 MPa | 25.0 MPa | 6.7 |

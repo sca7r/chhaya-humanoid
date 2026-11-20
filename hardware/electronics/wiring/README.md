@@ -1,7 +1,5 @@
 # Wiring
 
-A full wiring diagram is coming soon. Until then, this page has everything needed to wire the robot.
-
 ## Overview
 
 ```

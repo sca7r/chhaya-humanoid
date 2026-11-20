@@ -1,4 +1,4 @@
-# 04 Electronics
+# 05 Electronics
 
 Reference: [`electronics/wiring/`](../../electronics/wiring/) (pinouts, servo IDs) and
 [`electronics/power_pcb/`](../../electronics/power_pcb/) (the board).

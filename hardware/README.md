@@ -26,7 +26,7 @@ The picture is a render of the model: Chhaya has not been built yet. Credits and
 | IMU | BNO055 on I2C |
 | Power | 3S LiPo (11.1 V, 2200 mAh) through a custom power PCB |
 | Structure | 34 printed parts, PLA or PETG |
-| Cost | ≈ $619 with a Raspberry Pi 5 (2 GB). Cheaper options in [`../docs/BUDGET_ELECTRONICS.md`](../docs/BUDGET_ELECTRONICS.md) |
+| Cost | ≈ $624 with a Raspberry Pi 5 (2 GB). Cheaper options in [`../docs/BUDGET_ELECTRONICS.md`](../docs/BUDGET_ELECTRONICS.md) |
 
 ---
 
@@ -62,7 +62,7 @@ leg platform's source repository (linked in [`../NOTICE.md`](../NOTICE.md)).
 | **Total** | **≈ 619** |
 
 The policy is a small network that runs on the CPU, so the Raspberry Pi 5 is enough; a Jetson Orin Nano does not
-fit on the rack. The Pi setup is in [`bom/README.md`](bom/README.md#setting-up-the-raspberry-pi) and hasn't been
+fit on the rack. The Pi setup is in [build step 06](docs/build/06_software.md) and hasn't been
 tested on a robot yet. The legs alone (12 servos, no arms) come to ≈ $331 without a computer.
 
 Prices were checked in October 2026; details and links are in [`bom/`](bom/). Not in the prices: the microSD

@@ -80,11 +80,11 @@ def bend(name, part, normal, at, axis, M_nm, strength, how, clip=None):
     I, c = I_c(axis)
     sigma = M_nm * 1000.0 * c / I
     rows.append({"where": name, "load": how, "area_mm2": round(area, 1), "I_mm4": round(I), "stress_MPa": round(sigma, 1),
-                 "strength_MPa": strength, "SF": round(strength / sigma, 1)})
+                 "strength_MPa": round(strength, 1), "SF": round(strength / sigma, 1)})
 
 
 def direct(name, how, stress, strength):
-    rows.append({"where": name, "load": how, "stress_MPa": round(stress, 1), "strength_MPa": strength,
+    rows.append({"where": name, "load": how, "stress_MPa": round(stress, 1), "strength_MPa": round(strength, 1),
                  "SF": round(strength / stress, 1)})
 
 

@@ -7,7 +7,7 @@
 </p>
 
 Takes power from the LiPo (or a 12 V wall adapter on the bench) and distributes it to the servos and the
-Jetson, through one power switch.
+computer, through one power switch.
 
 **Fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored this board.**
 
@@ -19,7 +19,7 @@ Jetson, through one power switch.
 | Protection | A blade fuse on each input (XF-509P holders, FH1 and FH2) |
 | Input selection | Dual Schottky diode (SB2060FCT) OR-ing the two inputs, so you can plug both without back-feeding |
 | Switch | Screw terminal for an external power switch |
-| Outputs | Screw terminals (5.0 mm) for the servos and for the Jetson |
+| Outputs | Screw terminals (5.0 mm) for the servos and for the computer (labelled JETSON on the board) |
 | Other | 2× 1000 µF / 25 V bulk capacitors, power LED |
 | Board | 55 × 50 mm, 2 layers. All through-hole except 4 small SMD parts (2 capacitors, LED, resistor) |
 

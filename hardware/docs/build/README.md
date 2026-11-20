@@ -13,10 +13,8 @@ can't damage them.
 | [03 Legs](03_legs.md) | Assembling each leg, then the hips and torso |
 | [04 Chest, arms and head](04_chest_arms_head.md) | Mounting the chest, both arms, the claws and the head |
 | [05 Electronics](05_electronics.md) | Power PCB, wiring, IMU mounting and orientation |
-| [06 Software](06_software.md) | Jetson setup, first power-on, safe standing test |
+| [06 Software](06_software.md) | Raspberry Pi setup, first power-on, safe standing test |
 | [07 Troubleshooting](07_troubleshooting.md) | Common problems and fixes |
 
 Before you start, have everything in [`bom/bom.csv`](../../bom/bom.csv) and the printed parts from
 [`bom/printed_parts.csv`](../../bom/printed_parts.csv).
-
-Build photos are coming soon.

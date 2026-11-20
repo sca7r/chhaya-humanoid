@@ -6,7 +6,7 @@ against shops: confirm before ordering.** None of the swaps has been run on a ro
 
 | Original part | Cheaper option | Rough price | What it costs you |
 |---|---|---|---|
-| Jetson Orin Nano | Raspberry Pi 5 (2 GB) or Pi 4 | ₹4,500–6,000 | the upstream guide says the Pi 5 works with two settings changed but is untested on the robot |
+| Raspberry Pi 5, 2 GB | Raspberry Pi 5, 1 GB | ₹4,000–5,000 | nothing: the policy needs little memory. A Pi 4 is untested and has a different UART setup |
 | Custom power PCB | 5 V 5 A step-down module (XL4015 type), inline fuse, switch, XT60 lead; servos wired straight to the battery | ₹400–600 | you solder a small harness |
 | BNO055 IMU | MPU6050 | ₹150–250 | the BNO055 estimates tilt on-chip; the MPU6050 needs a small filter added to the robot software |
 | Waveshare bus servo adapter | keep it | ₹500–700 | already cheap; home-made wiring is less reliable at 1 Mbaud |

@@ -104,7 +104,6 @@ def main():
         cam.distance, cam.azimuth, cam.elevation = dist, az, el
         r.update_scene(d, cam, opt)
         ims[name] = Image.fromarray(r.render())
-        ims[name].save(out / f"{name}.png")
         r.close()
     c = Image.new("RGB", (3000, 1400), (245, 245, 247))
     c.paste(ims["front"], (0, 0)); c.paste(ims["back"], (1000, 0))
